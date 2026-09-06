@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>F&B Super Admin</title>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --navy: #111827;
+      --navy-2: #1f2937;
+      --navy-3: #374151;
+      --cream: #f8fafc;
+      --muted: #64748b;
+      --line: #e5e7eb;
+      --orange: #ea580c;
+      --orange-dark: #c2410c;
+      --green: #15803d;
+      --red: #b91c1c;
+      --white: #ffffff;
+      --shadow: 0 16px 40px rgba(15, 23, 42, 0.10);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--navy);
+      background: #eef2f7;
+    }
+
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+
+    .hidden { display: none !important; }
+
+    /* Login */
+    .login-screen {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at 12% 12%, rgba(234, 88, 12, .18), transparent 28%),
+        radial-gradient(circle at 86% 80%, rgba(30, 64, 175, .18), transparent 28%),
+        #111827;
+    }
+
+    .login-card {
+      width: min(430px, 100%);
+      padding: 34px;
+      border: 1px solid rgba(255,255,255,.13);
+      border-radius: 24px;
+      background: rgba(255,255,255,.97);
+      box-shadow: 0 30px 80px rgba(0,0,0,.28);
+    }
+
+    .brand-mark {
+      width: 50px;
+      height: 50px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 18px;
+      border-radius: 15px;
+      color: var(--white);
+      background: linear-gradient(135deg, var(--orange), #f59e0b);
+      font-size: 22px;
+      font-weight: 900;
+    }
+
+    .login-card h1 { margin: 0 0 7px; font-size: 26px; letter-spacing: -.6px; }
+    .login-card .intro { margin: 0 0 26px; color: var(--muted); font-size: 14px; line-height: 1.55; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; margin-bottom: 7px; color: #334155; font-size: 13px; font-weight: 700; }
+    .field input {
+      width: 100%;
+      padding: 12px 13px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      outline: none;
+      background: #fff;
+      color: var(--navy);
+    }
+    .field input:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(234, 88, 12, .14); }
+    .primary-btn {
+      width: 100%;
+      padding: 12px 16px;
+      border: 0;
+      border-radius: 10px;
+      color: var(--white);
+      background: var(--orange);
+      font-weight: 800;
+      transition: .2s ease;
+    }
+    .primary-btn:hover { background: var(--orange-dark); transform: translateY(-1px); }
+    .login-error {
+      min-height: 20px;
+      margin: 12px 0 0;
+      color: var(--red);
+      font-size: 13px;
+      font-weight: 700;
+      text-align: center;
+    }
+    .demo-hint {
+      margin-top: 22px;
+      padding: 12px;
+      border-radius: 10px;
+      background: #fff7ed;
+      color: #9a3412;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    /* App shell */
+    .app-shell { min-height: 100vh; display: flex; }
+    .sidebar {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 10;
+      width: 272px;
+      display: flex;
+      flex-direction: column;
+      padding: 22px 16px;
+      color: #e5e7eb;
+      background: var(--navy);
+    }
+    .side-brand { display: flex; align-items: center; gap: 11px; padding: 0 11px 28px; }
+    .side-brand .brand-mark { width: 39px; height: 39px; margin: 0; border-radius: 11px; font-size: 17px; }
+    .side-brand strong { display: block; font-size: 15px; letter-spacing: .2px; }
+    .side-brand span { display: block; margin-top: 2px; color: #9ca3af; font-size: 11px; }
+    .nav-title { padding: 0 12px 9px; color: #6b7280; font-size: 10px; font-weight: 900; letter-spacing: 1.2px; text-transform: uppercase; }
+    .nav { display: grid; gap: 5px; }
+    .nav-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 12px;
+      border: 0;
+      border-radius: 10px;
+      color: #cbd5e1;
+      background: transparent;
+      text-align: left;
+      font-size: 13px;
+      font-weight: 650;
+    }
+    .nav-btn:hover { color: #fff; background: var(--navy-2); }
+    .nav-btn.active { color: #fff; background: var(--orange); box-shadow: 0 8px 18px rgba(234, 88, 12, .2); }
+    .nav-icon { width: 20px; text-align: center; font-size: 17px; }
+    .side-bottom { margin-top: auto; }
+    .user-box { margin: 12px 4px; padding: 13px; border: 1px solid #374151; border-radius: 12px; background: rgba(255,255,255,.04); }
+    .user-box small { color: #9ca3af; font-size: 10px; }
+    .user-box strong { display: block; margin-top: 4px; font-size: 13px; }
+    .logout-btn { width: 100%; padding: 10px 12px; border: 1px solid #4b5563; border-radius: 9px; color: #e5e7eb; background: transparent; font-size: 12px; font-weight: 700; }
+    .logout-btn:hover { border-color: #f87171; color: #fecaca; background: rgba(185,28,28,.15); }
+
+    .main { width: calc(100% - 272px); min-height: 100vh; margin-left: 272px; }
+    .topbar { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 18px 34px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.88); backdrop-filter: blur(10px); }
+    .topbar h2 { margin: 0; font-size: 20px; letter-spacing: -.4px; }
+    .topbar p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+    .role-badge { padding: 7px 10px; border-radius: 999px; color: #9a3412; background: #ffedd5; font-size: 11px; font-weight: 850; white-space: nowrap; }
+    .content { max-width: 1500px; margin: 0 auto; padding: 30px 34px 48px; }
+    .page { display: none; }
+    .page.active { display: block; animation: fade .22s ease; }
+    @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    .welcome { margin-bottom: 22px; }
+    .welcome h1 { margin: 0 0 6px; font-size: clamp(24px, 3vw, 33px); letter-spacing: -1px; }
+    .welcome p { margin: 0; color: var(--muted); font-size: 14px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 16px; margin-bottom: 22px; }
+    .stat-card, .panel { border: 1px solid var(--line); border-radius: 16px; background: var(--white); box-shadow: 0 5px 20px rgba(15, 23, 42, .04); }
+    .stat-card { padding: 18px; }
+    .stat-top { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 12px; font-weight: 700; }
+    .stat-icon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; color: var(--orange); background: #fff7ed; font-size: 16px; }
+    .stat-card strong { display: block; margin-top: 14px; font-size: 24px; letter-spacing: -.5px; }
+    .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr); gap: 20px; }
+    .panel { padding: 21px; }
+    .panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; margin-bottom: 17px; }
+    .panel h3 { margin: 0; font-size: 16px; }
+    .panel-subtitle { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .upload-zone { padding: 31px 20px; border: 1.5px dashed #fb923c; border-radius: 13px; background: #fffaf5; text-align: center; transition: .2s ease; }
+    .upload-zone.dragover { border-color: var(--orange-dark); background: #ffedd5; }
+    .upload-symbol { width: 46px; height: 46px; display: grid; place-items: center; margin: 0 auto 12px; border-radius: 14px; color: var(--orange); background: #ffedd5; font-size: 22px; }
+    .upload-zone h4 { margin: 0 0 6px; font-size: 15px; }
+    .upload-zone p { margin: 0 auto 15px; max-width: 430px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .upload-btn { display: inline-block; padding: 10px 15px; border-radius: 9px; color: #fff; background: var(--orange); font-size: 12px; font-weight: 800; }
+    .upload-btn:hover { background: var(--orange-dark); }
+    #fileInput { display: none; }
+    .file-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; color: var(--muted); font-size: 12px; }
+    .file-meta span { padding: 6px 8px; border-radius: 7px; background: #f1f5f9; }
+    .table-wrap { overflow: auto; margin-top: 16px; border: 1px solid var(--line); border-radius: 10px; }
+    table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: 12px; }
+    th { padding: 11px 12px; color: #475569; background: #f8fafc; font-size: 11px; font-weight: 850; text-align: left; white-space: nowrap; }
+    td { max-width: 240px; padding: 10px 12px; border-top: 1px solid #eef2f7; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    tr:hover td { background: #fffaf5; }
+    .empty-table { padding: 27px 15px; color: var(--muted); text-align: center; }
+    .activity-list { display: grid; gap: 13px; }
+    .activity { display: flex; align-items: flex-start; gap: 10px; }
+    .activity-dot { width: 8px; height: 8px; margin-top: 5px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 4px #ffedd5; }
+    .activity strong { display: block; font-size: 12px; }
+    .activity span { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .progress-item { margin-top: 17px; }
+    .progress-label { display: flex; justify-content: space-between; margin-bottom: 7px; color: #475569; font-size: 12px; font-weight: 700; }
+    .progress { height: 8px; overflow: hidden; border-radius: 99px; background: #e2e8f0; }
+    .progress i { display: block; height: 100%; border-radius: inherit; background: var(--orange); }
+
+    .section-title { margin-bottom: 20px; }
+    .section-title h1 { margin: 0 0 5px; font-size: 27px; letter-spacing: -.8px; }
+    .section-title p { margin: 0; color: var(--muted); font-size: 13px; }
+    .placeholder { min-height: 330px; display: grid; place-items: center; padding: 30px; border: 1px dashed #cbd5e1; border-radius: 16px; background: #fff; text-align: center; }
+    .placeholder .big-icon { font-size: 42px; }
+    .placeholder h3 { margin: 12px 0 6px; }
+    .placeholder p { max-width: 480px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .locked { border-color: #fecaca; background: #fffafa; }
+    .locked .big-icon { color: var(--red); }
+    .notice { margin-top: 18px; padding: 12px 14px; border-radius: 10px; color: #166534; background: #f0fdf4; font-size: 12px; line-height: 1.5; }
+    .expense-layout { display: grid; grid-template-columns: minmax(320px, .8fr) minmax(0, 1.2fr); gap: 20px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .form-field { display: flex; flex-direction: column; gap: 7px; }
+    .form-field.full { grid-column: 1 / -1; }
+    .form-field label { color: #334155; font-size: 12px; font-weight: 800; }
+    .form-field input, .form-field select, .form-field textarea { width: 100%; padding: 11px 12px; border: 1px solid #cbd5e1; border-radius: 9px; outline: none; color: var(--navy); background: #fff; font-size: 13px; }
+    .form-field textarea { min-height: 92px; resize: vertical; }
+    .form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(234, 88, 12, .12); }
+    .form-actions { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
+    .save-btn { padding: 11px 16px; border: 0; border-radius: 9px; color: #fff; background: var(--orange); font-size: 12px; font-weight: 850; }
+    .save-btn:hover { background: var(--orange-dark); }
+    .save-btn:disabled { cursor: wait; opacity: .65; }
+    .reset-btn { padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 9px; color: #475569; background: #fff; font-size: 12px; font-weight: 750; }
+    .form-message { min-height: 18px; margin: 12px 0 0; font-size: 12px; font-weight: 700; line-height: 1.45; }
+    .form-message.success { color: var(--green); }
+    .form-message.error { color: var(--red); }
+    .history-panel { min-width: 0; }
+    .history-table-wrap { max-height: 490px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+    .history-table { min-width: 720px; }
+    .history-table td.amount { color: var(--orange-dark); font-weight: 800; }
+    .loading-row { padding: 25px; color: var(--muted); text-align: center; font-size: 12px; }
+    .supabase-note { margin-top: 15px; padding: 11px 12px; border-radius: 9px; color: #475569; background: #f8fafc; font-size: 11px; line-height: 1.55; }
+    .inventory-layout { display: grid; grid-template-columns: minmax(320px, .85fr) minmax(0, 1.15fr); gap: 20px; }
+    .inventory-panel { min-width: 0; }
+    .inventory-table-wrap { max-height: 430px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+    .inventory-table { min-width: 560px; }
+    .stock-low { color: var(--red); font-weight: 850; }
+    .stock-minus { color: #7f1d1d; font-weight: 900; }
+    .stock-ok { color: var(--green); font-weight: 750; }
+    .stock-add-btn { padding: 7px 9px; border: 0; border-radius: 7px; color: #fff; background: var(--orange); font-size: 11px; font-weight: 850; white-space: nowrap; }
+    .stock-add-btn:hover { background: var(--orange-dark); }
+    .recipe-panel { margin-top: 20px; }
+    .recipe-table-wrap { max-height: 310px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+    .recipe-table { min-width: 600px; }
+    .stock-summary { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 15px; }
+    .summary-chip { padding: 6px 9px; border-radius: 7px; color: #475569; background: #f1f5f9; font-size: 11px; font-weight: 750; }
+    .deduction-note { margin-top: 16px; padding: 11px 12px; border-radius: 9px; color: #1e3a8a; background: #eff6ff; font-size: 11px; line-height: 1.55; }
+    .upload-log { display: grid; gap: 7px; max-height: 240px; overflow: auto; margin-top: 14px; padding: 11px; border: 1px solid var(--line); border-radius: 10px; background: #f8fafc; }
+    .upload-log:empty { display: none; }
+    .upload-log-entry { padding: 8px 9px; border-left: 3px solid #94a3b8; border-radius: 5px; color: #475569; background: #fff; font-size: 11px; line-height: 1.45; }
+    .upload-log-entry.success { border-left-color: var(--green); color: #166534; background: #f0fdf4; }
+    .upload-log-entry.warning { border-left-color: #d97706; color: #92400e; background: #fffbeb; }
+    .upload-log-entry.error { border-left-color: var(--red); color: #991b1b; background: #fef2f2; }
+
+    @media (max-width: 1000px) {
+      .stats-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .dashboard-grid { grid-template-columns: 1fr; }
+      .expense-layout { grid-template-columns: 1fr; }
+      .inventory-layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+      .sidebar { position: static; width: 100%; min-height: auto; }
+      .app-shell { display: block; }
+      .side-brand { padding-bottom: 16px; }
+      .nav { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .side-bottom { margin-top: 18px; }
+      .user-box { display: none; }
+      .main { width: 100%; margin-left: 0; }
+      .topbar { padding: 16px 20px; }
+      .content { padding: 24px 20px 40px; }
+    }
+    @media (max-width: 470px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .nav { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+      .form-field.full { grid-column: auto; }
+      .topbar h2 { font-size: 17px; }
+      .role-badge { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <section id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <div class="brand-mark">F&amp;B</div>
+      <h1>F&amp;B Super Admin</h1>
+      <p class="intro">Masuk untuk mengelola data penjualan, pengeluaran, stok, resep, dan laporan keuangan.</p>
+
+      <form id="loginForm" autocomplete="off">
+        <div class="field">
+          <label for="username">Username</label>
+          <input id="username" type="text" placeholder="Masukkan username" required />
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" type="password" placeholder="Masukkan password" required />
+        </div>
+        <button class="primary-btn" type="submit">Masuk ke Dashboard</button>
+        <p id="loginError" class="login-error" role="alert"></p>
+      </form>
+
+      <div class="demo-hint">
+        <strong>Akun demo:</strong><br />
+        Super Admin: <code>superadmin</code> / <code>admin123</code><br />
+        Admin Staf: <code>admin</code> / <code>staf123</code>
+      </div>
+    </div>
+  </section>
+
+  <div id="appShell" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="side-brand">
+        <div class="brand-mark">F&amp;B</div>
+        <div>
+          <strong>F&amp;B Control</strong>
+          <span>Operational dashboard</span>
+        </div>
+      </div>
+
+      <div class="nav-title">Menu utama</div>
+      <nav class="nav" aria-label="Navigasi utama">
+        <button class="nav-btn active" data-page="dashboardPage" data-title="Dashboard &amp; Upload iSeller">
+          <span class="nav-icon">▦</span><span>Dashboard &amp; Upload iSeller</span>
+        </button>
+        <button class="nav-btn" data-page="expensePage" data-title="Input Pengeluaran">
+          <span class="nav-icon">↘</span><span>Input Pengeluaran</span>
+        </button>
+        <button class="nav-btn" data-page="stockPage" data-title="Manajemen Stok &amp; Resep">
+          <span class="nav-icon">▤</span><span>Manajemen Stok &amp; Resep</span>
+        </button>
+        <button class="nav-btn" data-page="reportPage" data-title="Laporan Keuangan">
+          <span class="nav-icon">▥</span><span>Laporan Keuangan</span>
+        </button>
+      </nav>
+
+      <div class="side-bottom">
+        <div class="user-box">
+          <small>Login sebagai</small>
+          <strong id="sideUserName">-</strong>
+          <small id="sideRole">-</small>
+        </div>
+        <button id="logoutBtn" class="logout-btn" type="button">↪ Keluar</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h2 id="pageTitle">Dashboard &amp; Upload iSeller</h2>
+          <p id="dateText"></p>
+        </div>
+        <span id="roleBadge" class="role-badge">Super Admin</span>
+      </header>
+
+      <div class="content">
+        <section id="dashboardPage" class="page active">
+          <div class="welcome">
+            <h1>Selamat datang, <span id="welcomeName">Admin</span> 👋</h1>
+            <p>Mulai dengan mengunggah hasil ekspor penjualan dari iSeller POS.</p>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-top"><span>Data terakhir diunggah</span><span class="stat-icon">↥</span></div>
+              <strong id="lastUploadStat">Belum ada</strong>
+            </div>
+            <div class="stat-card">
+              <div class="stat-top"><span>Total baris data</span><span class="stat-icon">#</span></div>
+              <strong id="rowCountStat">0</strong>
+            </div>
+            <div class="stat-card">
+              <div class="stat-top"><span>Modul aktif</span><span class="stat-icon">✓</span></div>
+              <strong>4</strong>
+            </div>
+            <div class="stat-card">
+              <div class="stat-top"><span>Status sistem</span><span class="stat-icon">●</span></div>
+              <strong style="color: var(--green);">Online</strong>
+            </div>
+          </div>
+
+          <div class="dashboard-grid">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h3>Upload data penjualan iSeller</h3>
+                  <p class="panel-subtitle">Format yang didukung: .xlsx, .xls, dan .csv. Sistem akan menampilkan 10 baris pertama.</p>
+                </div>
+              </div>
+
+              <div id="uploadZone" class="upload-zone">
+                <div class="upload-symbol">↥</div>
+                <h4>Tarik file ke area ini</h4>
+                <p>atau pilih file ekspor iSeller dari komputer Anda. File diproses langsung di browser.</p>
+                <label for="fileInput" class="upload-btn">Pilih File iSeller</label>
+                <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" />
+              </div>
+
+              <div id="fileMeta" class="file-meta hidden"></div>
+              <div id="tableContainer" class="table-wrap hidden"></div>
+              <div id="uploadLog" class="upload-log" aria-live="polite"></div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h3>Ringkasan aktivitas</h3>
+                  <p class="panel-subtitle">Aktivitas lokal pada halaman ini.</p>
+                </div>
+              </div>
+              <div class="activity-list">
+                <div class="activity"><i class="activity-dot"></i><div><strong>Login berhasil</strong><span id="loginActivity">Sesi aktif saat ini</span></div></div>
+                <div class="activity"><i class="activity-dot"></i><div><strong>Upload iSeller</strong><span id="uploadActivity">Belum ada file yang diproses</span></div></div>
+                <div class="activity"><i class="activity-dot"></i><div><strong>Mode aplikasi</strong><span>SPA HTML, CSS, JavaScript vanilla</span></div></div>
+              </div>
+              <div class="progress-item">
+                <div class="progress-label"><span>Kesiapan modul</span><span>25%</span></div>
+                <div class="progress"><i style="width:25%;"></i></div>
+              </div>
+              <div class="notice">Data upload pada versi ini hanya disimpan selama halaman browser masih terbuka.</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="expensePage" class="page">
+          <div class="section-title"><h1>Input Pengeluaran</h1><p>Tempat untuk mencatat pengeluaran operasional harian.</p></div>
+          <div class="expense-layout">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h3>Form pengeluaran harian</h3>
+                  <p class="panel-subtitle">Data akan dikirim ke tabel <code>expenses</code> di Supabase.</p>
+                </div>
+              </div>
+              <form id="expenseForm">
+                <div class="form-grid">
+                  <div class="form-field">
+                    <label for="expenseDate">Tanggal *</label>
+                    <input id="expenseDate" name="expenseDate" type="date" required />
+                  </div>
+                  <div class="form-field">
+                    <label for="expenseCategory">Kategori *</label>
+                    <select id="expenseCategory" name="expenseCategory" required>
+                      <option value="">Pilih kategori</option>
+                      <option value="Bahan Baku">Bahan Baku</option>
+                      <option value="Operasional">Operasional</option>
+                      <option value="Marketing">Marketing</option>
+                      <option value="Lainnya">Lainnya</option>
+                    </select>
+                  </div>
+                  <div class="form-field full">
+                    <label for="expenseName">Nama Pengeluaran *</label>
+                    <input id="expenseName" name="expenseName" type="text" placeholder="Contoh: Pembelian kopi dan susu" required />
+                  </div>
+                  <div class="form-field full">
+                    <label for="expenseAmount">Total Uang (Rp) *</label>
+                    <input id="expenseAmount" name="expenseAmount" type="number" min="0" step="1" placeholder="Contoh: 250000" required />
+                  </div>
+                  <div class="form-field full">
+                    <label for="expenseNotes">Catatan</label>
+                    <textarea id="expenseNotes" name="expenseNotes" placeholder="Tambahkan keterangan jika diperlukan"></textarea>
+                  </div>
+                </div>
+                <div class="form-actions">
+                  <button id="saveExpenseBtn" class="save-btn" type="submit">Simpan Pengeluaran</button>
+                  <button id="resetExpenseBtn" class="reset-btn" type="reset">Kosongkan</button>
+                </div>
+                <p id="expenseMessage" class="form-message" role="status"></p>
+              </form>
+              <div class="supabase-note">Sebelum digunakan, isi <code>SUPABASE_URL</code> dan <code>SUPABASE_ANON_KEY</code> pada bagian konfigurasi JavaScript di file ini.</div>
+            </div>
+
+            <div class="panel history-panel">
+              <div class="panel-head">
+                <div>
+                  <h3>Riwayat pengeluaran</h3>
+                  <p class="panel-subtitle">Data terbaru dari Supabase.</p>
+                </div>
+                <button id="refreshExpensesBtn" class="reset-btn" type="button">↻ Refresh</button>
+              </div>
+              <div id="expenseTableWrap" class="history-table-wrap">
+                <div class="loading-row">Buka menu ini untuk memuat riwayat pengeluaran.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="stockPage" class="page">
+          <div class="section-title"><h1>Manajemen Stok &amp; Resep</h1><p>Kelola bahan baku, stok gudang, dan resep menu.</p></div>
+          <div class="inventory-layout">
+            <div class="panel inventory-panel">
+              <div class="panel-head">
+                <div>
+                  <h3>Tambah bahan baku</h3>
+                  <p class="panel-subtitle">Simpan bahan baru ke tabel <code>inventory</code>.</p>
+                </div>
+                <button id="refreshInventoryBtn" class="reset-btn" type="button">↻ Refresh</button>
+              </div>
+              <form id="inventoryForm">
+                <div class="form-grid">
+                  <div class="form-field full">
+                    <label for="inventoryItemName">Nama Bahan *</label>
+                    <input id="inventoryItemName" type="text" placeholder="Contoh: Daging ayam" required />
+                  </div>
+                  <div class="form-field">
+                    <label for="inventoryStock">Stok Awal *</label>
+                    <input id="inventoryStock" type="number" min="0" step="0.01" placeholder="0" required />
+                  </div>
+                  <div class="form-field">
+                    <label for="inventoryUnit">Satuan *</label>
+                    <input id="inventoryUnit" type="text" placeholder="kg, liter, pcs" required />
+                  </div>
+                  <div class="form-field full">
+                    <label for="inventoryMinStock">Batas Minimum Stok *</label>
+                    <input id="inventoryMinStock" type="number" min="0" step="0.01" placeholder="Contoh: 5" required />
+                  </div>
+                </div>
+                <div class="form-actions">
+                  <button id="saveInventoryBtn" class="save-btn" type="submit">Simpan Bahan</button>
+                  <button id="resetInventoryBtn" class="reset-btn" type="reset">Kosongkan</button>
+                </div>
+                <p id="inventoryMessage" class="form-message" role="status"></p>
+              </form>
+              <div class="inventory-table-wrap" id="inventoryTableWrap"><div class="loading-row">Buka halaman ini untuk memuat data stok.</div></div>
+            </div>
+
+            <div class="panel inventory-panel">
+              <div class="panel-head">
+                <div>
+                  <h3>Hubungkan resep menu</h3>
+                  <p class="panel-subtitle">Hubungkan nama menu iSeller dengan bahan baku dan kebutuhan per porsi.</p>
+                </div>
+                <span class="summary-chip">Per porsi</span>
+              </div>
+              <form id="recipeForm">
+                <div class="form-grid">
+                  <div class="form-field full">
+                    <label for="recipeMenuName">Nama Menu iSeller *</label>
+                    <input id="recipeMenuName" type="text" placeholder="Harus sama dengan nama di laporan iSeller" required />
+                  </div>
+                  <div class="form-field full">
+                    <label for="recipeInventoryItem">Bahan Baku *</label>
+                    <select id="recipeInventoryItem" required><option value="">Memuat bahan baku...</option></select>
+                  </div>
+                  <div class="form-field full">
+                    <label for="recipeQuantity">Kebutuhan per Porsi *</label>
+                    <input id="recipeQuantity" type="number" min="0.0001" step="0.0001" placeholder="Contoh: 0.15" required />
+                  </div>
+                </div>
+                <div class="form-actions">
+                  <button id="saveRecipeBtn" class="save-btn" type="submit">Simpan Resep</button>
+                  <button id="resetRecipeBtn" class="reset-btn" type="reset">Kosongkan</button>
+                </div>
+                <p id="recipeMessage" class="form-message" role="status"></p>
+              </form>
+              <div class="recipe-panel">
+                <div class="panel-head">
+                  <div><h3>Daftar resep</h3><p class="panel-subtitle">Resep yang sudah terhubung ke inventory.</p></div>
+                  <button id="refreshRecipesBtn" class="reset-btn" type="button">↻ Refresh</button>
+                </div>
+                <div class="recipe-table-wrap" id="recipeTableWrap"><div class="loading-row">Buka halaman ini untuk memuat resep.</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="deduction-note">Saat laporan iSeller diunggah, sistem akan mencocokkan nama menu dengan resep, menghitung jumlah terjual × kebutuhan per porsi, lalu mengurangi stok bahan terkait secara otomatis.</div>
+        </section>
+
+        <section id="reportPage" class="page">
+          <div class="section-title"><h1>Laporan Keuangan</h1><p>Ringkasan pendapatan, HPP, pengeluaran, dan laba rugi.</p></div>
+          <div id="reportPlaceholder" class="placeholder"><div><div class="big-icon">▥</div><h3>Modul laporan keuangan siap dikembangkan</h3><p>Halaman ini sudah tersedia sebagai bagian dari struktur aplikasi. Perhitungan laba rugi akan menggabungkan data iSeller, HPP resep, dan pengeluaran operasional.</p></div></div>
+          <div id="reportLocked" class="placeholder locked hidden"><div><div class="big-icon">🔒</div><h3>Akses terbatas</h3><p>Menu Laporan Keuangan hanya dapat dibuka oleh akun Super Admin.</p></div></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const USERS = {
+      superadmin: { password: 'admin123', role: 'Super Admin', displayName: 'Super Admin' },
+      admin: { password: 'staf123', role: 'Admin Staf', displayName: 'Admin Staf' }
+    };
+
+    // ===================== KONFIGURASI SUPABASE =====================
+    // Ganti dua nilai berikut dengan Project URL dan anon public key dari Supabase.
+    const SUPABASE_URL = 'https://pxebtirrorootipsvinq.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_vXaNAraeF3dAfRIiQnLgPA_X-7BmWk7';
+    const supabaseConfigured = !SUPABASE_URL.startsWith('YOUR_') && !SUPABASE_ANON_KEY.startsWith('YOUR_');
+    const supabaseClient = supabaseConfigured
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : null;
+
+    const state = {
+      user: null,
+      uploadedRows: 0,
+      uploadedFileName: '',
+      inventory: []
+    };
+
+    const $ = (selector) => document.querySelector(selector);
+    const loginScreen = $('#loginScreen');
+    const appShell = $('#appShell');
+    const loginForm = $('#loginForm');
+    const loginError = $('#loginError');
+
+    function formatDate() {
+      return new Intl.DateTimeFormat('id-ID', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      }).format(new Date());
+    }
+
+    function showApp(userName) {
+      const user = USERS[userName];
+      state.user = { username: userName, ...user };
+      loginScreen.classList.add('hidden');
+      appShell.classList.remove('hidden');
+      $('#welcomeName').textContent = user.displayName;
+      $('#sideUserName').textContent = user.displayName;
+      $('#sideRole').textContent = user.role;
+      $('#roleBadge').textContent = user.role;
+      $('#dateText').textContent = formatDate();
+      $('#loginActivity').textContent = `Masuk sebagai ${user.role}`;
+      setTodayIfEmpty();
+      updateReportAccess();
+    }
+
+    function updateReportAccess() {
+      const reportButton = document.querySelector('[data-page="reportPage"]');
+      const isSuperAdmin = state.user?.role === 'Super Admin';
+      reportButton.style.opacity = isSuperAdmin ? '1' : '.65';
+      reportButton.title = isSuperAdmin ? '' : 'Hanya Super Admin';
+    }
+
+    loginForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const username = $('#username').value.trim().toLowerCase();
+      const password = $('#password').value;
+      const user = USERS[username];
+
+      if (!user || user.password !== password) {
+        loginError.textContent = 'Username atau password tidak sesuai.';
+        return;
+      }
+
+      loginError.textContent = '';
+      showApp(username);
+    });
+
+    $('#logoutBtn').addEventListener('click', () => {
+      state.user = null;
+      loginForm.reset();
+      loginError.textContent = '';
+      appShell.classList.add('hidden');
+      loginScreen.classList.remove('hidden');
+    });
+
+    document.querySelectorAll('.nav-btn').forEach((button) => {
+      button.addEventListener('click', () => {
+        const requestedPage = button.dataset.page;
+
+        if (requestedPage === 'reportPage' && state.user?.role !== 'Super Admin') {
+          $('#reportPlaceholder').classList.add('hidden');
+          $('#reportLocked').classList.remove('hidden');
+        } else if (requestedPage === 'reportPage') {
+          $('#reportPlaceholder').classList.remove('hidden');
+          $('#reportLocked').classList.add('hidden');
+        }
+
+        document.querySelectorAll('.nav-btn').forEach((item) => item.classList.remove('active'));
+        document.querySelectorAll('.page').forEach((page) => page.classList.remove('active'));
+        button.classList.add('active');
+        document.getElementById(requestedPage).classList.add('active');
+        $('#pageTitle').textContent = button.dataset.title;
+        if (requestedPage === 'expensePage') loadExpenses();
+        if (requestedPage === 'stockPage') loadStockData();
+      });
+    });
+
+    const inventoryForm = $('#inventoryForm');
+    const inventoryMessage = $('#inventoryMessage');
+    const recipeForm = $('#recipeForm');
+    const recipeMessage = $('#recipeMessage');
+
+    inventoryForm.addEventListener('submit', saveInventoryItem);
+    recipeForm.addEventListener('submit', saveRecipe);
+    $('#refreshInventoryBtn').addEventListener('click', loadInventory);
+    $('#refreshRecipesBtn').addEventListener('click', loadRecipes);
+    $('#resetInventoryBtn').addEventListener('click', clearInventoryMessage);
+    $('#resetRecipeBtn').addEventListener('click', clearRecipeMessage);
+    $('#inventoryTableWrap').addEventListener('click', handleInventoryTableClick);
+
+    async function handleInventoryTableClick(event) {
+      const button = event.target.closest('[data-action="add-stock"]');
+      if (!button) return;
+      const itemId = button.dataset.inventoryId;
+      const itemName = button.dataset.itemName;
+      const unit = button.dataset.unit || '';
+      const input = window.prompt(`Jumlah stok masuk untuk ${itemName} (${unit}):`, '');
+      if (input === null) return;
+
+      const quantity = parseQuantity(input);
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        window.alert('Jumlah stok masuk harus berupa angka lebih dari 0.');
+        return;
+      }
+      await addIncomingStock(itemId, itemName, unit, quantity);
+    }
+
+    async function addIncomingStock(itemId, itemName, unit, quantity) {
+      if (!supabaseConfigured) {
+        window.alert('Supabase belum dikonfigurasi.');
+        return;
+      }
+
+      const { data: currentItem, error: readError } = await supabaseClient
+        .from('inventory')
+        .select('id, item_name, stock_quantity, unit')
+        .eq('id', itemId)
+        .single();
+      if (readError || !currentItem) {
+        console.error(readError);
+        window.alert(`Gagal membaca stok terbaru ${itemName}: ${readError?.message || 'data tidak ditemukan'}`);
+        return;
+      }
+
+      const oldStock = Number(currentItem.stock_quantity) || 0;
+      const newStock = oldStock + quantity;
+      const { data: updatedRows, error: updateError } = await supabaseClient
+        .from('inventory')
+        .update({ stock_quantity: newStock })
+        .eq('id', itemId)
+        .select('id, stock_quantity');
+
+      if (updateError || !updatedRows?.length) {
+        const error = updateError || new Error('Tidak ada baris inventory yang diperbarui. Periksa policy UPDATE/RLS.');
+        console.error(error);
+        window.alert(`Gagal menambah stok ${itemName}: ${error.message}`);
+        return;
+      }
+
+      addUploadLog('success', `Stok masuk: ${itemName} bertambah ${formatQuantity(quantity)} ${unit}. Stok sebelumnya ${formatQuantity(oldStock)} ${unit}, stok sekarang ${formatQuantity(newStock)} ${unit}.`);
+      window.alert(`Stok ${itemName} berhasil ditambah ${formatQuantity(quantity)} ${unit}. Stok sekarang ${formatQuantity(newStock)} ${unit}.`);
+      await loadInventory();
+    }
+
+    async function loadStockData() {
+      await loadInventory();
+      await loadRecipes();
+    }
+
+    async function loadInventory() {
+      const tableWrap = $('#inventoryTableWrap');
+      if (!supabaseConfigured) {
+        tableWrap.innerHTML = '<div class="loading-row">Isi konfigurasi Supabase untuk menampilkan stok.</div>';
+        populateInventorySelect([]);
+        return;
+      }
+
+      tableWrap.innerHTML = '<div class="loading-row">Memuat data stok...</div>';
+      const { data, error } = await supabaseClient
+        .from('inventory')
+        .select('id, item_name, stock_quantity, unit, min_stock')
+        .order('item_name', { ascending: true });
+
+      if (error) {
+        console.error(error);
+        tableWrap.innerHTML = `<div class="loading-row" style="color:var(--red);">Gagal mengambil stok: ${escapeHtml(error.message)}</div>`;
+        return;
+      }
+
+      state.inventory = data || [];
+      populateInventorySelect(state.inventory);
+      renderInventoryTable(state.inventory);
+    }
+
+    function populateInventorySelect(items) {
+      const select = $('#recipeInventoryItem');
+      if (!items.length) {
+        select.innerHTML = '<option value="">Belum ada bahan baku</option>';
+        return;
+      }
+      select.innerHTML = '<option value="">Pilih bahan baku</option>' + items.map((item) =>
+        `<option value="${escapeHtml(item.id)}">${escapeHtml(item.item_name)} (${escapeHtml(item.unit || '-')})</option>`
+      ).join('');
+    }
+
+    function renderInventoryTable(items) {
+      const tableWrap = $('#inventoryTableWrap');
+      if (!items.length) {
+        tableWrap.innerHTML = '<div class="loading-row">Belum ada bahan baku di inventory.</div>';
+        return;
+      }
+
+      const rows = items.map((item) => {
+        const stock = Number(item.stock_quantity) || 0;
+        const minimum = Number(item.min_stock) || 0;
+        const isMinus = stock < 0;
+        const isLow = stock <= minimum;
+        return `<tr>
+          <td>${escapeHtml(item.item_name || '-')}</td>
+          <td class="${isMinus ? 'stock-minus' : (isLow ? 'stock-low' : 'stock-ok')}" title="${isMinus ? 'Stok minus: segera input stok masuk' : ''}">${formatQuantity(stock)}</td>
+          <td>${escapeHtml(item.unit || '-')}</td>
+          <td>${formatQuantity(minimum)}</td>
+          <td class="${isMinus ? 'stock-minus' : (isLow ? 'stock-low' : 'stock-ok')}">${isMinus ? 'Minus' : (stock === 0 ? 'Habis' : (isLow ? 'Rendah' : 'Aman'))}</td>
+          <td><button class="stock-add-btn" type="button" data-action="add-stock" data-inventory-id="${escapeHtml(item.id)}" data-item-name="${escapeHtml(item.item_name || '')}" data-unit="${escapeHtml(item.unit || '')}">+ Tambah Stok</button></td>
+        </tr>`;
+      }).join('');
+
+      tableWrap.innerHTML = `<table class="inventory-table"><thead><tr><th>Nama Bahan</th><th>Stok</th><th>Satuan</th><th>Min. Stok</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    async function saveInventoryItem(event) {
+      event.preventDefault();
+      clearInventoryMessage();
+      if (!supabaseConfigured) {
+        showInventoryMessage('Supabase belum dikonfigurasi. Isi URL dan anon key terlebih dahulu.', 'error');
+        return;
+      }
+
+      const stock = Number($('#inventoryStock').value);
+      const minStock = Number($('#inventoryMinStock').value);
+      if (!Number.isFinite(stock) || !Number.isFinite(minStock) || stock < 0 || minStock < 0) {
+        showInventoryMessage('Stok dan batas minimum harus berupa angka nol atau lebih.', 'error');
+        return;
+      }
+
+      const button = $('#saveInventoryBtn');
+      button.disabled = true;
+      button.textContent = 'Menyimpan...';
+      const { error } = await supabaseClient.from('inventory').insert([{
+        item_name: $('#inventoryItemName').value.trim(),
+        stock_quantity: stock,
+        unit: $('#inventoryUnit').value.trim(),
+        min_stock: minStock
+      }]);
+      button.disabled = false;
+      button.textContent = 'Simpan Bahan';
+
+      if (error) {
+        console.error(error);
+        showInventoryMessage(`Gagal menyimpan bahan: ${error.message}`, 'error');
+        return;
+      }
+      showInventoryMessage('Bahan baku berhasil disimpan.', 'success');
+      inventoryForm.reset();
+      await loadInventory();
+    }
+
+    async function loadRecipes() {
+      const tableWrap = $('#recipeTableWrap');
+      if (!supabaseConfigured) {
+        tableWrap.innerHTML = '<div class="loading-row">Isi konfigurasi Supabase untuk menampilkan resep.</div>';
+        return;
+      }
+
+      tableWrap.innerHTML = '<div class="loading-row">Memuat daftar resep...</div>';
+      const { data, error } = await supabaseClient
+        .from('recipes')
+        .select('menu_name, inventory_item_id, quantity_needed')
+        .order('menu_name', { ascending: true });
+
+      if (error) {
+        console.error(error);
+        tableWrap.innerHTML = `<div class="loading-row" style="color:var(--red);">Gagal mengambil resep: ${escapeHtml(error.message)}</div>`;
+        return;
+      }
+      renderRecipeTable(data || []);
+    }
+
+    function renderRecipeTable(recipes) {
+      const tableWrap = $('#recipeTableWrap');
+      if (!recipes.length) {
+        tableWrap.innerHTML = '<div class="loading-row">Belum ada resep yang terhubung.</div>';
+        return;
+      }
+      const inventoryById = new Map(state.inventory.map((item) => [String(item.id), item]));
+      const rows = recipes.map((recipe) => {
+        const item = inventoryById.get(String(recipe.inventory_item_id));
+        return `<tr><td>${escapeHtml(recipe.menu_name || '-')}</td><td>${escapeHtml(item?.item_name || 'ID tidak ditemukan')}</td><td>${formatQuantity(recipe.quantity_needed)} ${escapeHtml(item?.unit || '')}</td></tr>`;
+      }).join('');
+      tableWrap.innerHTML = `<table class="recipe-table"><thead><tr><th>Menu iSeller</th><th>Bahan Baku</th><th>Kebutuhan / Porsi</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    async function saveRecipe(event) {
+      event.preventDefault();
+      clearRecipeMessage();
+      if (!supabaseConfigured) {
+        showRecipeMessage('Supabase belum dikonfigurasi. Isi URL dan anon key terlebih dahulu.', 'error');
+        return;
+      }
+
+      const quantity = Number($('#recipeQuantity').value);
+      const inventoryItemId = $('#recipeInventoryItem').value;
+      if (!inventoryItemId || !Number.isFinite(quantity) || quantity <= 0) {
+        showRecipeMessage('Pilih bahan baku dan masukkan kebutuhan per porsi yang valid.', 'error');
+        return;
+      }
+
+      const button = $('#saveRecipeBtn');
+      button.disabled = true;
+      button.textContent = 'Menyimpan...';
+      const { error } = await supabaseClient.from('recipes').insert([{
+        menu_name: $('#recipeMenuName').value.trim(),
+        inventory_item_id: inventoryItemId,
+        quantity_needed: quantity
+      }]);
+      button.disabled = false;
+      button.textContent = 'Simpan Resep';
+
+      if (error) {
+        console.error(error);
+        showRecipeMessage(`Gagal menyimpan resep: ${error.message}`, 'error');
+        return;
+      }
+      showRecipeMessage('Resep berhasil disimpan.', 'success');
+      recipeForm.reset();
+      await loadRecipes();
+    }
+
+    function formatQuantity(value) {
+      return Number(value).toLocaleString('id-ID', { maximumFractionDigits: 4 });
+    }
+
+    function showInventoryMessage(message, type) {
+      inventoryMessage.textContent = message;
+      inventoryMessage.className = `form-message ${type}`;
+    }
+
+    function clearInventoryMessage() {
+      inventoryMessage.textContent = '';
+      inventoryMessage.className = 'form-message';
+    }
+
+    function showRecipeMessage(message, type) {
+      recipeMessage.textContent = message;
+      recipeMessage.className = `form-message ${type}`;
+    }
+
+    function clearRecipeMessage() {
+      recipeMessage.textContent = '';
+      recipeMessage.className = 'form-message';
+    }
+
+    const expenseForm = $('#expenseForm');
+    const expenseDate = $('#expenseDate');
+    const expenseMessage = $('#expenseMessage');
+    const saveExpenseBtn = $('#saveExpenseBtn');
+
+    function setTodayIfEmpty() {
+      if (!expenseDate.value) expenseDate.value = new Date().toISOString().slice(0, 10);
+    }
+
+    expenseForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearExpenseMessage();
+
+      if (!supabaseConfigured) {
+        showExpenseMessage('Supabase belum dikonfigurasi. Isi SUPABASE_URL dan SUPABASE_ANON_KEY di JavaScript terlebih dahulu.', 'error');
+        return;
+      }
+
+      const amount = Number($('#expenseAmount').value);
+      if (!Number.isFinite(amount) || amount < 0) {
+        showExpenseMessage('Total uang harus berupa angka yang valid.', 'error');
+        return;
+      }
+
+      saveExpenseBtn.disabled = true;
+      saveExpenseBtn.textContent = 'Menyimpan...';
+      const expense = {
+        expense_date: expenseDate.value,
+        category: $('#expenseCategory').value,
+        expense_name: $('#expenseName').value.trim(),
+        amount,
+        notes: $('#expenseNotes').value.trim() || null
+      };
+
+      const { error } = await supabaseClient.from('expenses').insert([expense]);
+      saveExpenseBtn.disabled = false;
+      saveExpenseBtn.textContent = 'Simpan Pengeluaran';
+
+      if (error) {
+        console.error(error);
+        showExpenseMessage(`Gagal menyimpan: ${error.message}`, 'error');
+        return;
+      }
+
+      showExpenseMessage('Pengeluaran berhasil disimpan ke Supabase.', 'success');
+      expenseForm.reset();
+      setTodayIfEmpty();
+      await loadExpenses();
+    });
+
+    $('#resetExpenseBtn').addEventListener('click', () => {
+      clearExpenseMessage();
+      window.setTimeout(setTodayIfEmpty, 0);
+    });
+    $('#refreshExpensesBtn').addEventListener('click', loadExpenses);
+
+    async function loadExpenses() {
+      const tableWrap = $('#expenseTableWrap');
+      if (!supabaseConfigured) {
+        tableWrap.innerHTML = '<div class="loading-row">Isi konfigurasi Supabase untuk menampilkan riwayat pengeluaran.</div>';
+        return;
+      }
+
+      tableWrap.innerHTML = '<div class="loading-row">Memuat riwayat pengeluaran...</div>';
+      const { data, error } = await supabaseClient
+        .from('expenses')
+        .select('id, expense_date, category, expense_name, amount, notes, created_at')
+        .order('expense_date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      if (error) {
+        console.error(error);
+        tableWrap.innerHTML = `<div class="loading-row" style="color:var(--red);">Gagal mengambil data: ${escapeHtml(error.message)}</div>`;
+        return;
+      }
+      renderExpenseTable(data || []);
+    }
+
+    function renderExpenseTable(expenses) {
+      const tableWrap = $('#expenseTableWrap');
+      if (!expenses.length) {
+        tableWrap.innerHTML = '<div class="loading-row">Belum ada data pengeluaran.</div>';
+        return;
+      }
+
+      const rows = expenses.map((item) => `
+        <tr>
+          <td>${escapeHtml(formatExpenseDate(item.expense_date))}</td>
+          <td>${escapeHtml(item.category || '-')}</td>
+          <td>${escapeHtml(item.expense_name || '-')}</td>
+          <td class="amount">${formatRupiah(item.amount)}</td>
+          <td>${escapeHtml(item.notes || '-')}</td>
+        </tr>
+      `).join('');
+
+      tableWrap.innerHTML = `
+        <table class="history-table">
+          <thead><tr><th>Tanggal</th><th>Kategori</th><th>Nama Pengeluaran</th><th>Total</th><th>Catatan</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    }
+
+    function formatExpenseDate(value) {
+      if (!value) return '-';
+      const parts = String(value).slice(0, 10).split('-');
+      return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : String(value);
+    }
+
+    function formatRupiah(value) {
+      return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(value) || 0);
+    }
+
+    function showExpenseMessage(message, type) {
+      expenseMessage.textContent = message;
+      expenseMessage.className = `form-message ${type}`;
+    }
+
+    function clearExpenseMessage() {
+      expenseMessage.textContent = '';
+      expenseMessage.className = 'form-message';
+    }
+
+    const uploadZone = $('#uploadZone');
+    const fileInput = $('#fileInput');
+
+    ['dragenter', 'dragover'].forEach((eventName) => {
+      uploadZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        uploadZone.classList.add('dragover');
+      });
+    });
+    ['dragleave', 'drop'].forEach((eventName) => {
+      uploadZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        uploadZone.classList.remove('dragover');
+      });
+    });
+    uploadZone.addEventListener('drop', (event) => {
+      const file = event.dataTransfer.files[0];
+      if (file) processFile(file);
+    });
+    fileInput.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file) processFile(file);
+    });
+
+    function processFile(file) {
+      const validExtensions = ['.xlsx', '.xls', '.csv'];
+      const lowerName = file.name.toLowerCase();
+      if (!validExtensions.some((extension) => lowerName.endsWith(extension))) {
+        showUploadError('Gunakan file Excel (.xlsx/.xls) atau CSV (.csv).');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const workbook = XLSX.read(event.target.result, { type: 'array', cellDates: true });
+          const firstSheetName = workbook.SheetNames[0];
+          const firstSheet = workbook.Sheets[firstSheetName];
+          // Untuk Excel iSeller, baris pertama hanya berisi keterangan waktu laporan.
+          // Header tabel asli dimulai dari baris Excel ke-2, sehingga range: 1 melewati baris pertama.
+          // CSV tetap dibaca dari baris pertamanya karena CSV biasanya langsung dimulai dengan header.
+          const isCsv = lowerName.endsWith('.csv');
+          const rows = XLSX.utils.sheet_to_json(firstSheet, isCsv
+            ? { header: 1, defval: '' }
+            : { header: 1, defval: '', range: 1 });
+          const headerRowIndex = detectHeaderRowIndex(rows);
+          const tableRows = headerRowIndex > 0 ? rows.slice(headerRowIndex) : rows;
+          tableRows.slice(1).forEach((row) => console.log(row));
+          renderPreview(file, firstSheetName, tableRows);
+          if (supabaseConfigured) {
+            const result = await deductInventoryFromSales(file, tableRows);
+            if (result?.status === 'success' && result.matchedRows > 0) {
+              alert(`Berhasil memproses ${result.matchedRows} baris penjualan dari iSeller`);
+            } else if (result?.status === 'no-match') {
+              alert('File terbaca, tetapi tidak ada nama produk yang cocok dengan daftar resep');
+            }
+          } else {
+            $('#uploadActivity').textContent = `${file.name} dipreview; Supabase belum dikonfigurasi`;
+          }
+          if (headerRowIndex > 0) addUploadLog('success', `Baris header iSeller terdeteksi pada baris ke-${headerRowIndex + (isCsv ? 1 : 2)}.`);
+        } catch (error) {
+          console.error(error);
+          showUploadError('File tidak dapat dibaca. Pastikan file tidak rusak dan memiliki format tabel.');
+        }
+      };
+      reader.onerror = () => showUploadError('File gagal dibaca oleh browser.');
+      reader.readAsArrayBuffer(file);
+    }
+
+    function renderPreview(file, sheetName, rows) {
+      const meta = $('#fileMeta');
+      const tableContainer = $('#tableContainer');
+      const rawHeader = rows[0] || [];
+      const headers = rawHeader.length ? rawHeader.map((header, index) => String(header || `Kolom ${index + 1}`)) : [];
+      const bodyRows = rows.slice(1, 11);
+
+      state.uploadedRows = Math.max(rows.length - (rows.length ? 1 : 0), 0);
+      state.uploadedFileName = file.name;
+      $('#lastUploadStat').textContent = file.name.length > 18 ? `${file.name.slice(0, 15)}...` : file.name;
+      $('#rowCountStat').textContent = state.uploadedRows.toLocaleString('id-ID');
+      $('#uploadActivity').textContent = `${file.name} berhasil diproses`;
+
+      meta.classList.remove('hidden');
+      meta.innerHTML = `<span>📄 ${escapeHtml(file.name)}</span><span>Sheet: ${escapeHtml(sheetName)}</span><span>${state.uploadedRows.toLocaleString('id-ID')} baris data</span>`;
+
+      if (!headers.length) {
+        tableContainer.classList.remove('hidden');
+        tableContainer.innerHTML = '<div class="empty-table">File tidak berisi data tabel.</div>';
+        return;
+      }
+
+      const headerHtml = headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('');
+      const bodyHtml = bodyRows.length
+        ? bodyRows.map((row) => `<tr>${headers.map((_, index) => `<td title="${escapeHtml(formatCell(row[index]))}">${escapeHtml(formatCell(row[index]))}</td>`).join('')}</tr>`).join('')
+        : `<tr><td colspan="${headers.length}"><div class="empty-table">Tidak ada baris data setelah header.</div></td></tr>`;
+
+      tableContainer.classList.remove('hidden');
+      tableContainer.innerHTML = `<table><thead><tr>${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`;
+    }
+
+    function detectHeaderRowIndex(rows) {
+      const maxRowsToCheck = Math.min(rows.length, 20);
+      for (let index = 0; index < maxRowsToCheck; index += 1) {
+        const row = rows[index] || [];
+        const menuIndex = findHeaderIndex(row, ['Judul Produk', 'product name', 'item name', 'nama produk', 'nama menu', 'menu', 'product', 'item']);
+        const quantityIndex = findHeaderIndex(row, ['Unit terjual', 'quantity sold', 'sold quantity', 'quantity', 'qty', 'jumlah terjual', 'jumlah', 'sold']);
+        if (menuIndex !== -1 && quantityIndex !== -1) return index;
+      }
+      return 0;
+    }
+
+    async function deductInventoryFromSales(file, rows) {
+      clearUploadLog();
+      const headers = rows[0] || [];
+      const menuIndex = findHeaderIndex(headers, [
+        'Judul Produk', 'product name', 'item name', 'nama produk', 'nama menu', 'menu name', 'menu', 'product', 'item'
+      ]);
+      const quantityIndex = findHeaderIndex(headers, [
+        'Unit terjual', 'quantity sold', 'sold quantity', 'quantity', 'qty', 'jumlah terjual', 'jumlah', 'sold'
+      ]);
+
+      if (menuIndex === -1 || quantityIndex === -1) {
+        const foundHeaders = headers.map((header) => String(header)).join(', ');
+        addUploadLog('error', `Kolom menu atau jumlah terjual tidak ditemukan. Header terbaca: ${foundHeaders || '(kosong)'}`);
+        $('#uploadActivity').textContent = `${file.name}: header menu/quantity tidak ditemukan`;
+        return { status: 'no-match', validSalesRows: 0, matchedRows: 0 };
+      }
+
+      addUploadLog('success', `Kolom menu terdeteksi: “${headers[menuIndex]}”; kolom jumlah terjual: “${headers[quantityIndex]}”.`);
+
+      // Versi v3 memaksa file yang pernah gagal pada parser lama untuk diuji ulang.
+      const uploadKey = `fb-iseller-deduction:v3:${file.name}:${file.size}:${file.lastModified}`;
+      if (getUploadMarker(uploadKey) === 'done') {
+        addUploadLog('warning', `File ${file.name} sudah diproses sebelumnya pada versi logika ini. Stok tidak dipotong ulang.`);
+        $('#uploadActivity').textContent = `${file.name}: sudah diproses sebelumnya`;
+        return { status: 'skipped', validSalesRows: 0, matchedRows: 0 };
+      }
+
+      const soldMenus = new Map();
+      let validSalesRows = 0;
+      rows.slice(1).forEach((row) => {
+        const menuName = String(row[menuIndex] ?? '').trim();
+        const quantity = parseQuantity(row[quantityIndex]);
+        if (!menuName || !Number.isFinite(quantity) || quantity <= 0) return;
+        validSalesRows += 1;
+        const key = normalizeMenuName(menuName);
+        const existing = soldMenus.get(key) || { menuName, quantity: 0, rowCount: 0 };
+        existing.quantity += quantity;
+        existing.rowCount += 1;
+        soldMenus.set(key, existing);
+      });
+
+      if (!soldMenus.size) {
+        addUploadLog('warning', 'Tidak ada baris penjualan valid yang memiliki nama menu dan jumlah lebih dari 0.');
+        $('#uploadActivity').textContent = `${file.name}: tidak ada penjualan valid`;
+        return { status: 'no-match', validSalesRows: 0, matchedRows: 0 };
+      }
+
+      const [{ data: recipes, error: recipesError }, { data: inventory, error: inventoryError }] = await Promise.all([
+        supabaseClient.from('recipes').select('menu_name, inventory_item_id, quantity_needed'),
+        supabaseClient.from('inventory').select('id, item_name, stock_quantity, unit, min_stock')
+      ]);
+
+      if (recipesError || inventoryError) {
+        const error = recipesError || inventoryError;
+        console.error(error);
+        addUploadLog('error', `Gagal membaca resep atau stok dari Supabase: ${error.message}`);
+        $('#uploadActivity').textContent = `Gagal membaca resep/stok: ${error.message}`;
+        return { status: 'error', validSalesRows, matchedRows: 0 };
+      }
+
+      const recipeMap = new Map();
+      (recipes || []).forEach((recipe) => {
+        const key = normalizeMenuName(recipe.menu_name);
+        if (!recipeMap.has(key)) recipeMap.set(key, []);
+        recipeMap.get(key).push(recipe);
+      });
+      const inventoryMap = new Map((inventory || []).map((item) => [String(item.id), item]));
+      const deductions = new Map();
+      const menuDetails = [];
+      let matchedRows = 0;
+
+      soldMenus.forEach((sale) => {
+        const recipeRows = recipeMap.get(normalizeMenuName(sale.menuName));
+        if (!recipeRows?.length) {
+          menuDetails.push({ type: 'warning', text: `Menu ${sale.menuName} terjual sebanyak ${formatQuantity(sale.quantity)} porsi tetapi resep belum di-setup.` });
+          return;
+        }
+        matchedRows += sale.rowCount;
+
+        const details = [];
+        recipeRows.forEach((recipe) => {
+          const inventoryItem = inventoryMap.get(String(recipe.inventory_item_id));
+          const quantityNeeded = Number(recipe.quantity_needed);
+          const totalNeeded = quantityNeeded * sale.quantity;
+          if (!inventoryItem || !Number.isFinite(quantityNeeded) || quantityNeeded <= 0) {
+            details.push({ missing: true, text: `bahan dengan ID ${recipe.inventory_item_id} tidak ditemukan` });
+            return;
+          }
+          const existing = deductions.get(String(inventoryItem.id)) || { item: inventoryItem, quantity: 0 };
+          existing.quantity += totalNeeded;
+          deductions.set(String(inventoryItem.id), existing);
+          details.push({ item: inventoryItem, quantity: totalNeeded });
+        });
+        menuDetails.push({ type: details.some((detail) => detail.missing) ? 'warning' : 'success', menuName: sale.menuName, quantity: sale.quantity, details });
+      });
+
+      let updatedCount = 0;
+      let updateErrors = 0;
+      const updateResults = new Map();
+      for (const deduction of deductions.values()) {
+        const currentStock = Number(deduction.item.stock_quantity) || 0;
+        const requestedDeduction = Number(deduction.quantity) || 0;
+        // Stok boleh menjadi minus agar kekurangan stok terlihat jelas oleh Admin.
+        const newStock = currentStock - requestedDeduction;
+        const actualDeduction = currentStock - newStock;
+        const { data: updatedRows, error } = await supabaseClient
+          .from('inventory')
+          .update({ stock_quantity: newStock })
+          .eq('id', deduction.item.id)
+          .select('id, stock_quantity');
+        if (error || !updatedRows?.length) {
+          const updateError = error || new Error('Tidak ada baris inventory yang diperbarui. Periksa policy UPDATE/RLS Supabase.');
+          console.error(updateError);
+          updateErrors += 1;
+          updateResults.set(String(deduction.item.id), { ok: false, item: deduction.item, requestedDeduction, error: updateError.message });
+        } else {
+          updatedCount += 1;
+          updateResults.set(String(deduction.item.id), { ok: true, item: deduction.item, requestedDeduction, actualDeduction, newStock });
+        }
+      }
+
+      menuDetails.forEach((detail) => {
+        if (detail.type === 'warning' && !detail.menuName) {
+          addUploadLog('warning', detail.text);
+          return;
+        }
+        if (!detail.menuName) return;
+        const hasMinusStock = detail.details.some((itemDetail) => {
+          const result = itemDetail.missing ? null : updateResults.get(String(itemDetail.item.id));
+          return result?.ok && result.newStock < 0;
+        });
+        const parts = detail.details.map((itemDetail) => {
+          if (itemDetail.missing) return itemDetail.text;
+          const result = updateResults.get(String(itemDetail.item.id));
+          const unit = itemDetail.item.unit || '';
+          if (!result?.ok) return `Stok ${itemDetail.item.item_name} gagal diperbarui (${result?.error || 'periksa policy UPDATE/RLS Supabase'})`;
+          if (result.newStock < 0) return `Peringatan: Menu ${detail.menuName} terjual, tetapi stok ${itemDetail.item.item_name} habis/minus di gudang! Stok menjadi ${formatQuantity(result.newStock)} ${unit}`;
+          return `Stok ${itemDetail.item.item_name} ${formatQuantity(itemDetail.quantity)} ${unit} otomatis berkurang di Supabase`;
+        });
+        const sentence = hasMinusStock
+          ? `Peringatan: Menu ${detail.menuName} terjual sebanyak ${formatQuantity(detail.quantity)} porsi, tetapi ada stok bahan yang habis/minus di gudang. ${parts.join('; ')}.`
+          : `Berhasil memproses Menu ${detail.menuName} sebanyak ${formatQuantity(detail.quantity)} porsi. ${parts.join('; ')}.`;
+        addUploadLog(detail.type === 'warning' || hasMinusStock ? 'warning' : 'success', sentence);
+      });
+
+      if (updateErrors === 0 && deductions.size > 0) setUploadMarker(uploadKey, 'done');
+      if (document.getElementById('stockPage').classList.contains('active')) await loadInventory();
+
+      const summary = `${file.name}: ${updatedCount} bahan berhasil diperbarui dari ${soldMenus.size} menu`;
+      $('#uploadActivity').textContent = updateErrors ? `${summary}; ${updateErrors} pembaruan gagal` : `${summary}.`;
+      return { status: matchedRows > 0 ? 'success' : 'no-match', validSalesRows, matchedRows };
+    }
+
+    function findHeaderIndex(headers, keywords) {
+      const candidates = headers.map((header, index) => {
+        const normalizedHeader = normalizeText(header);
+        const scores = keywords.map((keyword) => {
+          const normalizedKeyword = normalizeText(keyword);
+          if (!normalizedHeader || !normalizedKeyword) return 0;
+          if (normalizedHeader === normalizedKeyword) return 1000 + normalizedKeyword.length;
+          if (normalizedHeader.includes(normalizedKeyword)) return normalizedKeyword.length;
+          return 0;
+        });
+        return { index, score: Math.max(...scores) };
+      }).sort((a, b) => b.score - a.score);
+      return candidates[0]?.score > 0 ? candidates[0].index : -1;
+    }
+
+    function normalizeText(value) {
+      return String(value ?? '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    function normalizeMenuName(value) {
+      return String(value ?? '').trim().toUpperCase().replace(/\s+/g, ' ');
+    }
+
+    function parseQuantity(value) {
+      if (value === null || value === undefined || value === '') return NaN;
+      if (typeof value === 'number') return value;
+      let text = String(value).trim().replace(/[^0-9,.-]/g, '');
+      if (text.includes(',') && text.includes('.')) {
+        text = text.lastIndexOf(',') > text.lastIndexOf('.') ? text.replaceAll('.', '').replace(',', '.') : text.replaceAll(',', '');
+      } else if (text.includes(',')) {
+        text = text.replace(',', '.');
+      }
+      return Number(text);
+    }
+
+    function clearUploadLog() {
+      $('#uploadLog').innerHTML = '';
+    }
+
+    function addUploadLog(type, message) {
+      const log = document.createElement('div');
+      log.className = `upload-log-entry ${type}`;
+      log.textContent = message;
+      $('#uploadLog').appendChild(log);
+    }
+
+    function getUploadMarker(key) {
+      try { return window.localStorage.getItem(key); } catch (error) { return null; }
+    }
+
+    function setUploadMarker(key, value) {
+      try { window.localStorage.setItem(key, value); } catch (error) { console.warn('Penanda upload tidak dapat disimpan.', error); }
+    }
+
+    function showUploadError(message) {
+      const meta = $('#fileMeta');
+      meta.classList.remove('hidden');
+      meta.innerHTML = `<span style="color:var(--red);background:#fef2f2;">⚠ ${escapeHtml(message)}</span>`;
+      clearUploadLog();
+      addUploadLog('error', message);
+    }
+
+    function formatCell(value) {
+      if (value === null || value === undefined) return '';
+      if (value instanceof Date) return value.toLocaleDateString('id-ID');
+      return String(value);
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+  </script>
+</body>
+</html>
