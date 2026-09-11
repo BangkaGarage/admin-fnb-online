@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f35b0a">
+  <meta name="description" content="F&B Control Staff — aplikasi operasional harian untuk staf">
+  <link rel="manifest" href="staff-manifest.json">
+  <title>F&B Control Staff</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --orange: #f35b0a;
+      --orange-dark: #c94700;
+      --ink: #172033;
+      --muted: #6b7890;
+      --bg: #f1f4f8;
+      --card: #fff;
+      --line: #e2e8f0;
+      --success: #078542;
+      --danger: #c62e36;
+      --shadow: 0 10px 26px rgba(31, 44, 65, .08);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: var(--bg); min-height: 100vh; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .hidden { display: none !important; }
+    .login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: linear-gradient(145deg, #131d2e, #24344a); }
+    .login-card { width: min(100%, 410px); background: #fff; border-radius: 24px; padding: 30px; box-shadow: 0 20px 50px rgba(0,0,0,.2); }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; background: var(--orange); color: #fff; font-weight: 900; font-size: 12px; }
+    .brand strong { display: block; font-size: 19px; }
+    .brand small { color: var(--muted); }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { font-size: 24px; margin-bottom: 6px; }
+    h2 { font-size: 20px; margin-bottom: 6px; }
+    h3 { font-size: 16px; margin-bottom: 5px; }
+    .subtitle, .help { color: var(--muted); line-height: 1.5; }
+    .subtitle { margin-bottom: 22px; }
+    .help { font-size: 13px; margin: 6px 0 0; }
+    .field { margin-bottom: 15px; }
+    label { display: block; font-weight: 800; font-size: 13px; margin-bottom: 7px; }
+    input, select, textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 12px; padding: 12px 13px; background: #fff; color: var(--ink); outline: none; }
+    input:focus, select:focus, textarea:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(243, 91, 10, .12); }
+    textarea { resize: vertical; min-height: 86px; }
+    .btn { border: 0; border-radius: 12px; padding: 12px 16px; font-weight: 800; transition: .15s ease; }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .btn-primary { background: var(--orange); color: #fff; }
+    .btn-primary:hover { background: var(--orange-dark); }
+    .btn-secondary { background: #edf2f7; color: #26344a; }
+    .btn-outline { background: #fff; border: 1px solid #cbd5e1; color: #26344a; }
+    .btn-danger { background: #fff1f1; color: var(--danger); }
+    .full { width: 100%; }
+    .message { border-radius: 12px; padding: 11px 13px; margin: 12px 0 0; font-size: 13px; line-height: 1.45; }
+    .message.success { background: #e9f8ef; color: #086b36; }
+    .message.error { background: #fff0f0; color: #9f2028; }
+    .message.info { background: #eef4fb; color: #295477; }
+    .app { min-height: 100vh; padding-bottom: 82px; }
+    .topbar { position: sticky; top: 0; z-index: 5; background: rgba(255,255,255,.95); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); padding: max(13px, env(safe-area-inset-top)) 16px 12px; }
+    .topbar-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .topbar .brand-mark { width: 38px; height: 38px; border-radius: 11px; font-size: 10px; }
+    .topbar .brand strong { font-size: 16px; }
+    .topbar .brand small { font-size: 11px; }
+    .division-pill { display: flex; align-items: center; gap: 7px; }
+    .division-pill select { width: auto; max-width: 125px; padding: 8px 9px; border-radius: 10px; font-size: 12px; font-weight: 800; }
+    .content { width: min(100%, 720px); margin: 0 auto; padding: 20px 16px 24px; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .hero { background: linear-gradient(135deg, #172033, #293d59); color: #fff; border-radius: 20px; padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow); }
+    .hero .subtitle { color: #cad5e4; margin-bottom: 0; }
+    .hero-date { color: #ffca9f; font-weight: 800; font-size: 13px; margin-bottom: 9px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px; margin-bottom: 14px; box-shadow: var(--shadow); }
+    .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 15px; }
+    .card-head p { margin-bottom: 0; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .quick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .quick { border: 1px solid var(--line); border-radius: 15px; padding: 15px; background: #fff; text-align: left; color: var(--ink); }
+    .quick:hover { border-color: var(--orange); }
+    .quick-icon { font-size: 22px; margin-bottom: 9px; }
+    .quick strong { display: block; font-size: 14px; }
+    .quick small { color: var(--muted); display: block; margin-top: 4px; line-height: 1.35; }
+    .stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .stat { background: #f7f9fb; border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+    .stat small { display: block; color: var(--muted); font-size: 12px; }
+    .stat strong { display: block; font-size: 23px; margin-top: 5px; }
+    .stat.warning strong { color: #b44b00; }
+    .list { display: grid; gap: 8px; }
+    .list-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; }
+    .list-row strong { display: block; font-size: 14px; }
+    .list-row small { color: var(--muted); }
+    .tag { display: inline-flex; align-items: center; border-radius: 999px; padding: 5px 9px; font-size: 11px; font-weight: 800; background: #eef2f6; color: #53647a; white-space: nowrap; }
+    .tag.success { background: #e6f7ed; color: #087b3e; }
+    .tag.warning { background: #fff3dc; color: #9d5900; }
+    .form-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 16px; }
+    .section-note { background: #f7f9fb; border-radius: 12px; padding: 12px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .bottom-nav { position: fixed; z-index: 10; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; padding: 8px 6px max(8px, env(safe-area-inset-bottom)); background: rgba(255,255,255,.97); border-top: 1px solid var(--line); backdrop-filter: blur(12px); }
+    .nav-btn { border: 0; background: transparent; border-radius: 12px; padding: 8px 2px; color: #68778d; font-size: 9px; font-weight: 800; }
+    .nav-btn span { display: block; font-size: 19px; margin-bottom: 3px; }
+    .nav-btn.active { background: #fff0e7; color: var(--orange-dark); }
+    .row-list { display: grid; gap: 10px; }
+    .count-row { border: 1px solid var(--line); border-radius: 13px; padding: 12px; }
+    .count-row-top { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+    .count-row input { padding: 10px; }
+    .faq { border: 1px solid var(--line); border-radius: 13px; padding: 13px; margin-bottom: 9px; }
+    .faq summary { cursor: pointer; font-weight: 800; }
+    .faq p { margin: 10px 0 0; color: var(--muted); line-height: 1.5; font-size: 13px; }
+    .check-row { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 13px; padding: 12px; margin-bottom: 9px; }
+    .check-row input { width: 19px; height: 19px; margin-top: 1px; accent-color: var(--orange); }
+    .check-row strong { font-size: 14px; }
+    .check-row small { display: block; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+    .loading { color: var(--muted); font-size: 13px; padding: 8px 0; }
+    .empty { color: var(--muted); text-align: center; padding: 18px 8px; font-size: 13px; }
+    .danger-text { color: var(--danger); }
+    .muted-text { color: var(--muted); }
+    @media (min-width: 650px) {
+      .content { padding-top: 28px; }
+      .quick-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .bottom-nav { left: 50%; right: auto; width: min(100%, 720px); transform: translateX(-50%); border: 1px solid var(--line); border-bottom: 0; border-radius: 18px 18px 0 0; }
+    }
+  </style>
+</head>
+<body>
+  <div id="loginView" class="login-wrap">
+    <form id="loginForm" class="login-card">
+      <div class="brand" style="margin-bottom:24px"><div class="brand-mark">F&B</div><div><strong>F&B Control</strong><small>Aplikasi Staff</small></div></div>
+      <h1>Masuk operasional</h1>
+      <p class="subtitle">Gunakan aplikasi ini untuk pekerjaan harian. HPP, harga beli, dan laporan owner tidak ditampilkan.</p>
+      <div class="field"><label for="loginUser">Email</label><input id="loginUser" type="email" autocomplete="email" placeholder="Email staf terdaftar" required></div>
+      <div class="field"><label for="loginPassword">Password</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Password" required></div>
+      <button class="btn btn-primary full" type="submit">Masuk</button>
+      <div id="loginMessage" class="message hidden"></div>
+      <p class="help" style="margin-top:16px">Gunakan email dan password yang sudah dibuat di Supabase Authentication.</p>
+    </form>
+  </div>
+
+  <div id="appView" class="app hidden">
+    <header class="topbar">
+      <div class="topbar-row">
+        <div class="brand"><div class="brand-mark">F&B</div><div><strong>F&B Staff</strong><small id="staffGreeting">Operasional</small></div></div>
+        <div class="division-pill"><select id="divisionSelect" aria-label="Divisi kerja"><option>Bar</option><option>Kitchen</option><option>Waiters</option></select><button id="logoutBtn" class="btn btn-secondary" style="padding:8px 9px;font-size:12px">Keluar</button></div>
+      </div>
+    </header>
+
+    <main class="content">
+      <section id="homePage" class="page active">
+        <div class="hero"><div class="hero-date" id="todayLabel"></div><h1>Tugas operasional hari ini</h1><p class="subtitle">Pilih pekerjaan yang ingin dicatat. Setiap perubahan stok tetap tercatat ke sistem owner.</p></div>
+        <div class="card"><div class="card-head"><div><h2>Menu cepat</h2><p class="subtitle">Akses pekerjaan yang paling sering dipakai.</p></div></div><div class="quick-grid">
+          <button class="quick" data-go="salePage"><div class="quick-icon">🧾</div><strong>Penjualan</strong><small>Catat nota manual</small></button>
+          <button class="quick" data-go="expensePage"><div class="quick-icon">💳</div><strong>Pengeluaran</strong><small>Biaya operasional</small></button>
+          <button class="quick" data-go="stockPage"><div class="quick-icon">📦</div><strong>Stok</strong><small>Transfer dan waste</small></button>
+          <button class="quick" data-go="countPage"><div class="quick-icon">🔢</div><strong>Hitung stok</strong><small>Opname blind</small></button>
+        </div></div>
+        <div id="lowStockNotice" class="card hidden"><div class="card-head"><div><h2>⚠️ Perhatian stok</h2><p class="subtitle">Ada bahan yang sudah menipis atau habis.</p></div><button id="enableNotificationsBtn" class="btn btn-outline" style="padding:8px 10px">Aktifkan notifikasi</button></div><div id="lowStockNoticeList" class="list"></div></div>
+        <div class="card"><div class="card-head"><div><h2>Ringkasan divisi</h2><p class="subtitle">Hanya indikator operasional, tanpa nilai rupiah.</p></div><button id="refreshHomeBtn" class="btn btn-outline" style="padding:8px 10px">↻</button></div><div class="stat-grid"><div class="stat"><small>Item aktif</small><strong id="activeItemStat">-</strong></div><div class="stat warning"><small>Perlu perhatian</small><strong id="lowStockStat">-</strong></div><div class="stat"><small>Transfer terbaru</small><strong id="transferStat">-</strong></div><div class="stat"><small>Checklist shift</small><strong id="checkStat">0%</strong></div></div></div>
+        <div class="card"><div class="card-head"><div><h2>Panduan singkat</h2><p class="subtitle">Ikuti urutan ini agar stok rapi.</p></div></div><div class="list"><div class="list-row"><div><strong>1. Terima atau pindahkan stok</strong><small>Ajukan transfer dari Gudang Utama bila bahan belum tersedia.</small></div><span class="tag">Stok</span></div><div class="list-row"><div><strong>2. Catat pemakaian tidak terjual</strong><small>Gunakan Waste untuk bahan rusak, jatuh, atau testing.</small></div><span class="tag">Waste</span></div><div class="list-row"><div><strong>3. Hitung fisik saat diminta</strong><small>Isi jumlah nyata tanpa melihat stok sistem.</small></div><span class="tag">Opname</span></div></div></div>
+      </section>
+
+      <section id="salePage" class="page"><div class="card"><div class="card-head"><div><h2>Penjualan manual</h2><p class="subtitle">Catat nota ketika import iSeller tidak digunakan. Stok resep dipotong otomatis.</p></div></div><form id="saleForm"><div class="grid-2"><div class="field"><label for="saleReceipt">Nomor nota *</label><input id="saleReceipt" required></div><div class="field"><label for="saleDate">Tanggal *</label><input id="saleDate" type="date" required></div></div><div id="saleRows" class="row-list"></div><button type="button" id="addSaleRow" class="btn btn-outline full">+ Tambah produk</button><div class="form-actions"><button type="submit" id="saveSaleBtn" class="btn btn-primary">Simpan nota</button><button type="button" id="resetSaleBtn" class="btn btn-secondary">Kosongkan</button></div><div id="saleMessage" class="message hidden"></div></form></div><div class="section-note">Masukkan nama menu dan varian persis seperti yang sudah disiapkan di master menu. Aplikasi staf tidak menampilkan HPP.</div></section>
+
+      <section id="expensePage" class="page"><div class="card"><div class="card-head"><div><h2>Pengeluaran operasional</h2><p class="subtitle">Catat biaya harian seperti transport, kebutuhan kecil, atau operasional shift.</p></div></div><form id="expenseForm"><div class="grid-2"><div class="field"><label for="expenseDate">Tanggal *</label><input id="expenseDate" type="date" required></div><div class="field"><label for="expenseCategory">Kategori *</label><select id="expenseCategory" required><option value="">Pilih kategori</option><option>Operasional</option><option>Food Waste</option><option>Transport</option><option>Perlengkapan</option><option>Marketing</option><option>Lainnya</option></select></div></div><div class="field"><label for="expenseName">Nama pengeluaran *</label><input id="expenseName" placeholder="Contoh: beli gas kecil" required></div><div class="field"><label for="expenseAmount">Total uang (Rp) *</label><input id="expenseAmount" type="number" min="0" step="1" placeholder="Contoh: 250000" required></div><div class="field"><label for="expenseNotes">Catatan</label><textarea id="expenseNotes" placeholder="Keterangan bila diperlukan"></textarea></div><button type="submit" id="saveExpenseBtn" class="btn btn-primary full">Simpan pengeluaran</button><div id="expenseMessage" class="message hidden"></div></form></div><div class="section-note">Pengeluaran yang sudah tersimpan akan masuk ke laporan owner. Pastikan kategori dan nominal benar sebelum menyimpan.</div></section>
+
+      <section id="stockPage" class="page"><div class="card"><div class="card-head"><div><h2>Stok divisi</h2><p class="subtitle">Ajukan transfer dari gudang atau catat bahan yang terbuang.</p></div></div><div class="field"><label for="stockAction">Pilih aktivitas</label><select id="stockAction"><option value="transfer">Permintaan transfer</option><option value="waste">Waste / pemakaian non-penjualan</option></select></div><div id="transferPanel"><form id="transferForm"><div class="field"><label for="transferItem">Bahan dari Gudang Utama *</label><select id="transferItem" required><option value="">Memuat bahan...</option></select></div><div class="field"><label for="transferQuantity">Jumlah transfer *</label><input id="transferQuantity" type="number" min="0.0001" step="any" required><p class="help">Gunakan satuan stok dasar bahan, misalnya ml, gr, atau pcs.</p></div><button type="submit" id="saveTransferBtn" class="btn btn-primary full">Kirim permintaan transfer</button><div id="transferMessage" class="message hidden"></div></form></div><div id="wastePanel" class="hidden"><form id="wasteForm"><div class="field"><label for="wasteItem">Bahan di divisi *</label><select id="wasteItem" required><option value="">Memuat bahan...</option></select></div><div class="field"><label for="wasteQuantity">Jumlah waste *</label><input id="wasteQuantity" type="number" min="0.0001" step="any" required></div><div class="field"><label for="wasteReason">Alasan *</label><textarea id="wasteReason" placeholder="Contoh: bahan jatuh, rusak, testing, atau kedaluwarsa" required></textarea></div><button type="submit" id="saveWasteBtn" class="btn btn-primary full">Simpan waste</button><div id="wasteMessage" class="message hidden"></div></form></div></div><div class="card"><div class="card-head"><div><h2>Semua sisa stok</h2><p class="subtitle">Pilih lokasi untuk melihat saldo stok per bahan. Harga dan HPP tidak ditampilkan.</p></div><button id="refreshStockBtn" class="btn btn-outline" style="padding:8px 10px">↻</button></div><div class="grid-2"><div class="field"><label for="stockLocationFilter">Lokasi</label><select id="stockLocationFilter"><option value="Semua Lokasi">Semua Lokasi</option><option>Gudang Utama</option><option>Bar</option><option>Kitchen</option><option>Waiters</option></select></div><div class="field"><label for="stockSearch">Cari bahan</label><input id="stockSearch" placeholder="Nama bahan..."></div></div><div id="allStockList" class="list"><div class="loading">Memuat...</div></div></div><div class="card"><div class="card-head"><div><h2>Status transfer terbaru</h2><p class="subtitle">Transfer yang terkait dengan divisi <span id="transferDivisionLabel">-</span>.</p></div></div><div id="transferStatusList" class="list"><div class="loading">Memuat...</div></div></div><div class="card"><div class="card-head"><div><h2>Bahan yang perlu diperhatikan</h2><p class="subtitle">Daftar hanya berdasarkan batas minimum, tanpa harga.</p></div></div><div id="lowStockList" class="list"><div class="loading">Memuat...</div></div></div></section>
+
+      <section id="countPage" class="page"><div class="card"><div class="card-head"><div><h2>Hitung stok fisik</h2><p class="subtitle">Opname blind: staf hanya melihat bahan dan satuan, bukan stok sistem atau selisih.</p></div></div><form id="countStartForm"><div class="field"><label for="countNote">Catatan opname</label><textarea id="countNote" placeholder="Contoh: hitung akhir shift malam"></textarea></div><button type="submit" id="startCountBtn" class="btn btn-primary full">Mulai formulir hitung</button><div id="countMessage" class="message hidden"></div></form></div><div id="countFormCard" class="card hidden"><div class="card-head"><div><h2>Isi jumlah fisik</h2><p class="subtitle">Hitung langsung dari rak. Jangan mengisi berdasarkan perkiraan stok aplikasi.</p></div><span id="countBatchTag" class="tag">Draft</span></div><div id="countRows" class="row-list"></div><button id="submitCountBtn" class="btn btn-primary full" style="margin-top:16px">Kirim hasil hitung</button><div id="countSubmitMessage" class="message hidden"></div></div><div class="section-note">Setelah dikirim, hasil opname masuk ke owner untuk direview dan disetujui. Stok belum berubah pada tahap ini.</div></section>
+
+      <section id="historyPage" class="page"><div class="card"><div class="card-head"><div><h2>Riwayat aktivitas</h2><p class="subtitle">Aktivitas terbaru selalu berada di paling atas.</p></div><button id="refreshHistoryBtn" class="btn btn-outline" style="padding:8px 10px">↻</button></div><div class="form-actions" style="margin-top:0;margin-bottom:15px"><button class="btn btn-primary history-tab" data-history-tab="movements">Mutasi stok</button><button class="btn btn-secondary history-tab" data-history-tab="expenses">Pengeluaran</button></div><div id="movementHistoryPanel"><div class="grid-2"><div class="field"><label for="movementLocationFilter">Lokasi</label><select id="movementLocationFilter"><option value="Semua Lokasi">Semua Lokasi</option><option>Gudang Utama</option><option>Bar</option><option>Kitchen</option><option>Waiters</option></select></div><div class="field"><label for="movementSearch">Cari bahan</label><input id="movementSearch" placeholder="Nama bahan / catatan..."></div></div><div id="movementHistoryList" class="list"><div class="loading">Memuat...</div></div></div><div id="expenseHistoryPanel" class="hidden"><div class="field"><label for="expenseHistorySearch">Cari pengeluaran</label><input id="expenseHistorySearch" placeholder="Nama atau kategori..."></div><div id="expenseHistoryList" class="list"><div class="loading">Memuat...</div></div></div><div id="historyMessage" class="message hidden"></div></div><div class="section-note">Riwayat ini membantu staf memastikan input sudah tercatat. Koreksi, penghapusan, dan audit lengkap tetap dilakukan dari dashboard owner.</div></section>
+
+      <section id="checkPage" class="page"><div class="card"><div class="card-head"><div><h2>Checklist shift</h2><p class="subtitle">Checklist ini membantu memastikan alur kerja selesai sebelum serah terima.</p></div><span id="checkPercent" class="tag">0%</span></div><div id="checklist"></div><button id="resetCheckBtn" class="btn btn-secondary full">Mulai ulang checklist</button></div><div class="card"><div class="card-head"><div><h2>Catatan serah terima</h2><p class="subtitle">Simpan catatan lokal di perangkat ini untuk shift berikutnya.</p></div></div><textarea id="handoverNote" placeholder="Contoh: susu hampir habis, transfer masih menunggu..." rows="5"></textarea><div class="form-actions"><button id="saveHandoverBtn" class="btn btn-primary">Simpan catatan</button><button id="clearHandoverBtn" class="btn btn-secondary">Hapus</button></div><div id="handoverMessage" class="message hidden"></div></div></section>
+
+      <section id="helpPage" class="page"><div class="hero"><div class="hero-date">Bantuan operasional</div><h1>Butuh bantuan?</h1><p class="subtitle">Cari jawaban singkat tentang cara memakai aplikasi staf.</p></div><div class="card"><details class="faq" open><summary>Bagaimana meminta stok dari gudang?</summary><p>Buka Stok → Permintaan transfer, pilih bahan dari Gudang Utama, isi jumlah dengan satuan dasar seperti ml, gr, atau pcs, lalu kirim. Bila membutuhkan persetujuan, status akan menjadi pending dan owner yang menyetujui.</p></details><details class="faq"><summary>Kapan memakai Waste?</summary><p>Gunakan untuk bahan yang rusak, jatuh, kedaluwarsa, testing, atau terpakai bukan untuk penjualan. Isi jumlah nyata dan alasan yang jelas.</p></details><details class="faq"><summary>Apakah opname langsung mengubah stok?</summary><p>Tidak. Hitung fisik dikirim sebagai batch blind. Owner mereview dan menyetujui koreksi terlebih dahulu.</p></details><details class="faq"><summary>Kenapa menu penjualan ditolak?</summary><p>Biasanya nama menu, varian, atau resep belum cocok dengan master owner. Sampaikan nomor nota dan nama menu kepada owner untuk diperiksa.</p></details><details class="faq"><summary>Apa yang tidak boleh dilakukan staf?</summary><p>Jangan memakai akun owner, mengubah HPP, menghapus transaksi, atau menebak jumlah stok. Bila salah input, segera catat nomor transaksi dan laporkan kepada owner.</p></details></div><div class="section-note">Bantuan ini dibuat untuk alur aplikasi. Untuk masalah perangkat, koneksi, atau akun, hubungi owner/super admin.</div></section>
+    </main>
+    <nav class="bottom-nav" aria-label="Navigasi staf"><button class="nav-btn active" data-page="homePage"><span>⌂</span>Beranda</button><button class="nav-btn" data-page="salePage"><span>🧾</span>Penjualan</button><button class="nav-btn" data-page="expensePage"><span>💳</span>Pengeluaran</button><button class="nav-btn" data-page="stockPage"><span>📦</span>Stok</button><button class="nav-btn" data-page="historyPage"><span>↕</span>Riwayat</button><button class="nav-btn" data-page="checkPage"><span>✓</span>Shift</button></nav>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://pxebtirrorootipsvinq.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_vXaNAraeF3dAfRIiQnLgPA_X-7BmWk7';
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const TRANSFER_DESTINATIONS = ['Bar', 'Kitchen', 'Waiters'];
+    const state = { user: null, division: localStorage.getItem('fnbStaffDivision') || 'Kitchen', warehouseItems: [], divisionItems: [], allInventory: [], transferHistory: [], movementHistory: [], expenseHistory: [], batchId: null, countRows: [], checks: JSON.parse(localStorage.getItem('fnbStaffChecks') || '{}'), realtimeChannel: null, refreshTimer: null };
+    const $ = (id) => document.getElementById(id);
+    const today = () => new Date().toISOString().slice(0, 10);
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[char]));
+    const formatQuantity = (value) => Number(value || 0).toLocaleString('id-ID', { maximumFractionDigits: 4 });
+    const formatRupiah = (value) => Number(value || 0).toLocaleString('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
+    const showMessage = (id, text, type = 'info') => { const el = $(id); el.textContent = text; el.className = `message ${type}`; };
+    const clearMessage = (id) => { const el = $(id); el.textContent = ''; el.className = 'message hidden'; };
+    const setBusy = (button, busy, label) => { button.disabled = busy; button.dataset.defaultLabel ||= button.textContent; button.textContent = busy ? label : button.dataset.defaultLabel; };
+
+    function showPage(pageId) {
+      document.querySelectorAll('.page').forEach((page) => page.classList.toggle('active', page.id === pageId));
+      document.querySelectorAll('.nav-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.page === pageId));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (pageId === 'stockPage') void loadStockData();
+      if (pageId === 'historyPage') { void loadStockData().then(loadHistory); }
+      if (pageId === 'homePage') void loadHomeData();
+    }
+    function refreshDateLabels() {
+      const date = new Date();
+      $('todayLabel').textContent = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+      $('saleDate').value ||= today(); $('expenseDate').value ||= today();
+      $('staffGreeting').textContent = `${state.user?.name || 'Staf'} · ${state.division}`;
+    }
+    function saveDivision() { state.division = $('divisionSelect').value; localStorage.setItem('fnbStaffDivision', state.division); refreshDateLabels(); void loadStockData(); void loadHomeData(); }
+    function transferStatusLabel(row) { const status = String(row.approval_status || row.status || '').toLowerCase(); if (status === 'pending') return 'Menunggu persetujuan'; if (status === 'cancelled' || status === 'rejected') return 'Dibatalkan'; if (status === 'posted' || status === 'approved') return 'Selesai'; return row.status || 'Tercatat'; }
+    function updateLowStockNotice(rows) {
+      const low = rows.filter((item) => Number(item.stock_quantity || 0) <= Number(item.min_stock || 0));
+      $('lowStockNotice').classList.toggle('hidden', !low.length);
+      $('lowStockNoticeList').innerHTML = low.slice(0, 6).map((item) => `<div class="list-row"><div><strong>${escapeHtml(item.item_name)}</strong><small>${escapeHtml(item.division || 'Gudang Utama')} · ${formatQuantity(item.stock_quantity)} ${escapeHtml(item.unit || '')}</small></div><span class="tag warning">${Number(item.stock_quantity || 0) <= 0 ? 'Habis' : 'Menipis'}</span></div>`).join('');
+      const key = low.map((item) => `${item.id}:${item.stock_quantity}`).join('|');
+      const previous = localStorage.getItem('fnbStaffLowStockNotice');
+      if (low.length && key !== previous && 'Notification' in window && Notification.permission === 'granted') new Notification('Perhatian stok F&B', { body: `${low.length} bahan perlu diperiksa.` });
+      localStorage.setItem('fnbStaffLowStockNotice', key);
+    }
+    function renderTransferStatus(rows) {
+      const relevant = rows.filter((row) => row.source_division === state.division || row.destination_division === state.division);
+      $('transferStatusList').innerHTML = relevant.length ? relevant.slice(0, 12).map((row) => `<div class="list-row"><div><strong>${escapeHtml(row.item_name || '-')}</strong><small>${escapeHtml(row.source_division || '-')} → ${escapeHtml(row.destination_division || '-')} · ${escapeHtml(row.created_at ? new Date(row.created_at).toLocaleString('id-ID') : '-')}</small></div><div style="text-align:right"><strong>${formatQuantity(row.quantity)} ${escapeHtml(row.unit || '')}</strong><span class="tag ${transferStatusLabel(row) === 'Selesai' ? 'success' : 'warning'}">${escapeHtml(transferStatusLabel(row))}</span></div></div>`).join('') : '<div class="empty">Belum ada transfer untuk divisi ini.</div>';
+    }
+    function addSaleRow() {
+      const row = document.createElement('div'); row.className = 'count-row sale-row';
+      row.innerHTML = `<div class="count-row-top"><strong>Produk dalam nota</strong><button type="button" class="btn btn-danger remove-sale" style="padding:5px 9px">Hapus</button></div><div class="field"><label>Nama menu *</label><input class="sale-product" placeholder="Contoh: AMERICANO" required></div><div class="grid-2"><div class="field"><label>Varian</label><input class="sale-variant" placeholder="HOT / ICE"></div><div class="field"><label>Kategori *</label><select class="sale-category" required><option value="">Pilih</option><option>Minuman</option><option>Makanan</option><option>Snack</option><option>Lainnya</option></select></div></div><div class="grid-2"><div class="field"><label>Qty *</label><input class="sale-qty" type="number" min="1" step="1" required></div><div class="field"><label>Total baris (Rp) *</label><input class="sale-total" type="number" min="0" step="1" required></div></div>`;
+      row.querySelector('.remove-sale').addEventListener('click', () => { if (document.querySelectorAll('.sale-row').length > 1) row.remove(); }); $('saleRows').appendChild(row);
+    }
+    function renderAllStock() {
+      const location = $('stockLocationFilter').value;
+      const search = $('stockSearch').value.trim().toLowerCase();
+      const rows = state.allInventory.filter((item) => (location === 'Semua Lokasi' || item.division === location) && (!search || String(item.item_name || '').toLowerCase().includes(search)));
+      $('allStockList').innerHTML = rows.length ? rows.map((item) => {
+        const current = Number(item.stock_quantity || 0); const minimum = Number(item.min_stock || 0); const status = current <= 0 ? 'Habis' : current <= minimum ? 'Menipis' : 'Aman'; const tagClass = status === 'Aman' ? 'success' : 'warning';
+        return `<div class="list-row"><div><strong>${escapeHtml(item.item_name)}</strong><small>${escapeHtml(item.division || 'Gudang Utama')} · batas minimum ${formatQuantity(minimum)} ${escapeHtml(item.unit || '')}</small></div><div style="text-align:right"><strong>${formatQuantity(current)} ${escapeHtml(item.unit || '')}</strong><span class="tag ${tagClass}">${status}</span></div></div>`;
+      }).join('') : '<div class="empty">Bahan tidak ditemukan.</div>';
+    }
+    const movementLabels = { purchase: 'Belanja masuk', transfer_in: 'Transfer masuk', transfer_out: 'Transfer keluar', sale: 'Penjualan / HPP', waste: 'Waste', non_sale: 'Pemakaian non-penjualan', opname_adjustment: 'Penyesuaian opname', adjustment: 'Penyesuaian stok', return: 'Retur', void: 'Void / pembalikan' };
+    function renderMovementHistory(rows) {
+      const location = $('movementLocationFilter').value; const search = $('movementSearch').value.trim().toLowerCase();
+      const visible = rows.filter((row) => (location === 'Semua Lokasi' || row.division === location) && (!search || [row.item_name, row.notes, row.reference_id, movementLabels[row.movement_type]].some((value) => String(value || '').toLowerCase().includes(search))));
+      $('movementHistoryList').innerHTML = visible.length ? visible.map((row) => { const quantity = Number(row.quantity || 0); const positive = quantity >= 0; const signed = `${positive ? '+' : ''}${formatQuantity(quantity)}`; return `<div class="list-row"><div><strong>${escapeHtml(row.item_name || `Bahan #${row.inventory_item_id}`)}</strong><small>${escapeHtml(row.division || '-')} · ${escapeHtml(movementLabels[row.movement_type] || row.movement_type || '-')} · ${escapeHtml(row.created_at ? new Date(row.created_at).toLocaleString('id-ID') : '-')}</small></div><div style="text-align:right"><strong class="${positive ? '' : 'danger-text'}">${signed} ${escapeHtml(row.unit || '')}</strong><small>${escapeHtml(row.reference_id || row.notes || '-')}</small></div></div>`; }).join('') : '<div class="empty">Belum ada mutasi yang sesuai filter.</div>';
+    }
+    function renderExpenseHistory(rows) {
+      const search = $('expenseHistorySearch').value.trim().toLowerCase(); const visible = rows.filter((row) => !search || [row.expense_name, row.category, row.notes].some((value) => String(value || '').toLowerCase().includes(search)));
+      $('expenseHistoryList').innerHTML = visible.length ? visible.map((row) => `<div class="list-row"><div><strong>${escapeHtml(row.expense_name || '-')}</strong><small>${escapeHtml(row.category || 'Lainnya')} · ${escapeHtml(row.expense_date || (row.created_at ? new Date(row.created_at).toLocaleDateString('id-ID') : '-'))}</small></div><div style="text-align:right"><strong>${formatRupiah(row.amount)}</strong><small>${escapeHtml(row.status || 'POSTED')}</small></div></div>`).join('') : '<div class="empty">Belum ada pengeluaran yang sesuai filter.</div>';
+    }
+    async function loadHistory() {
+      clearMessage('historyMessage');
+      try {
+        const [movementResult, expenseResult] = await Promise.all([
+          supabaseClient.from('stock_movements').select('id,inventory_item_id,division,movement_type,quantity,reference_type,reference_id,notes,created_at').order('created_at', { ascending: false }).limit(300),
+          supabaseClient.from('expenses').select('id,created_at,expense_date,category,expense_name,amount,notes,status').order('created_at', { ascending: false }).limit(100)
+        ]);
+        if (movementResult.error) throw movementResult.error; if (expenseResult.error) throw expenseResult.error;
+        const itemsById = new Map(state.allInventory.map((item) => [String(item.id), item]));
+        state.movementHistory = (movementResult.data || []).map((row) => ({ ...row, item_name: itemsById.get(String(row.inventory_item_id))?.item_name || '', unit: itemsById.get(String(row.inventory_item_id))?.unit || '' }));
+        state.expenseHistory = expenseResult.data || [];
+        renderMovementHistory(state.movementHistory); renderExpenseHistory(state.expenseHistory);
+      } catch (error) { showMessage('historyMessage', `Riwayat gagal dimuat: ${error.message}`, 'error'); }
+    }
+    async function loadInventory(division) {
+      const { data, error } = await supabaseClient.from('inventory').select('id,item_name,stock_quantity,unit,min_stock,division').eq('division', division).order('item_name');
+      if (error) throw error; return data || [];
+    }
+    async function loadStockData() {
+      try {
+        const [warehouse, division, allInventoryResult, transferResult] = await Promise.all([loadInventory('Gudang Utama'), loadInventory(state.division), supabaseClient.from('inventory').select('id,item_name,stock_quantity,unit,min_stock,division').order('division').order('item_name'), supabaseClient.from('stock_transfers').select('id,item_name,source_division,destination_division,quantity,unit,status,approval_status,created_at,cancellation_reason').order('created_at', { ascending: false }).limit(100)]);
+        if (allInventoryResult.error) throw allInventoryResult.error;
+        if (transferResult.error) throw transferResult.error;
+        state.allInventory = allInventoryResult.data || [];
+        state.transferHistory = transferResult.data || [];
+        state.warehouseItems = warehouse; state.divisionItems = division;
+        $('transferItem').innerHTML = `<option value="">Pilih bahan</option>` + warehouse.map((item) => `<option value="${item.id}">${escapeHtml(item.item_name)} · ${escapeHtml(item.unit || 'unit')}</option>`).join('');
+        $('wasteItem').innerHTML = `<option value="">Pilih bahan</option>` + division.map((item) => `<option value="${item.id}">${escapeHtml(item.item_name)} · ${escapeHtml(item.unit || 'unit')}</option>`).join('');
+        const low = division.filter((item) => Number(item.stock_quantity || 0) <= Number(item.min_stock || 0));
+        $('lowStockList').innerHTML = low.length ? low.map((item) => `<div class="list-row"><div><strong>${escapeHtml(item.item_name)}</strong><small>${escapeHtml(item.unit || 'unit')} · perlu diperiksa</small></div><span class="tag warning">Menipis</span></div>`).join('') : '<div class="empty">Tidak ada bahan di bawah batas minimum.</div>';
+        $('transferDivisionLabel').textContent = state.division;
+        updateLowStockNotice(state.allInventory); renderTransferStatus(state.transferHistory);
+        renderAllStock();
+      } catch (error) { $('lowStockList').innerHTML = `<div class="message error">Gagal memuat stok: ${escapeHtml(error.message)}</div>`; }
+    }
+    async function loadHomeData() {
+      try {
+        const [items, transfers] = await Promise.all([loadInventory(state.division), supabaseClient.from('stock_transfers').select('id,status,created_at').eq('destination_division', state.division).order('created_at', { ascending: false }).limit(1)]);
+        const low = items.filter((item) => Number(item.stock_quantity || 0) <= Number(item.min_stock || 0));
+        $('activeItemStat').textContent = items.length.toLocaleString('id-ID'); $('lowStockStat').textContent = low.length.toLocaleString('id-ID'); $('transferStat').textContent = transfers.data?.[0] ? transferStatusLabel(transfers.data[0]) : '0'; updateChecklistStat();
+      } catch (error) { $('activeItemStat').textContent = '-'; $('lowStockStat').textContent = '-'; $('transferStat').textContent = '-'; }
+    }
+    function scheduleRealtimeRefresh() {
+      clearTimeout(state.refreshTimer);
+      state.refreshTimer = setTimeout(() => { void loadHomeData(); void loadStockData(); if ($('historyPage').classList.contains('active')) void loadHistory(); }, 500);
+    }
+    function startRealtimeSync() {
+      if (state.realtimeChannel) return;
+      try {
+        state.realtimeChannel = supabaseClient.channel('staff-operational-sync')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, scheduleRealtimeRefresh)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_transfers' }, scheduleRealtimeRefresh)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_movements' }, scheduleRealtimeRefresh)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, scheduleRealtimeRefresh)
+          .subscribe();
+      } catch (error) { console.warn('Realtime staf belum aktif:', error); }
+    }
+    async function submitSale(event) {
+      event.preventDefault(); clearMessage('saleMessage');
+      const rows = [...document.querySelectorAll('.sale-row')].map((row) => ({ productName: row.querySelector('.sale-product').value.trim(), variant: row.querySelector('.sale-variant').value.trim(), categoryItem: row.querySelector('.sale-category').value, quantity: Number(row.querySelector('.sale-qty').value), grossAmount: Number(row.querySelector('.sale-total').value) }));
+      if (!rows.length || rows.some((row) => !row.productName || !row.categoryItem || !Number.isInteger(row.quantity) || row.quantity <= 0 || !Number.isFinite(row.grossAmount) || row.grossAmount < 0)) { showMessage('saleMessage', 'Lengkapi produk, kategori, qty, dan total baris dengan benar.', 'error'); return; }
+      const button = $('saveSaleBtn'); setBusy(button, true, 'Menyimpan...');
+      try { const receipt = $('saleReceipt').value.trim(); const { data, error } = await supabaseClient.rpc('process_sale_transaction', { p_receipt_number: receipt, p_sale_date: $('saleDate').value, p_lines: rows.map((row) => ({ hari: new Intl.DateTimeFormat('id-ID', { weekday: 'long' }).format(new Date(`${$('saleDate').value}T00:00:00`)), file_name: `staff-${receipt}`, product_name: row.productName, variant: row.variant || null, category_item: row.categoryItem, quantity_sold: row.quantity, gross_amount: row.grossAmount, external_reference: `staff:${receipt}:${row.productName}:${row.variant || ''}` })) }); if (error) throw error; const warnings = Array.isArray(data?.warnings) ? data.warnings : []; showMessage('saleMessage', warnings.length ? `Nota tersimpan dengan peringatan: ${warnings.map((item) => item.message || 'resep belum lengkap').join('; ')}` : 'Nota berhasil disimpan dan pemakaian resep dicatat.', warnings.length ? 'error' : 'success'); $('saleForm').reset(); $('saleDate').value = today(); $('saleRows').innerHTML = ''; addSaleRow(); } catch (error) { showMessage('saleMessage', `Penjualan gagal disimpan: ${error.message}`, 'error'); } finally { setBusy(button, false, 'Menyimpan...'); }
+    }
+    async function submitExpense(event) {
+      event.preventDefault(); clearMessage('expenseMessage'); const amount = Number($('expenseAmount').value); if (!Number.isFinite(amount) || amount < 0) { showMessage('expenseMessage', 'Nominal harus berupa angka yang valid.', 'error'); return; }
+      const button = $('saveExpenseBtn'); setBusy(button, true, 'Menyimpan...'); try { const { error } = await supabaseClient.from('expenses').insert([{ expense_date: $('expenseDate').value, category: $('expenseCategory').value, expense_name: $('expenseName').value.trim(), amount, notes: $('expenseNotes').value.trim() || null, created_by: state.user?.id || null }]); if (error) throw error; showMessage('expenseMessage', 'Pengeluaran berhasil disimpan.', 'success'); $('expenseForm').reset(); $('expenseDate').value = today(); } catch (error) { showMessage('expenseMessage', `Pengeluaran gagal disimpan: ${error.message}`, 'error'); } finally { setBusy(button, false, 'Menyimpan...'); }
+    }
+    async function submitTransfer(event) {
+      event.preventDefault(); clearMessage('transferMessage'); const item = state.warehouseItems.find((row) => String(row.id) === String($('transferItem').value)); const quantity = Number($('transferQuantity').value); if (!item || !Number.isFinite(quantity) || quantity <= 0) { showMessage('transferMessage', 'Pilih bahan dan jumlah yang valid.', 'error'); return; }
+      const button = $('saveTransferBtn'); setBusy(button, true, 'Memproses...'); try { if (quantity > Number(item.stock_quantity || 0)) throw new Error('Jumlah melebihi stok Gudang Utama.'); const { data, error } = await supabaseClient.rpc('process_stock_transfer', { p_inventory_item_id: item.id, p_source_division: 'Gudang Utama', p_destination_division: state.division, p_quantity: quantity, p_created_by: state.user?.id || null }); if (error) throw error; showMessage('transferMessage', data?.status === 'pending' ? 'Permintaan transfer dikirim dan menunggu persetujuan owner.' : 'Transfer berhasil diproses.', 'success'); $('transferForm').reset(); await loadStockData(); await loadHomeData(); } catch (error) { showMessage('transferMessage', `Transfer gagal: ${error.message}`, 'error'); } finally { setBusy(button, false, 'Memproses...'); }
+    }
+    async function submitWaste(event) {
+      event.preventDefault(); clearMessage('wasteMessage'); const item = state.divisionItems.find((row) => String(row.id) === String($('wasteItem').value)); const quantity = Number($('wasteQuantity').value); const reason = $('wasteReason').value.trim(); if (!item || !Number.isFinite(quantity) || quantity <= 0 || !reason) { showMessage('wasteMessage', 'Lengkapi bahan, jumlah, dan alasan waste.', 'error'); return; }
+      const button = $('saveWasteBtn'); setBusy(button, true, 'Menyimpan...'); try { if (quantity > Number(item.stock_quantity || 0)) throw new Error('Jumlah melebihi stok divisi.'); const { data, error } = await supabaseClient.rpc('process_stock_waste', { p_inventory_item_id: item.id, p_division: state.division, p_quantity_waste: quantity, p_reason: reason, p_created_by: state.user?.id || null }); if (error) throw error; showMessage('wasteMessage', `Waste ${formatQuantity(quantity)} ${item.unit || ''} berhasil dicatat.`, 'success'); $('wasteForm').reset(); await loadStockData(); await loadHomeData(); } catch (error) { showMessage('wasteMessage', `Waste gagal disimpan: ${error.message}`, 'error'); } finally { setBusy(button, false, 'Menyimpan...'); }
+    }
+    async function startCount(event) {
+      event.preventDefault(); clearMessage('countMessage'); const button = $('startCountBtn'); setBusy(button, true, 'Menyiapkan...'); try { const { data, error } = await supabaseClient.rpc('create_blind_opname_batch', { p_opname_date: today(), p_division: state.division, p_note: $('countNote').value.trim() || null, p_created_by: state.user?.id || null }); if (error) throw error; state.batchId = data?.batch_id; const result = await supabaseClient.rpc('list_blind_opname_form', { p_batch_id: state.batchId }); if (result.error) throw result.error; state.countRows = result.data || []; if (!state.countRows.length) throw new Error('Belum ada bahan untuk divisi ini.'); $('countRows').innerHTML = state.countRows.map((row) => `<div class="count-row"><div class="count-row-top"><div><strong>${escapeHtml(row.item_name)}</strong><small class="muted-text">${escapeHtml(row.unit || 'unit')}</small></div><span class="tag">${escapeHtml(row.division)}</span></div><input class="physical-count" data-line-id="${escapeHtml(row.line_id)}" data-item-id="${escapeHtml(row.inventory_item_id)}" type="number" min="0" step="any" placeholder="Jumlah fisik yang dihitung" required></div>`).join(''); $('countBatchTag').textContent = `${state.countRows.length} bahan`; $('countFormCard').classList.remove('hidden'); showMessage('countMessage', 'Formulir blind berhasil dibuat. Isi jumlah fisik setiap bahan, lalu kirim.', 'success'); $('countFormCard').scrollIntoView({ behavior: 'smooth' }); } catch (error) { showMessage('countMessage', `Formulir opname gagal dibuat: ${error.message}`, 'error'); } finally { setBusy(button, false, 'Menyiapkan...'); }
+    }
+    async function submitCount() { clearMessage('countSubmitMessage'); const inputs = [...document.querySelectorAll('.physical-count')]; const lines = inputs.map((input) => ({ line_id: input.dataset.lineId, inventory_item_id: input.dataset.itemId, physical_stock: Number(input.value), note: $('countNote').value.trim() || null })); if (!state.batchId || !lines.length || lines.some((line) => !Number.isFinite(line.physical_stock) || line.physical_stock < 0)) { showMessage('countSubmitMessage', 'Isi semua jumlah fisik dengan angka nol atau lebih.', 'error'); return; } const button = $('submitCountBtn'); setBusy(button, true, 'Mengirim...'); try { const { error } = await supabaseClient.rpc('submit_blind_opname', { p_batch_id: state.batchId, p_lines: lines, p_note: $('countNote').value.trim() || null }); if (error) throw error; $('countFormCard').classList.add('hidden'); $('countStartForm').reset(); state.batchId = null; showMessage('countMessage', 'Hasil hitung berhasil dikirim ke owner. Stok belum berubah sampai direview dan disetujui.', 'success'); window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (error) { showMessage('countSubmitMessage', `Hasil hitung gagal dikirim: ${error.message}`, 'error'); } finally { setBusy(button, false, 'Mengirim...'); } }
+    const CHECK_ITEMS = [{ id: 'opening', title: 'Cek area kerja sebelum mulai', desc: 'Pastikan bahan dan alat kerja siap.' }, { id: 'transfer', title: 'Transfer / penerimaan stok dicatat', desc: 'Jangan memindahkan bahan tanpa mencatatnya.' }, { id: 'waste', title: 'Waste dan pemakaian non-penjualan dicatat', desc: 'Isi alasan yang jelas jika ada bahan terbuang.' }, { id: 'handover', title: 'Serah terima shift selesai', desc: 'Tulis catatan penting untuk shift berikutnya.' }];
+    function renderChecklist() { $('checklist').innerHTML = CHECK_ITEMS.map((item) => `<label class="check-row"><input type="checkbox" data-check="${item.id}" ${state.checks[item.id] ? 'checked' : ''}><span><strong>${item.title}</strong><small>${item.desc}</small></span></label>`).join(''); document.querySelectorAll('[data-check]').forEach((input) => input.addEventListener('change', () => { state.checks[input.dataset.check] = input.checked; localStorage.setItem('fnbStaffChecks', JSON.stringify(state.checks)); updateChecklistStat(); })); updateChecklistStat(); }
+    function updateChecklistStat() { const done = CHECK_ITEMS.filter((item) => state.checks[item.id]).length; const percent = Math.round(done / CHECK_ITEMS.length * 100); $('checkPercent').textContent = `${percent}%`; $('checkStat').textContent = `${percent}%`; }
+    function restoreLocalData() { $('handoverNote').value = localStorage.getItem('fnbStaffHandover') || ''; renderChecklist(); }
+    async function loadAuthenticatedStaff(authUser) {
+      if (!authUser) return;
+      const { data, error } = await supabaseClient.rpc('fb_get_my_profile');
+      if (error) throw error;
+      const profile = Array.isArray(data) ? data[0] : data;
+      if (!profile?.is_active) throw new Error('Profil staf belum aktif atau belum memiliki hak akses.');
+      if (profile.app_role !== 'Admin Staf') throw new Error('Akun ini bukan akun Admin Staf. Gunakan aplikasi owner.');
+      state.user = { id: authUser.id, email: authUser.email || '', name: profile.display_name || authUser.email || 'Admin Staf', role: profile.app_role };
+      showApp();
+    }
+    async function initLogin() {
+      const { data, error } = await supabaseClient.auth.getSession();
+      if (error) { showMessage('loginMessage', error.message, 'error'); return; }
+      if (data.session?.user) {
+        try { await loadAuthenticatedStaff(data.session.user); } catch (sessionError) { showMessage('loginMessage', sessionError.message, 'error'); }
+      }
+    }
+    function showApp() { $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden'); $('divisionSelect').value = state.division; refreshDateLabels(); restoreLocalData(); addSaleRow(); void loadHomeData(); void loadStockData(); startRealtimeSync(); }
+    $('loginForm').addEventListener('submit', async (event) => { event.preventDefault(); const email = $('loginUser').value.trim().toLowerCase(); const password = $('loginPassword').value; const button = document.querySelector('#loginForm button[type="submit"]'); button.disabled = true; clearMessage('loginMessage'); try { const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password }); if (error) throw error; await loadAuthenticatedStaff(data.user); } catch (error) { showMessage('loginMessage', error.message || 'Login gagal. Periksa email dan password staf.', 'error'); } finally { button.disabled = false; } });
+    $('logoutBtn').addEventListener('click', async () => { await supabaseClient.auth.signOut(); state.user = null; $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden'); $('loginForm').reset(); });
+    $('divisionSelect').addEventListener('change', saveDivision); document.querySelectorAll('.nav-btn').forEach((btn) => btn.addEventListener('click', () => showPage(btn.dataset.page))); document.querySelectorAll('[data-go]').forEach((btn) => btn.addEventListener('click', () => showPage(btn.dataset.go)));
+    $('refreshHomeBtn').addEventListener('click', () => { void loadHomeData(); }); $('refreshStockBtn').addEventListener('click', () => { void loadStockData(); }); $('enableNotificationsBtn').addEventListener('click', async () => { if (!('Notification' in window)) { showMessage('historyMessage', 'Browser ini belum mendukung notifikasi.', 'info'); return; } const permission = await Notification.requestPermission(); $('enableNotificationsBtn').textContent = permission === 'granted' ? 'Notifikasi aktif' : 'Aktifkan notifikasi'; if (permission === 'granted') new Notification('Notifikasi stok aktif', { body: 'Anda akan diberi tahu saat aplikasi dibuka dan stok perlu diperiksa.' }); }); $('stockLocationFilter').addEventListener('change', renderAllStock); $('stockSearch').addEventListener('input', renderAllStock); $('refreshHistoryBtn').addEventListener('click', () => { void loadStockData().then(loadHistory); }); document.querySelectorAll('.history-tab').forEach((button) => button.addEventListener('click', () => { const movements = button.dataset.historyTab === 'movements'; document.querySelectorAll('.history-tab').forEach((tab) => { tab.className = `btn history-tab ${tab === button ? 'btn-primary' : 'btn-secondary'}`; }); $('movementHistoryPanel').classList.toggle('hidden', !movements); $('expenseHistoryPanel').classList.toggle('hidden', movements); })); $('movementLocationFilter').addEventListener('change', () => renderMovementHistory(state.movementHistory || [])); $('movementSearch').addEventListener('input', () => renderMovementHistory(state.movementHistory || [])); $('expenseHistorySearch').addEventListener('input', () => renderExpenseHistory(state.expenseHistory || [])); $('addSaleRow').addEventListener('click', addSaleRow); $('saleForm').addEventListener('submit', submitSale); $('resetSaleBtn').addEventListener('click', () => { $('saleForm').reset(); $('saleDate').value = today(); $('saleRows').innerHTML = ''; addSaleRow(); clearMessage('saleMessage'); }); $('expenseForm').addEventListener('submit', submitExpense); $('transferForm').addEventListener('submit', submitTransfer); $('wasteForm').addEventListener('submit', submitWaste); $('stockAction').addEventListener('change', () => { const transfer = $('stockAction').value === 'transfer'; $('transferPanel').classList.toggle('hidden', !transfer); $('wastePanel').classList.toggle('hidden', transfer); }); $('countStartForm').addEventListener('submit', startCount); $('submitCountBtn').addEventListener('click', submitCount); $('resetCheckBtn').addEventListener('click', () => { state.checks = {}; localStorage.setItem('fnbStaffChecks', '{}'); renderChecklist(); }); $('saveHandoverBtn').addEventListener('click', () => { localStorage.setItem('fnbStaffHandover', $('handoverNote').value.trim()); showMessage('handoverMessage', 'Catatan serah terima disimpan di perangkat ini.', 'success'); }); $('clearHandoverBtn').addEventListener('click', () => { $('handoverNote').value = ''; localStorage.removeItem('fnbStaffHandover'); clearMessage('handoverMessage'); });
+    supabaseClient.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') { state.user = null; $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden'); } });
+    initLogin();
+  </script>
+</body>
+</html>
