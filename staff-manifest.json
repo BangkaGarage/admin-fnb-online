@@ -1,0 +1,11 @@
+{
+  "name": "F&B Control Staff",
+  "short_name": "F&B Staff",
+  "description": "Aplikasi operasional harian staf F&B Control",
+  "start_url": "./staff.html",
+  "display": "standalone",
+  "background_color": "#f1f4f8",
+  "theme_color": "#f35b0a",
+  "lang": "id-ID",
+  "icons": []
+}
