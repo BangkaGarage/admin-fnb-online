@@ -873,7 +873,7 @@
               <div class="recipe-panel">
                 <div class="panel-head">
                   <div><h3>Daftar resep</h3><p class="panel-subtitle">Resep yang sudah terhubung ke inventory.</p></div>
-                  <button id="refreshRecipesBtn" class="reset-btn" type="button">↻ Refresh</button>
+                  <div class="panel-actions"><button id="toggleRecipeDetailBtn" class="reset-btn" type="button">Sembunyikan Detail</button><button id="exportRecipeDetailBtn" class="save-btn" type="button">Export Detail Excel</button><button id="refreshRecipesBtn" class="reset-btn" type="button">↻ Refresh</button></div>
                 </div>
                 <div class="recipe-table-wrap" id="recipeTableWrap"><div class="loading-row">Buka halaman ini untuk memuat resep.</div></div>
                 <div class="supabase-note">Resep penjualan wajib menunjuk stok divisi pemakaian: Bar, Kitchen, atau Waiters. Gudang Utama hanya menjadi stok sumber.</div>
@@ -2194,6 +2194,12 @@
     settingsPermissionsForm.addEventListener('submit', saveSettings);
     $('#refreshInventoryBtn').addEventListener('click', loadInventory);
     $('#refreshRecipesBtn').addEventListener('click', loadRecipes);
+    $('#toggleRecipeDetailBtn').addEventListener('click', () => {
+      recipeDetailVisible = !recipeDetailVisible;
+      $('#toggleRecipeDetailBtn').textContent = recipeDetailVisible ? 'Sembunyikan Detail' : 'Tampilkan Semua Detail';
+      renderRecipeTable(loadedRecipeRows);
+    });
+    $('#exportRecipeDetailBtn').addEventListener('click', exportRecipeDetail);
     $('#resetInventoryBtn').addEventListener('click', resetInventoryForm);
     $('#cancelInventoryEditBtn').addEventListener('click', resetInventoryForm);
     $('#inventoryTableWrap').addEventListener('click', handleInventoryTableClick);
@@ -7122,7 +7128,11 @@
       renderRecipeTable(data || []);
     }
 
+    let recipeDetailVisible = true;
+    let loadedRecipeRows = [];
+
     function renderRecipeTable(recipes) {
+      loadedRecipeRows = recipes || [];
       const tableWrap = $('#recipeTableWrap');
       if (!recipes.length) {
         tableWrap.innerHTML = '<div class="loading-row">Belum ada resep yang terhubung.</div>';
@@ -7131,9 +7141,31 @@
       const inventoryById = new Map(state.inventory.map((item) => [String(item.id), item]));
       const rows = recipes.map((recipe) => {
         const item = inventoryById.get(String(recipe.inventory_item_id));
+        if (!recipeDetailVisible) return `<tr><td>${escapeHtml(recipe.menu_name || '-')}</td><td>${escapeHtml(recipe.variant || '-')}</td><td>${escapeHtml(item?.item_name || 'ID tidak ditemukan')}</td><td>${formatQuantity(recipe.quantity_needed)} ${escapeHtml(item?.unit || '')}</td></tr>`;
         return `<tr><td>${escapeHtml(recipe.menu_name || '-')}</td><td>${escapeHtml(recipe.variant || '-')}</td><td>${escapeHtml(item?.item_name || 'ID tidak ditemukan')}</td><td>${escapeHtml(item?.division || 'Gudang Utama')}</td><td>${formatQuantity(recipe.quantity_needed)} ${escapeHtml(item?.unit || '')}</td><td><span class="panel-subtitle">Dikelola di Master Menu &amp; HPP</span></td></tr>`;
       }).join('');
-      tableWrap.innerHTML = `<table class="recipe-table"><thead><tr><th>Menu iSeller</th><th>Varian</th><th>Bahan Baku</th><th>Divisi</th><th>Kebutuhan / Porsi</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`;
+      tableWrap.innerHTML = recipeDetailVisible
+        ? `<table class="recipe-table"><thead><tr><th>Menu</th><th>Varian</th><th>Bahan Baku</th><th>Divisi</th><th>Kebutuhan / Porsi</th><th>Keterangan</th></tr></thead><tbody>${rows}</tbody></table>`
+        : `<table class="recipe-table"><thead><tr><th>Menu</th><th>Varian</th><th>Bahan Baku</th><th>Kebutuhan / Porsi</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    function exportRecipeDetail() {
+      const inventoryById = new Map(state.inventory.map((item) => [String(item.id), item]));
+      const rows = loadedRecipeRows.map((recipe) => {
+        const item = inventoryById.get(String(recipe.inventory_item_id));
+        return {
+          'Menu': recipe.menu_name || '',
+          'Varian': recipe.variant || '',
+          'Bahan Baku': item?.item_name || 'ID tidak ditemukan',
+          'Divisi Pemakaian': item?.division || '',
+          'Kuantitas per Porsi': Number(recipe.quantity_needed) || 0,
+          'Satuan': item?.unit || ''
+        };
+      });
+      if (!rows.length) return window.alert('Belum ada detail resep untuk diexport.');
+      const book = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'Detail Resep');
+      XLSX.writeFile(book, `detail-resep-${new Date().toISOString().slice(0, 10)}.xlsx`);
     }
 
     async function saveRecipe(event) {
