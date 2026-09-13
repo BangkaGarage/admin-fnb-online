@@ -65,6 +65,18 @@
     .topbar .brand small { font-size: 11px; }
     .division-pill { display: flex; align-items: center; gap: 7px; }
     .division-pill select { width: auto; max-width: 125px; padding: 8px 9px; border-radius: 10px; font-size: 12px; font-weight: 800; }
+    .searchable-select-wrap { position: relative; width: 100%; min-width: 0; }
+    .searchable-select-wrap.open { z-index: 70; }
+    .searchable-select-input { width: 100%; padding: 12px 36px 12px 13px; border: 1px solid #cbd5e1; border-radius: 12px; outline: none; color: var(--ink); background: #fff; cursor: text; }
+    .searchable-select-input:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(243, 91, 10, .12); }
+    .searchable-select-input:disabled { cursor: not-allowed; opacity: .6; background: #f1f5f9; }
+    .searchable-select-wrap:after { content: '⌄'; position: absolute; top: 50%; right: 13px; pointer-events: none; transform: translateY(-52%); color: var(--muted); font-size: 15px; font-weight: 900; }
+    .searchable-select-options { position: absolute; top: calc(100% + 4px); left: 0; right: 0; display: none; max-height: 260px; overflow-y: auto; padding: 4px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; box-shadow: 0 14px 30px rgba(15, 23, 42, .16); }
+    .searchable-select-wrap.open .searchable-select-options { display: block; }
+    .searchable-select-option { width: 100%; padding: 10px; border: 0; border-radius: 7px; color: var(--ink); background: #fff; font-size: 13px; line-height: 1.35; text-align: left; cursor: pointer; }
+    .searchable-select-option:hover, .searchable-select-option.active { color: var(--orange-dark); background: #fff7ed; }
+    .searchable-select-empty { padding: 10px; color: var(--muted); font-size: 13px; }
+    .searchable-select-native { position: absolute !important; width: 1px !important; height: 1px !important; margin: -1px !important; padding: 0 !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; border: 0 !important; opacity: 0 !important; pointer-events: none !important; }
     .content { width: min(100%, 720px); margin: 0 auto; padding: 20px 16px 24px; }
     .page { display: none; }
     .page.active { display: block; }
@@ -182,6 +194,53 @@
     const TRANSFER_DESTINATIONS = ['Bar', 'Kitchen', 'Waiters'];
     const state = { user: null, division: 'Kitchen', divisionLocked: false, warehouseItems: [], divisionItems: [], allInventory: [], transferHistory: [], movementHistory: [], expenseHistory: [], batchId: null, countRows: [], checks: JSON.parse(localStorage.getItem('fnbStaffChecks') || '{}'), realtimeChannel: null, refreshTimer: null };
     const $ = (id) => document.getElementById(id);
+    const STAFF_SEARCHABLE_SELECT_SELECTOR = '#transferItem, #wasteItem';
+    let staffSearchableSelectId = 0;
+    let staffSearchableSelectScanQueued = false;
+    const searchableText = (value) => String(value ?? '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+    function renderStaffSearchableOptions(select) {
+      const ui = select._searchableUI;
+      if (!ui) return;
+      const query = searchableText(ui.query || '');
+      const rows = [...select.options].map((option) => ({ value: option.value, text: option.textContent.trim(), disabled: option.disabled })).filter((row) => !query || searchableText(`${row.text} ${row.value}`).includes(query));
+      ui.list.innerHTML = ''; ui.buttons = [];
+      if (!rows.length) { ui.list.innerHTML = '<div class="searchable-select-empty">Bahan tidak ditemukan.</div>'; return; }
+      rows.forEach((row) => {
+        const button = document.createElement('button'); button.type = 'button'; button.className = `searchable-select-option${row.disabled ? ' disabled' : ''}`; button.textContent = row.text || '(Kosong)'; button.disabled = row.disabled; button.dataset.value = row.value; button.setAttribute('role', 'option'); button.setAttribute('aria-selected', String(String(select.value) === String(row.value)));
+        button.addEventListener('click', () => { if (row.disabled) return; select.value = row.value; select.dispatchEvent(new Event('change', { bubbles: true })); ui.query = ''; ui.input.value = row.value ? row.text : ''; closeStaffSearchableSelect(select); syncStaffSearchableSelect(select); });
+        ui.list.appendChild(button); ui.buttons.push(button);
+      });
+      ui.activeIndex = -1;
+    }
+    function syncStaffSearchableSelect(select) {
+      const ui = select._searchableUI; if (!ui) return;
+      const selected = select.options[select.selectedIndex];
+      if (document.activeElement !== ui.input) ui.input.value = selected?.value ? selected.textContent.trim() : '';
+      ui.input.placeholder = selected?.value ? 'Ketik untuk mengganti pilihan...' : 'Ketik untuk mencari bahan...';
+      ui.input.disabled = select.disabled; ui.input.required = Boolean(select.dataset.searchableRequired) && !select.disabled; ui.input.setAttribute('aria-expanded', String(ui.wrap.classList.contains('open')));
+      if (ui.wrap.classList.contains('open')) renderStaffSearchableOptions(select);
+    }
+    function closeStaffSearchableSelect(select) { const ui = select?._searchableUI; if (!ui) return; ui.wrap.classList.remove('open'); ui.input.setAttribute('aria-expanded', 'false'); ui.activeIndex = -1; }
+    function openStaffSearchableSelect(select) { const ui = select._searchableUI; if (!ui || select.disabled) return; ui.query = ''; ui.wrap.classList.add('open'); ui.input.setAttribute('aria-expanded', 'true'); renderStaffSearchableOptions(select); }
+    function enhanceStaffSearchableSelect(select) {
+      if (!select || select._searchableUI || select.multiple) return;
+      const wrapper = document.createElement('div'); wrapper.className = 'searchable-select-wrap';
+      const input = document.createElement('input'); input.type = 'text'; input.className = 'searchable-select-input'; input.autocomplete = 'off'; input.setAttribute('role', 'combobox'); input.setAttribute('aria-autocomplete', 'list'); input.setAttribute('aria-haspopup', 'listbox'); input.setAttribute('aria-expanded', 'false'); input.id = `${select.id || 'searchableSelect'}Search${++staffSearchableSelectId}`;
+      const list = document.createElement('div'); list.className = 'searchable-select-options'; list.setAttribute('role', 'listbox'); list.id = `${input.id}Options`; input.setAttribute('aria-controls', list.id);
+      select.dataset.searchableRequired = String(select.required); select.required = false; select.classList.add('searchable-select-native');
+      [...document.querySelectorAll('label[for]')].filter((label) => label.getAttribute('for') === select.id).forEach((label) => label.setAttribute('for', input.id));
+      select.parentNode.insertBefore(wrapper, select); wrapper.append(input, list, select); select._searchableUI = { wrap: wrapper, input, list, buttons: [], activeIndex: -1, query: '' };
+      input.addEventListener('focus', () => { openStaffSearchableSelect(select); input.select(); }); input.addEventListener('click', () => openStaffSearchableSelect(select)); input.addEventListener('input', () => { const ui = select._searchableUI; ui.query = input.value; ui.wrap.classList.add('open'); renderStaffSearchableOptions(select); });
+      input.addEventListener('keydown', (event) => { const ui = select._searchableUI; if (event.key === 'Escape') { closeStaffSearchableSelect(select); return; } if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); openStaffSearchableSelect(select); const step = event.key === 'ArrowDown' ? 1 : -1; const next = ui.activeIndex < 0 ? (step > 0 ? 0 : ui.buttons.length - 1) : (ui.activeIndex + step + ui.buttons.length) % ui.buttons.length; ui.activeIndex = Math.max(0, next); ui.buttons.forEach((button, index) => button.classList.toggle('active', index === ui.activeIndex)); ui.buttons[ui.activeIndex]?.scrollIntoView({ block: 'nearest' }); } else if (event.key === 'Enter' && ui.wrap.classList.contains('open') && ui.buttons[ui.activeIndex]) { event.preventDefault(); ui.buttons[ui.activeIndex].click(); } });
+      select.addEventListener('change', () => syncStaffSearchableSelect(select));
+      select._searchableUI.optionsObserver = new MutationObserver(() => { if (document.body.contains(select)) syncStaffSearchableSelect(select); }); select._searchableUI.optionsObserver.observe(select, { childList: true, subtree: true }); syncStaffSearchableSelect(select);
+    }
+    function scanStaffSearchableSelects() { document.querySelectorAll(STAFF_SEARCHABLE_SELECT_SELECTOR).forEach(enhanceStaffSearchableSelect); }
+    function refreshStaffSearchableSelectDisplays() { document.querySelectorAll(STAFF_SEARCHABLE_SELECT_SELECTOR).forEach((select) => { if (select._searchableUI) syncStaffSearchableSelect(select); }); }
+    document.addEventListener('click', (event) => { document.querySelectorAll('.searchable-select-wrap.open').forEach((wrapper) => { if (!wrapper.contains(event.target)) closeStaffSearchableSelect(wrapper.querySelector('.searchable-select-native')); }); });
+    document.addEventListener('reset', () => window.setTimeout(() => { scanStaffSearchableSelects(); refreshStaffSearchableSelectDisplays(); }, 0), true);
+    new MutationObserver(() => { if (staffSearchableSelectScanQueued) return; staffSearchableSelectScanQueued = true; queueMicrotask(() => { staffSearchableSelectScanQueued = false; scanStaffSearchableSelects(); }); }).observe(document.body, { childList: true, subtree: true });
+    scanStaffSearchableSelects();
     const today = () => new Date().toISOString().slice(0, 10);
     const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[char]));
     const formatQuantity = (value) => Number(value || 0).toLocaleString('id-ID', { maximumFractionDigits: 4 });
