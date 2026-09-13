@@ -719,7 +719,7 @@
           <div class="dashboard-grid" style="margin-bottom:18px;">
             <div class="panel">
               <div class="panel-head"><div><h3>Import penjualan iSeller</h3><p class="panel-subtitle">Upload template iSeller di sini. File divalidasi dahulu; penjualan baru masuk setelah semua menu dan varian cocok dengan resep.</p></div><span class="summary-chip">Import + validasi</span></div>
-              <div id="uploadZone" class="upload-zone"><div class="upload-symbol">↥</div><h4>Tarik file ke area ini</h4><p>atau pilih file template penjualan dari komputer Anda. File diproses langsung di browser dan disimpan ke Supabase setelah dikonfirmasi.</p><label for="fileInput" class="upload-btn">Pilih Template Penjualan</label><input id="fileInput" type="file" accept=".xlsx,.xls,.csv" /></div>
+              <div id="uploadZone" class="upload-zone"><div class="upload-symbol">↥</div><h4>Tarik file rekap produk iSeller ke area ini</h4><p>Pilih file rekap penjualan produk iSeller. Nomor nota tidak wajib. Sistem membaca tanggal penjualan dari file, memvalidasi menu dan resep, lalu menyimpan omzet, HPP, dan pemakaian stok setelah dikonfirmasi.</p><label for="fileInput" class="upload-btn">Pilih Rekap Produk iSeller</label><input id="fileInput" type="file" accept=".xlsx,.xls,.csv" /></div>
               <div id="fileMeta" class="file-meta hidden"></div><div id="tableContainer" class="table-wrap hidden"></div><div id="uploadLog" class="upload-log" aria-live="polite"></div>
               <div id="salesValidationPanel" class="panel hidden" style="margin-top:16px;background:#fffaf5;"><div class="panel-head"><div><h3>Validasi sebelum simpan</h3><p class="panel-subtitle">Periksa baris yang belum memiliki resep sebelum disimpan.</p></div></div><div id="salesValidationSummary" class="supabase-note"></div><div id="salesValidationTableWrap" class="history-table-wrap"></div><div class="form-actions"><button id="confirmSalesUploadBtn" class="save-btn" type="button" disabled>Simpan Penjualan Setelah Validasi</button></div></div>
             </div>
@@ -811,6 +811,7 @@
                 <button id="refreshInventoryBtn" class="reset-btn" type="button">↻ Refresh</button>
               </div>
               <form id="inventoryForm">
+                <input id="inventoryEditId" type="hidden" />
                 <div class="form-grid">
                   <div class="form-field full">
                     <label for="inventoryItemName">Nama Bahan *</label>
@@ -837,6 +838,7 @@
                 </div>
                 <div class="form-actions">
                   <button id="saveInventoryBtn" class="save-btn" type="submit">Simpan Bahan</button>
+                  <button id="cancelInventoryEditBtn" class="reset-btn hidden" type="button">Batal Edit</button>
                   <button id="resetInventoryBtn" class="reset-btn" type="reset">Kosongkan</button>
                 </div>
                 <p id="inventoryMessage" class="form-message" role="status"></p>
@@ -1291,8 +1293,19 @@
             </div>
           </div>
           <div id="blindOpnamePreviewPanel" class="panel history-panel">
+            <div class="panel-head"><div><h3>Batch opname dari staf</h3><p class="panel-subtitle">Pilih batch berstatus Submitted untuk melihat variance dan menyetujui koreksi.</p></div><button id="refreshBlindBatchesBtn" class="reset-btn" type="button">↻ Refresh Batch</button></div>
+            <div id="blindOpnameBatchListWrap" class="history-table-wrap"><div class="loading-row">Memuat batch opname...</div></div>
             <div class="panel-head"><div><h3>Preview formulir / variance</h3><p class="panel-subtitle">Preview formulir kosong boleh dipakai untuk pemeriksaan administrasi. Preview variance hanya dibuka untuk Super Admin setelah submit.</p></div></div>
             <div id="blindOpnameTableWrap" class="history-table-wrap"><div class="loading-row">Belum ada batch opname.</div></div>
+            <div id="blindOpnameReviewActions" class="panel" style="margin-top:16px;">
+              <div class="panel-head"><div><h3>Eksekusi review</h3><p class="panel-subtitle">Periksa hasil fisik, edit jika ada salah input, lalu jalankan koreksi stok.</p></div></div>
+              <div class="form-grid">
+                <div class="form-field"><label for="blindOpnameReviewTreatment">Perlakuan Selisih *</label><select id="blindOpnameReviewTreatment"><option value="adjustment">Penyesuaian Percobaan</option><option value="correction">Koreksi Data Lama</option><option value="loss">Kerugian Operasional</option></select></div>
+                <div class="form-field"><label for="blindOpnameReviewNote">Catatan Review</label><input id="blindOpnameReviewNote" type="text" placeholder="Catatan persetujuan atau koreksi" /></div>
+              </div>
+              <div class="form-actions"><button id="editBlindOpnameBtn" class="reset-btn" type="button" disabled>Edit Hasil Fisik</button><button id="saveBlindOpnameEditBtn" class="save-btn hidden" type="button" disabled>Simpan Perubahan</button><button id="executeBlindOpnameBtn" class="export-btn" type="button" disabled>Eksekusi / Setujui</button></div>
+              <p id="blindOpnameReviewMessage" class="form-message" role="status"></p>
+            </div>
           </div>
         </section>
 
@@ -1351,7 +1364,7 @@
         <section id="backupExportPage" class="page">
           <div class="section-title"><h1>Backup &amp; Export Lengkap</h1><p>Unduh salinan data operasional untuk arsip, pemeriksaan, atau pemindahan data.</p></div>
           <div class="panel">
-            <div class="panel-head"><div><h3>Satu paket data lengkap</h3><p class="panel-subtitle">Excel berisi Penjualan, HPP, Stok, Mutasi, Belanja, Resep, Preparation, dan Closing. Backup JSON menyimpan struktur data mentah.</p></div></div>
+            <div class="panel-head"><div><h3>Satu paket data lengkap</h3><p class="panel-subtitle">Excel berisi Penjualan, HPP, Stok, Mutasi, Belanja, Resep, Preparation, serta seluruh histori audit yang tersedia. Backup JSON menyimpan salinan data operasional untuk arsip dan pemeriksaan; bukan alat pemulihan otomatis.</p></div></div>
             <div class="form-actions">
               <input id="backupStart" class="compact-select" type="date" title="Tanggal mulai backup" />
               <input id="backupEnd" class="compact-select" type="date" title="Tanggal akhir backup" />
@@ -1525,9 +1538,11 @@
       hppCurrentRows: [],
       hppHistoryRows: [],
       blindBatchId: '',
+      blindBatches: [],
       blindFormRows: [],
       blindUploadLines: [],
       blindResultRows: [],
+      blindEditMode: false,
       unitConversions: [],
       preparations: [],
       preparationLines: new Map(),
@@ -1729,7 +1744,7 @@
 
     async function loadAuthenticatedOwner(authUser) {
       if (!authUser) return;
-      const { data, error } = await supabaseClient.rpc('fb_get_my_profile');
+      const { data, error } = await supabaseClient.rpc('fb_get_my_profile_v2');
       if (error) throw error;
       const profile = Array.isArray(data) ? data[0] : data;
       if (!profile?.is_active) throw new Error('Profil pengguna belum aktif atau belum memiliki hak akses.');
@@ -2178,7 +2193,8 @@
     settingsPermissionsForm.addEventListener('submit', saveSettings);
     $('#refreshInventoryBtn').addEventListener('click', loadInventory);
     $('#refreshRecipesBtn').addEventListener('click', loadRecipes);
-    $('#resetInventoryBtn').addEventListener('click', clearInventoryMessage);
+    $('#resetInventoryBtn').addEventListener('click', resetInventoryForm);
+    $('#cancelInventoryEditBtn').addEventListener('click', resetInventoryForm);
     $('#inventoryTableWrap').addEventListener('click', handleInventoryTableClick);
     $('#recipeTableWrap').addEventListener('click', handleRecipeTableClick);
     $('#inventoryDivisionFilter').addEventListener('change', () => renderInventoryTable(state.inventory));
@@ -2263,6 +2279,10 @@
     $('#blindOpnameFile').addEventListener('change', handleBlindOpnameUpload);
     $('#submitBlindOpnameBtn').addEventListener('click', submitBlindOpnameResult);
     $('#approveBlindOpnameBtn').addEventListener('click', approveBlindOpnameBatch);
+    $('#refreshBlindBatchesBtn').addEventListener('click', loadBlindOpnameBatches);
+    $('#editBlindOpnameBtn').addEventListener('click', enterBlindOpnameEditMode);
+    $('#saveBlindOpnameEditBtn').addEventListener('click', saveBlindOpnameEdit);
+    $('#executeBlindOpnameBtn').addEventListener('click', executeBlindOpnameReview);
     $('#salesReportFilterForm').addEventListener('submit', (event) => {
       event.preventDefault();
       loadSalesReport();
@@ -2848,6 +2868,17 @@
       };
     }
 
+    function getEffectiveMinimumStock(item) {
+      const itemMinimum = Math.max(Number(item?.min_stock) || 0, 0);
+      const globalMinimum = Math.max(Number(mergeSettings(state.appSettings).stock.global_min_stock) || 0, 0);
+      return Math.max(itemMinimum, globalMinimum);
+    }
+
+    function isLowStockQuantity(quantity, minimum) {
+      const stock = Number(quantity) || 0;
+      return Number(minimum) > 0 && stock <= Number(minimum);
+    }
+
     function showSettingsMessage(message, type = 'success') {
       settingsMessage.textContent = message;
       settingsMessage.className = `form-message ${type}`;
@@ -3106,6 +3137,21 @@
     }
 
     async function handleInventoryTableClick(event) {
+      const editButton = event.target.closest('[data-action="edit-inventory"]');
+      if (editButton) {
+        const item = state.inventory.find((row) => String(row.id) === String(editButton.dataset.id));
+        if (!item) return;
+        $('#inventoryEditId').value = item.id;
+        $('#inventoryItemName').value = item.item_name || '';
+        $('#inventoryDivision').value = item.division || 'Gudang Utama';
+        $('#inventoryUnit').value = item.unit || '';
+        $('#inventoryMinStock').value = Number(item.min_stock) || 0;
+        $('#saveInventoryBtn').textContent = 'Simpan Perubahan';
+        $('#cancelInventoryEditBtn').classList.remove('hidden');
+        showInventoryMessage(`Mode edit: ${item.item_name}. Stok saat ini ${formatQuantity(item.stock_quantity)} ${item.unit || ''} tidak diubah.`, 'warning');
+        inventoryForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
       const deleteButton = event.target.closest('[data-action="delete-inventory"]');
       if (deleteButton) {
         await deleteProtectedRecord('inventory', deleteButton.dataset.id, `Bahan ${deleteButton.dataset.name || ''}`, async () => {
@@ -3272,10 +3318,10 @@
         return 0;
       }
 
-      const globalMinimum = Number(mergeSettings(state.appSettings).stock.global_min_stock) || 0;
       const lowStockItems = (data || [])
         .filter((item) => !isVirtualPreparationItem(item))
-        .filter((item) => Number(item.stock_quantity) <= Math.max(Number(item.min_stock) || 0, globalMinimum));
+        .map((item) => ({ ...item, effectiveMinimum: getEffectiveMinimumStock(item) }))
+        .filter((item) => isLowStockQuantity(item.stock_quantity, item.effectiveMinimum));
       if (!lowStockItems.length) {
         alertBox.classList.add('hidden');
         alertText.textContent = '';
@@ -3283,7 +3329,7 @@
       }
 
       alertText.textContent = lowStockItems
-        .map((item) => `${item.item_name} [${item.division || 'Gudang Utama'}]: ${formatQuantity(item.stock_quantity)} ${item.unit || ''} (minimum ${formatQuantity(Math.max(Number(item.min_stock) || 0, globalMinimum))} ${item.unit || ''})`)
+        .map((item) => `${item.item_name} [${item.division || 'Gudang Utama'}]: ${formatQuantity(item.stock_quantity)} ${item.unit || ''} (minimum ${formatQuantity(item.effectiveMinimum)} ${item.unit || ''})`)
         .join(' • ');
       alertBox.classList.remove('hidden');
       return lowStockItems.length;
@@ -3659,7 +3705,10 @@
 
     function renderDailyClosingHistory(rows = []) {
       const wrap = $('#dailyClosingHistoryWrap');
-      const visibleRows = sortNewestFirst(filterRowsByUnified(rows, { dateKey: 'closing_date', categoryKeys: ['status'] }), ['closing_date']);
+      // Riwayat closing harus selalu menampilkan seluruh tanggal yang sudah ditutup.
+      // Tanggal pada form Closing & Validasi hanya untuk memuat ringkasan tanggal aktif,
+      // bukan filter untuk riwayat.
+      const visibleRows = sortNewestFirst(rows || [], ['closing_date']);
       if (!visibleRows.length) {
         wrap.innerHTML = '<div class="loading-row">Belum ada tanggal yang ditutup.</div>';
         return;
@@ -4041,7 +4090,7 @@
     async function loadWastes() {
       const tableWrap = $('#wasteTableWrap');
       tableWrap.innerHTML = '<div class="loading-row">Memuat riwayat waste...</div>';
-      const { data, error } = await fetchAllReportRows('stock_waste', 'id, created_at, item_name, division, quantity_waste, reason, status', 'created_at');
+      const { data, error } = await supabaseClient.rpc('list_stock_waste_history');
       if (error) {
         console.error(error);
         tableWrap.innerHTML = `<div class="loading-row" style="color:var(--red);">Gagal mengambil waste: ${escapeHtml(error.message)}</div>`;
@@ -5266,7 +5315,7 @@
           final: finalAtEnd,
           averageUnitCost,
           stockValue: Math.max(0, finalAtEnd) * averageUnitCost,
-          minStock: Math.max(Number(item.min_stock) || 0, Number(mergeSettings(state.appSettings).stock.global_min_stock) || 0),
+          minStock: getEffectiveMinimumStock(item),
           wasteValue: (wasteValueByItem.get(String(item.item_name)) || 0) + (nonSaleValueByItemId.get(String(item.id)) || 0)
         };
       });
@@ -5423,7 +5472,7 @@
       const divisionRows = baseRows.filter((row) => row.division !== 'Gudang Utama' && (filter.division === 'all' || row.division === filter.division));
       const allVisibleRows = [...warehouseRows, ...divisionRows];
       $('#stockReportItemCount').textContent = allVisibleRows.length.toLocaleString('id-ID');
-      $('#stockReportLowCount').textContent = allVisibleRows.filter((row) => row.final <= row.minStock).length.toLocaleString('id-ID');
+      $('#stockReportLowCount').textContent = allVisibleRows.filter((row) => isLowStockQuantity(row.final, row.minStock)).length.toLocaleString('id-ID');
       $('#stockReportWasteValue').textContent = formatRupiah(allVisibleRows.reduce((sum, row) => sum + row.wasteValue, 0));
       const stockValueByDivision = new Map(DIVISIONS.map((division) => [division, 0]));
       allVisibleRows.forEach((row) => stockValueByDivision.set(row.division, (stockValueByDivision.get(row.division) || 0) + (Number(row.stockValue) || 0)));
@@ -5435,12 +5484,14 @@
       const warehouseWrap = $('#warehouseStockReportTableWrap');
       const divisionWrap = $('#divisionStockReportTableWrap');
       if (warehouseWrap) warehouseWrap.innerHTML = warehouseRows.length ? `<table class="report-table"><thead><tr><th>Nama Bahan</th><th>Satuan</th><th class="numeric">Stok Awal</th><th class="numeric">Belanja Masuk</th><th class="numeric">Transfer Keluar</th><th class="numeric">Pemakaian</th><th class="numeric">Waste</th><th class="numeric">Sisa Stok</th><th class="numeric">Nilai Sisa</th><th>Status</th></tr></thead><tbody>${warehouseRows.map((row) => {
-        const statusClass = row.final < 0 ? 'variance-positive' : (row.final <= row.minStock ? 'stock-low' : 'stock-ok');
-        return `<tr><td>${escapeHtml(row.itemName || '-')}</td><td>${escapeHtml(row.unit || '-')}</td><td class="numeric">${formatStockDisplay(row.initial, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.purchaseIn, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.stockOut, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.sold, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.waste, row, row.unit)}</td><td class="numeric ${statusClass}">${formatStockDisplay(row.final, row, row.unit)}</td><td class="numeric">${formatRupiah(row.stockValue)}</td><td class="${statusClass}">${row.final <= row.minStock ? 'Low Stock' : 'Aman'}</td></tr>`;
+        const isLow = isLowStockQuantity(row.final, row.minStock);
+        const statusClass = row.final < 0 ? 'variance-positive' : (isLow ? 'stock-low' : 'stock-ok');
+        return `<tr><td>${escapeHtml(row.itemName || '-')}</td><td>${escapeHtml(row.unit || '-')}</td><td class="numeric">${formatStockDisplay(row.initial, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.purchaseIn, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.stockOut, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.sold, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.waste, row, row.unit)}</td><td class="numeric ${statusClass}">${formatStockDisplay(row.final, row, row.unit)}</td><td class="numeric">${formatRupiah(row.stockValue)}</td><td class="${statusClass}">${isLow ? 'Low Stock' : 'Aman'}</td></tr>`;
       }).join('')}</tbody></table>` : '<div class="loading-row">Belum ada stok di Gudang Utama sesuai filter.</div>';
       if (divisionWrap) divisionWrap.innerHTML = divisionRows.length ? `<table class="report-table"><thead><tr><th>Divisi</th><th>Nama Bahan</th><th>Satuan</th><th class="numeric">Stok Awal</th><th class="numeric">Transfer Masuk</th><th class="numeric">Pemakaian</th><th class="numeric">Waste</th><th class="numeric">Sisa Stok</th><th class="numeric">Nilai Sisa</th><th>Status</th></tr></thead><tbody>${divisionRows.map((row) => {
-        const statusClass = row.final < 0 ? 'variance-positive' : (row.final <= row.minStock ? 'stock-low' : 'stock-ok');
-        return `<tr><td>${escapeHtml(row.division)}</td><td>${escapeHtml(row.itemName || '-')}</td><td>${escapeHtml(row.unit || '-')}</td><td class="numeric">${formatStockDisplay(row.initial, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.transferIn, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.sold, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.waste, row, row.unit)}</td><td class="numeric ${statusClass}">${formatStockDisplay(row.final, row, row.unit)}</td><td class="numeric">${formatRupiah(row.stockValue)}</td><td class="${statusClass}">${row.final <= row.minStock ? 'Low Stock' : 'Aman'}</td></tr>`;
+        const isLow = isLowStockQuantity(row.final, row.minStock);
+        const statusClass = row.final < 0 ? 'variance-positive' : (isLow ? 'stock-low' : 'stock-ok');
+        return `<tr><td>${escapeHtml(row.division)}</td><td>${escapeHtml(row.itemName || '-')}</td><td>${escapeHtml(row.unit || '-')}</td><td class="numeric">${formatStockDisplay(row.initial, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.transferIn, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.sold, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.waste, row, row.unit)}</td><td class="numeric ${statusClass}">${formatStockDisplay(row.final, row, row.unit)}</td><td class="numeric">${formatRupiah(row.stockValue)}</td><td class="${statusClass}">${isLow ? 'Low Stock' : 'Aman'}</td></tr>`;
       }).join('')}</tbody></table>` : `<div class="loading-row">Belum ada stok divisi${filter.division !== 'all' ? ` ${escapeHtml(filter.division)}` : ''} sesuai filter.</div>`;
     }
 
@@ -6057,6 +6108,12 @@
       return rows;
     }
 
+    async function fetchBackupRpcRows(functionName, label) {
+      const { data, error } = await supabaseClient.rpc(functionName);
+      if (error) throw new Error(`${label}: ${error.message}`);
+      return data || [];
+    }
+
     function normalizeBackupRows(rows) {
       return (rows || []).map((row) => Object.fromEntries(Object.entries(row || {}).map(([key, value]) => [
         key,
@@ -6073,11 +6130,11 @@
         fetchAllBackupRows('stock_movements', 'created_at'),
         fetchAllBackupRows('stock_purchases', 'created_at'),
         fetchAllBackupRows('recipes', 'id'),
-        fetchAllBackupRows('daily_closings', 'closing_date'),
+        fetchBackupRpcRows('list_daily_closings', 'daily_closings'),
         fetchAllBackupRows('expenses', 'expense_date'),
-        fetchAllBackupRows('stock_waste', 'created_at'),
+        fetchBackupRpcRows('list_stock_waste_history', 'stock_waste'),
         fetchAllBackupRows('stock_transfers', 'created_at'),
-        fetchAllBackupRows('stock_opnames', 'created_at'),
+        fetchBackupRpcRows('list_stock_opname_history', 'stock_opnames'),
         fetchAllBackupRows('fb_closed_correction_requests', 'requested_at'),
         fetchAllBackupRows('fb_non_sale_events', 'usage_date'),
         fetchAllBackupRows('fb_non_sale_event_lines', 'created_at'),
@@ -6252,11 +6309,142 @@
         return;
       }
       const body = rows.map((row) => result
-        ? `<tr><td>${escapeHtml(row.item_name || row.itemName)}</td><td>${escapeHtml(row.division)}</td><td>${escapeHtml(row.unit)}</td><td class="numeric">${formatQuantity(row.system_quantity)}</td><td class="numeric">${formatQuantity(row.physical_stock)}</td><td class="numeric">${formatQuantity(row.variance)}</td><td class="numeric">${Number(row.match_percentage) === Number(row.match_percentage) ? `${Number(row.match_percentage).toFixed(1).replace('.', ',')}%` : '-'}</td><td class="numeric">${formatRupiah(row.variance_value)}</td></tr>`
+        ? `<tr><td>${escapeHtml(row.item_name || row.itemName)}</td><td>${escapeHtml(row.division)}</td><td>${escapeHtml(row.unit)}</td><td class="numeric">${formatQuantity(row.system_quantity)}</td><td class="numeric">${state.blindEditMode ? `<input class="compact-select" style="width:110px;" type="number" min="0" step="any" data-blind-edit-line="${escapeHtml(row.line_id)}" value="${escapeHtml(row.physical_stock ?? '')}" />` : formatQuantity(row.physical_stock)}</td><td class="numeric">${formatQuantity(row.variance)}</td><td class="numeric">${Number(row.match_percentage) === Number(row.match_percentage) ? `${Number(row.match_percentage).toFixed(1).replace('.', ',')}%` : '-'}</td><td class="numeric">${formatRupiah(row.variance_value)}</td></tr>`
         : `<tr><td>${escapeHtml(row.line_id || row.lineId)}</td><td>${escapeHtml(row.item_name || row.itemName)}</td><td>${escapeHtml(row.division)}</td><td>${escapeHtml(row.unit)}</td><td class="numeric">${row.physical_stock ?? row.physicalStock ?? '-'}</td></tr>`).join('');
       wrap.innerHTML = result
         ? `<table class="history-table"><thead><tr><th>Bahan</th><th>Divisi</th><th>Satuan</th><th>Stok Sistem</th><th>Stok Fisik</th><th>Selisih</th><th>Kecocokan</th><th>Nilai Selisih</th></tr></thead><tbody>${body}</tbody></table>`
         : `<table class="history-table"><thead><tr><th>ID Baris</th><th>Bahan</th><th>Divisi</th><th>Satuan</th><th>Stok Fisik</th></tr></thead><tbody>${body}</tbody></table>`;
+    }
+
+    function renderBlindOpnameBatches(rows) {
+      const wrap = $('#blindOpnameBatchListWrap');
+      if (!rows?.length) {
+        wrap.innerHTML = '<div class="loading-row">Belum ada batch opname dari staf.</div>';
+        return;
+      }
+      const statusLabels = { draft: 'Draft', submitted: 'Menunggu Review', approved: 'Disetujui', rejected: 'Ditolak', cancelled: 'Dibatalkan' };
+      const body = rows.map((row) => {
+        const canReview = row.status === 'submitted';
+        const action = canReview
+          ? `<button type="button" class="reset-btn" data-review-blind-batch="${escapeHtml(row.batch_id)}">Review</button>`
+          : '<span class="muted-text">-</span>';
+        return `<tr>
+          <td>${escapeHtml(row.opname_date || '-')}</td>
+          <td>${escapeHtml(row.division || 'Semua Divisi')}</td>
+          <td>${escapeHtml(statusLabels[row.status] || row.status || '-')}</td>
+          <td>${formatQuantity(row.completed_line_count || 0)} / ${formatQuantity(row.line_count || 0)}</td>
+          <td>${escapeHtml(row.note || '-')}</td>
+          <td>${action}</td>
+        </tr>`;
+      }).join('');
+      wrap.innerHTML = `<table class="history-table"><thead><tr><th>Tanggal</th><th>Divisi</th><th>Status</th><th>Baris Terisi</th><th>Catatan</th><th>Aksi</th></tr></thead><tbody>${body}</tbody></table>`;
+      wrap.querySelectorAll('[data-review-blind-batch]').forEach((button) => button.addEventListener('click', () => reviewBlindOpnameBatch(button.dataset.reviewBlindBatch)));
+    }
+
+    async function loadBlindOpnameBatches() {
+      const wrap = $('#blindOpnameBatchListWrap');
+      if (!wrap || state.user?.role !== 'Super Admin') return;
+      wrap.innerHTML = '<div class="loading-row">Memuat batch opname...</div>';
+      const { data, error } = await supabaseClient.rpc('list_blind_opname_batches');
+      if (error) {
+        console.error(error);
+        wrap.innerHTML = `<div class="loading-row" style="color:var(--red);">Gagal mengambil batch opname: ${escapeHtml(error.message)}</div>`;
+        return;
+      }
+      state.blindBatches = data || [];
+      renderBlindOpnameBatches(state.blindBatches);
+    }
+
+    async function reviewBlindOpnameBatch(batchId) {
+      const message = $('#blindOpnameMessage');
+      const batch = (state.blindBatches || []).find((row) => String(row.batch_id) === String(batchId));
+      if (!batch) return;
+      state.blindBatchId = batchId;
+      state.blindEditMode = false;
+      const { data, error } = await supabaseClient.rpc('list_blind_opname_result', { p_batch_id: batchId });
+      if (error) {
+        message.textContent = `Review opname gagal: ${error.message}`;
+        message.className = 'form-message error';
+        return;
+      }
+      state.blindResultRows = data || [];
+      renderBlindOpnameTable(state.blindResultRows, true);
+      $('#approveBlindOpnameBtn').disabled = batch.status !== 'submitted' || !state.blindResultRows.length;
+      $('#editBlindOpnameBtn').disabled = batch.status !== 'submitted' || !state.blindResultRows.length;
+      $('#executeBlindOpnameBtn').disabled = batch.status !== 'submitted' || !state.blindResultRows.length;
+      $('#saveBlindOpnameEditBtn').classList.add('hidden');
+      $('#blindOpnameReviewMessage').textContent = batch.status === 'submitted' ? 'Review aktif. Anda dapat mengedit stok fisik atau langsung menjalankan eksekusi.' : `Batch ini berstatus ${batch.status} dan tidak dapat diproses ulang.`;
+      $('#blindOpnameReviewMessage').className = batch.status === 'submitted' ? 'form-message success' : 'form-message';
+      message.textContent = batch.status === 'submitted'
+        ? 'Batch opname staf siap direview. Pilih perlakuan selisih, lalu klik Setujui Koreksi.'
+        : `Batch ini berstatus ${batch.status} dan tidak dapat diproses ulang.`;
+      message.className = 'form-message success';
+      // Setelah klik Review, arahkan pengguna ke kontrol perlakuan dan persetujuan.
+      // Tombol persetujuan berada di panel atas, sedangkan preview berada di bawah.
+      $('#approveBlindOpnameBtn')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function enterBlindOpnameEditMode() {
+      if (!state.blindResultRows?.length) return;
+      state.blindEditMode = true;
+      renderBlindOpnameTable(state.blindResultRows, true);
+      $('#editBlindOpnameBtn').classList.add('hidden');
+      $('#saveBlindOpnameEditBtn').classList.remove('hidden');
+      $('#saveBlindOpnameEditBtn').disabled = false;
+      $('#executeBlindOpnameBtn').disabled = true;
+      $('#blindOpnameReviewMessage').textContent = 'Edit angka Stok Fisik yang benar, lalu klik Simpan Perubahan.';
+      $('#blindOpnameReviewMessage').className = 'form-message';
+    }
+
+    async function saveBlindOpnameEdit() {
+      if (!state.blindBatchId || !state.blindResultRows?.length) return;
+      const message = $('#blindOpnameReviewMessage');
+      const button = $('#saveBlindOpnameEditBtn');
+      const lines = [...document.querySelectorAll('[data-blind-edit-line]')].map((input) => ({ line_id: input.dataset.blindEditLine, physical_stock: Number(input.value) })).filter((row) => row.line_id);
+      if (!lines.length || lines.some((row) => !Number.isFinite(row.physical_stock) || row.physical_stock < 0)) {
+        message.textContent = 'Semua Stok Fisik harus diisi dengan angka nol atau lebih.';
+        message.className = 'form-message error';
+        return;
+      }
+      button.disabled = true;
+      try {
+        const { error } = await supabaseClient.rpc('edit_blind_opname_result', { p_batch_id: state.blindBatchId, p_lines: lines, p_note: $('#blindOpnameReviewNote').value.trim() || null });
+        if (error) throw error;
+        const result = await supabaseClient.rpc('list_blind_opname_result', { p_batch_id: state.blindBatchId });
+        if (result.error) throw result.error;
+        state.blindResultRows = result.data || [];
+        state.blindEditMode = false;
+        renderBlindOpnameTable(state.blindResultRows, true);
+        $('#editBlindOpnameBtn').classList.remove('hidden');
+        $('#editBlindOpnameBtn').disabled = false;
+        $('#executeBlindOpnameBtn').disabled = !state.blindResultRows.length;
+        message.textContent = 'Perubahan hasil fisik tersimpan. Silakan periksa kembali lalu klik Eksekusi / Setujui.';
+        message.className = 'form-message success';
+      } catch (error) {
+        message.textContent = `Perubahan gagal disimpan: ${error.message}`;
+        message.className = 'form-message error';
+      } finally { button.disabled = false; }
+    }
+
+    async function executeBlindOpnameReview() {
+      if (!state.blindBatchId) return;
+      const message = $('#blindOpnameReviewMessage');
+      const treatment = $('#blindOpnameReviewTreatment').value || 'adjustment';
+      if (!window.confirm('Jalankan koreksi stok untuk batch opname ini? Setelah disetujui, batch tidak dapat diedit lagi.')) return;
+      const button = $('#executeBlindOpnameBtn'); button.disabled = true;
+      try {
+        const { data, error } = await supabaseClient.rpc('approve_blind_opname', { p_batch_id: state.blindBatchId, p_treatment: treatment, p_approved_by: state.user?.id || null });
+        if (error) throw error;
+        message.textContent = `Eksekusi berhasil. ${treatment === 'loss' ? `Kerugian tercatat ${formatRupiah(Number(data?.loss_amount) || 0)}.` : 'Stok sudah disesuaikan.'}`;
+        message.className = 'form-message success';
+        $('#editBlindOpnameBtn').disabled = true;
+        await loadInventory();
+        await loadBlindOpnameBatches();
+      } catch (error) {
+        message.textContent = `Eksekusi gagal: ${error.message}`;
+        message.className = 'form-message error';
+        button.disabled = false;
+      }
     }
 
     function exportBlindOpnameForm() {
@@ -6364,6 +6552,7 @@
         message.textContent = `Batch opname disetujui. ${treatment === 'loss' ? `Kerugian tercatat ${formatRupiah(Number(data?.loss_amount) || 0)}.` : 'Penyesuaian tidak dimasukkan sebagai kerugian.'}`;
         message.className = 'form-message success';
         await loadInventory();
+        await loadBlindOpnameBatches();
       } catch (error) { message.textContent = `Persetujuan opname gagal: ${error.message}`; message.className = 'form-message error'; button.disabled = false; }
     }
 
@@ -6371,7 +6560,10 @@
       updateBlindOpnameAccess();
       const dateInput = $('#blindOpnameDate');
       if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().slice(0, 10);
-      if (state.user?.role === 'Super Admin' && !state.blindBatchId) renderBlindOpnameTable([], false);
+      if (state.user?.role === 'Super Admin') {
+        void loadBlindOpnameBatches();
+        if (!state.blindBatchId) renderBlindOpnameTable([], false);
+      }
     }
 
     async function loadOpnameData() {
@@ -6386,7 +6578,7 @@
     async function loadOpnames() {
       const tableWrap = $('#opnameTableWrap');
       tableWrap.innerHTML = '<div class="loading-row">Memuat riwayat stock opname...</div>';
-      const { data, error } = await fetchAllReportRows('stock_opnames', 'id, created_at, item_name, division, system_quantity, physical_stock, variance, note, financial_treatment', 'created_at');
+      const { data, error } = await supabaseClient.rpc('list_stock_opname_history');
       if (error) {
         console.error(error);
         tableWrap.innerHTML = `<div class="loading-row" style="color:var(--red);">Gagal mengambil stock opname: ${escapeHtml(error.message)}</div>`;
@@ -6570,7 +6762,10 @@
         approveButton.disabled = true;
         approveButton.textContent = 'Memproses...';
         try {
-          const { error } = await supabaseClient.rpc('approve_stock_transfer', { p_transfer_id: Number(approveButton.dataset.approveTransfer) });
+          const { error } = await supabaseClient.rpc('approve_stock_transfer', {
+            p_transfer_id: Number(approveButton.dataset.approveTransfer),
+            p_approved_by: state.user?.id || null
+          });
           if (error) throw error;
           showTransferMessage('Transfer disetujui dan stok Gudang Utama/divisi diperbarui atomik.', 'success');
           await loadTransferData();
@@ -6600,7 +6795,8 @@
       try {
         const { error } = await supabaseClient.rpc('cancel_stock_transfer', {
           p_transfer_id: Number(transferId),
-          p_reason: reason.trim()
+          p_reason: reason.trim(),
+          p_cancelled_by: state.user?.id || null
         });
         if (error) throw error;
         showTransferMessage(`Transfer ${transfer.item_name} berhasil dibatalkan. Stok sudah dikembalikan ke ${transfer.source_division}. Silakan transfer ulang ke ${transfer.destination_division}.`, 'success');
@@ -6647,7 +6843,8 @@
           p_inventory_item_id: source.id,
           p_source_division: 'Gudang Utama',
           p_destination_division: destinationDivision,
-          p_quantity: quantity
+          p_quantity: quantity,
+          p_created_by: state.user?.id || null
         });
         if (rpcError) throw rpcError;
 
@@ -6808,7 +7005,7 @@
         const stock = Number(item.stock_quantity) || 0;
         const minimum = Number(item.min_stock) || 0;
         const isMinus = stock < 0;
-        const isLow = stock <= minimum;
+        const isLow = isLowStockQuantity(stock, minimum);
         return `<tr>
           <td>${escapeHtml(item.item_name || '-')}</td>
           <td>${escapeHtml(item.division || 'Gudang Utama')}</td>
@@ -6816,7 +7013,7 @@
           <td>${escapeHtml(item.unit || '-')}</td>
           <td>${formatQuantity(minimum)}</td>
           <td class="${isMinus ? 'stock-minus' : (isLow ? 'stock-low' : 'stock-ok')}">${isMinus ? 'Minus' : (stock === 0 ? 'Habis' : (isLow ? 'Rendah' : 'Aman'))}</td>
-          <td><div class="action-group">${state.user?.role === 'Super Admin' ? `<button class="delete-btn" type="button" data-action="delete-inventory" data-id="${escapeHtml(item.id)}" data-name="${escapeHtml(item.item_name || '')}">🗑 Hapus</button>` : '<span class="panel-subtitle">Gunakan Stok Masuk</span>'}</div></td>
+          <td><div class="action-group">${state.user?.role === 'Super Admin' ? `<button class="reset-btn" type="button" data-action="edit-inventory" data-id="${escapeHtml(item.id)}">Edit</button><button class="delete-btn" type="button" data-action="delete-inventory" data-id="${escapeHtml(item.id)}" data-name="${escapeHtml(item.item_name || '')}">🗑 Hapus</button>` : '<span class="panel-subtitle">Gunakan Stok Masuk</span>'}</div></td>
         </tr>`;
       }).join('');
 
@@ -6831,10 +7028,11 @@
         return;
       }
 
-      const stock = 0;
+      const editId = $('#inventoryEditId').value.trim();
       const minStock = Number($('#inventoryMinStock').value);
       const itemName = $('#inventoryItemName').value.trim();
       const division = $('#inventoryDivision').value;
+      const unit = $('#inventoryUnit').value.trim();
       if (!Number.isFinite(minStock) || minStock < 0) {
         showInventoryMessage('Batas minimum harus berupa angka nol atau lebih.', 'error');
         return;
@@ -6843,8 +7041,13 @@
         showInventoryMessage('Nama bahan wajib diisi.', 'error');
         return;
       }
+      if (!unit) {
+        showInventoryMessage('Satuan stok wajib diisi.', 'error');
+        return;
+      }
 
       const duplicate = state.inventory.find((item) =>
+        String(item.id) !== String(editId) &&
         normalizeMenuName(item.item_name) === normalizeMenuName(itemName) &&
         String(item.division || 'Gudang Utama') === String(division)
       );
@@ -6853,29 +7056,48 @@
         return;
       }
 
+      const existingItem = editId ? state.inventory.find((item) => String(item.id) === String(editId)) : null;
+      if (existingItem && String(existingItem.division || 'Gudang Utama') !== String(division) && (Number(existingItem.stock_quantity) || 0) !== 0) {
+        showInventoryMessage('Divisi tidak dapat diubah saat bahan masih memiliki stok. Gunakan Transfer Stok agar saldo dan audit tetap benar.', 'error');
+        return;
+      }
+      if (existingItem && String(existingItem.unit || '').trim().toLowerCase() !== unit.toLowerCase() && (Number(existingItem.stock_quantity) || 0) !== 0) {
+        showInventoryMessage('Satuan tidak dapat diubah saat stok masih ada. Habiskan atau koreksi stok terlebih dahulu agar jumlah tidak salah tafsir.', 'error');
+        return;
+      }
+
       const button = $('#saveInventoryBtn');
       button.disabled = true;
-      button.textContent = 'Menyimpan...';
-      const { error } = await supabaseClient.from('inventory').insert([{
-        item_name: itemName,
-        division,
-        stock_quantity: stock,
-        unit: $('#inventoryUnit').value.trim(),
-        min_stock: minStock
-      }]);
+      button.textContent = editId ? 'Menyimpan Perubahan...' : 'Menyimpan...';
+      const query = editId
+        ? supabaseClient.from('inventory').update({ item_name: itemName, division, unit, min_stock: minStock }).eq('id', editId)
+        : supabaseClient.from('inventory').insert([{ item_name: itemName, division, stock_quantity: 0, unit, min_stock: minStock }]);
+      const { error } = await query;
       button.disabled = false;
-      button.textContent = 'Simpan Bahan';
+      button.textContent = editId ? 'Simpan Perubahan' : 'Simpan Bahan';
 
       if (error) {
         console.error(error);
         showInventoryMessage(`Gagal menyimpan bahan: ${error.message}`, 'error');
         return;
       }
-      showInventoryMessage('Bahan baku berhasil disimpan dengan stok 0. Gunakan Stok Masuk saat stok supplier diterima, atau Penyesuaian Stok untuk saldo fisik awal.', 'success');
-      void logActivity('INVENTORY_CREATE', `Bahan ${itemName} berhasil ditambahkan di ${division} sebagai master bahan dengan stok 0.`);
-      inventoryForm.reset();
+      showInventoryMessage(editId
+        ? `Bahan ${itemName} berhasil diperbarui. Saldo stok tetap dipertahankan.`
+        : 'Bahan baku berhasil disimpan dengan stok 0. Gunakan Stok Masuk saat stok supplier diterima, atau Penyesuaian Stok untuk saldo fisik awal.', 'success');
+      void logActivity(editId ? 'INVENTORY_UPDATE' : 'INVENTORY_CREATE', editId
+        ? `Bahan ${itemName} diperbarui di ${division}. Saldo stok tidak diubah.`
+        : `Bahan ${itemName} berhasil ditambahkan di ${division} sebagai master bahan dengan stok 0.`);
+      resetInventoryForm();
       await loadInventory();
       await loadLowStockAlert();
+    }
+
+    function resetInventoryForm() {
+      inventoryForm.reset();
+      $('#inventoryEditId').value = '';
+      $('#saveInventoryBtn').textContent = 'Simpan Bahan';
+      $('#cancelInventoryEditBtn').classList.add('hidden');
+      clearInventoryMessage();
     }
 
     async function loadRecipes() {
@@ -7710,6 +7932,28 @@
       TEMPLATE_SALES_COLUMNS.gross
     ];
 
+    const ISSELLER_PRODUCT_RECAP_COLUMNS = Object.freeze({
+      product: 'Judul Produk',
+      category: 'Tipe Produk',
+      variant: 'Nama Varian',
+      date: 'Hari',
+      quantity: 'Unit terjual',
+      unitPrice: 'Harga',
+      gross: 'Penjualan Kotor'
+    });
+
+    const SALES_COLUMN_ALIASES = Object.freeze({
+      receipt: ['Nomor Nota', 'No Nota', 'Receipt Number', 'Receipt', 'Order Number', 'Order No'],
+      day: ['Hari'],
+      date: ['Tanggal', 'Tanggal Transaksi', 'Sale Date', 'Transaction Date'],
+      product: ['Nama Item', 'Nama Produk', 'Judul Produk', 'Product Name', 'Menu'],
+      variant: ['Varian', 'Nama Varian', 'Variant'],
+      category: ['Jenis', 'Tipe Produk', 'Kategori', 'Category'],
+      sold: ['Unit Terjual', 'Unit terjual', 'Quantity', 'Quantity Sold', 'Qty'],
+      unitPrice: ['Harga Satuan', 'Harga', 'Unit Price', 'Price'],
+      gross: ['Harga Total', 'Penjualan Kotor', 'Total Penjualan', 'Gross Sales', 'Gross Amount']
+    });
+
     function normalizeExcelRow(row) {
       if (!row || typeof row !== 'object' || Array.isArray(row)) return null;
       return Object.fromEntries(Object.entries(row).map(([key, value]) => [cleanExcelHeader(key), value]));
@@ -7751,6 +7995,66 @@
       return Object.keys(row).find((key) => normalizeExcelHeader(key) === target) || null;
     }
 
+    function findSalesColumn(row, aliases) {
+      for (const alias of aliases || []) {
+        const key = findTemplateColumn(row, alias);
+        if (key) return key;
+      }
+      return null;
+    }
+
+    function findSalesHeaderRow(rawRows) {
+      const rows = Array.isArray(rawRows) ? rawRows : [];
+      for (let index = 0; index < Math.min(rows.length, 20); index += 1) {
+        const headers = (rows[index] || []).map((header) => cleanExcelHeader(header));
+        const headerRow = Object.fromEntries(headers.map((header, columnIndex) => [header || `Kolom ${columnIndex + 1}`, header]));
+        const hasProduct = findSalesColumn(headerRow, SALES_COLUMN_ALIASES.product);
+        const hasQuantity = findSalesColumn(headerRow, SALES_COLUMN_ALIASES.sold);
+        const hasGross = findSalesColumn(headerRow, SALES_COLUMN_ALIASES.gross);
+        const hasDate = findSalesColumn(headerRow, SALES_COLUMN_ALIASES.date);
+        const hasDay = findSalesColumn(headerRow, SALES_COLUMN_ALIASES.day);
+        if (hasProduct && hasQuantity && hasGross && (hasDate || hasDay)) return { index, headers };
+      }
+      return null;
+    }
+
+    function weekdayFromSalesDate(saleDate) {
+      if (!saleDate) return '';
+      return new Intl.DateTimeFormat('id-ID', { weekday: 'long', timeZone: 'UTC' }).format(new Date(`${saleDate}T00:00:00Z`));
+    }
+
+    function normalizeSalesImportRows(sourceRows, headerRowIndex = 0) {
+      return (sourceRows || []).map((row, index) => {
+        const source = normalizeExcelRow(row) || {};
+        const productKey = findSalesColumn(source, SALES_COLUMN_ALIASES.product);
+        const variantKey = findSalesColumn(source, SALES_COLUMN_ALIASES.variant);
+        const categoryKey = findSalesColumn(source, SALES_COLUMN_ALIASES.category);
+        const quantityKey = findSalesColumn(source, SALES_COLUMN_ALIASES.sold);
+        const unitPriceKey = findSalesColumn(source, SALES_COLUMN_ALIASES.unitPrice);
+        const grossKey = findSalesColumn(source, SALES_COLUMN_ALIASES.gross);
+        const receiptKey = findSalesColumn(source, SALES_COLUMN_ALIASES.receipt);
+        const explicitDateKey = findSalesColumn(source, SALES_COLUMN_ALIASES.date);
+        const dayKey = findSalesColumn(source, SALES_COLUMN_ALIASES.day);
+        const explicitDate = explicitDateKey ? formatRequiredSalesDate(source[explicitDateKey]) : '';
+        const recapDate = !explicitDate && dayKey ? formatRequiredSalesDate(source[dayKey]) : '';
+        const saleDate = explicitDate || recapDate;
+        const sourceDay = dayKey ? String(source[dayKey] ?? '').trim() : '';
+        const hari = explicitDate ? sourceDay : (saleDate ? weekdayFromSalesDate(saleDate) : sourceDay);
+        return {
+          'Nomor Nota': receiptKey ? String(source[receiptKey] ?? '').trim() : '',
+          Hari: hari,
+          Tanggal: saleDate,
+          'Nama Item': productKey ? source[productKey] : '',
+          Varian: variantKey ? source[variantKey] : '',
+          Jenis: categoryKey ? source[categoryKey] : '',
+          'Unit Terjual': quantityKey ? source[quantityKey] : '',
+          'Harga Satuan': unitPriceKey ? source[unitPriceKey] : '',
+          'Harga Total': grossKey ? source[grossKey] : '',
+          __sourceRowNumber: headerRowIndex + index + 2
+        };
+      });
+    }
+
     function parseTemplateInteger(value) {
       if (value === null || value === undefined || String(value).trim() === '') return NaN;
       const cleaned = String(value).trim().replace(/[^0-9-]/g, '');
@@ -7788,6 +8092,21 @@
     async function hashFileContents(file) {
       if (!file || !window.crypto?.subtle) throw new Error('Browser tidak mendukung hash SHA-256 untuk upload ini.');
       const digest = await window.crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+      return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function hashSalesPayload(payload) {
+      if (!window.crypto?.subtle) throw new Error('Browser tidak mendukung hash SHA-256 untuk upload ini.');
+      const canonicalRows = (payload || []).map((row) => ({
+        sale_date: row.sale_date || '',
+        product_name: normalizeMenuName(row.product_name || ''),
+        variant: normalizeMenuName(row.variant || ''),
+        category_item: normalizeText(row.category_item || ''),
+        quantity_sold: Number(row.quantity_sold || 0),
+        gross_amount: Number(row.gross_amount || 0)
+      })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+      const bytes = new TextEncoder().encode(JSON.stringify(canonicalRows));
+      const digest = await window.crypto.subtle.digest('SHA-256', bytes);
       return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
     }
 
@@ -7839,8 +8158,6 @@
     }
 
     async function persistSalesRowsFromUpload(file, rows) {
-      const contentHash = await hashFileContents(file);
-      const localDuplicateKey = `fb-sales-upload:sha256:${contentHash}`;
       // Local storage hanya penanda tampilan, bukan sumber kebenaran. Setelah
       // reset database, file yang sama harus boleh diunggah kembali; keputusan
       // duplicate wajib dibuat oleh RPC berdasarkan hash di database.
@@ -7866,6 +8183,8 @@
         });
       });
       if (!payload.length) return { status: 'no-match', insertedRows: 0 };
+      const contentHash = await hashSalesPayload(payload);
+      const localDuplicateKey = `fb-sales-upload:sha256:${contentHash}`;
 
       const { data: result, error } = await supabaseClient.rpc('process_sales_import', {
         p_content_hash: contentHash,
@@ -8377,7 +8696,20 @@
       } catch (error) { message.textContent = `Mapping gagal disimpan: ${error.message}`; message.className = 'form-message error'; }
     }
 
-    async function validateSalesUploadRows(file, jsonRows) {
+    async function findExistingImportedSalesForDate(saleDate) {
+      if (!supabaseConfigured || !saleDate) return null;
+      const { data, error } = await supabaseClient.from('sales')
+        .select('id, file_name, created_at')
+        .eq('sale_date', saleDate)
+        .like('external_reference', 'import:%')
+        .neq('status', 'void')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      return data?.[0] || null;
+    }
+
+    async function validateSalesUploadRows(file, jsonRows, headerRowIndex = 0) {
       if (!state.menuMasterRows.length) { const result = await supabaseClient.rpc('list_menu_master'); if (!result.error) state.menuMasterRows = result.data || []; }
       const mappings = new Map(state.salesMappings.map((row) => [recipeLookupKey(row.external_menu_name, row.external_variant || ''), row]));
       const menuKeys = new Set(state.menuMasterRows.map((row) => recipeLookupKey(row.menu_name, row.variant || '')));
@@ -8389,11 +8721,23 @@
         const productName = mapping?.menu_name || fields.productName;
         const variant = mapping?.variant || fields.variant || 'Default';
         const key = recipeLookupKey(productName, variant);
-        if (!menuKeys.has(key)) problems.push({ row: index + 2, menu: fields.productName, variant: fields.variant || '-', reason: 'Belum memiliki mapping atau varian resep yang cocok' });
+        if (!menuKeys.has(key)) problems.push({ row: fields.rowNumber || (headerRowIndex + index + 2), menu: fields.productName, variant: fields.variant || '-', reason: 'Belum memiliki mapping atau varian resep yang cocok' });
         prepared.push({ file_name: file.name, receipt_number: fields.receiptNumber || null, hari: fields.hari, sale_date: fields.saleDate, product_name: productName, variant: variant === 'Default' ? null : variant, category_item: fields.categoryItem, quantity_sold: fields.quantity, gross_amount: Number.isFinite(fields.grossAmount) ? fields.grossAmount : (Number.isFinite(fields.unitPrice) ? fields.unitPrice * fields.quantity : 0) });
       });
+      const dates = [...new Set(prepared.map((row) => row.sale_date).filter(Boolean))];
+      if (dates.length > 1) throw new Error(`File berisi lebih dari satu tanggal transaksi (${dates.join(', ')}). Upload satu rekap untuk satu tanggal.`);
       const totalRevenue = prepared.reduce((sum, row) => sum + row.gross_amount, 0);
-      state.pendingSalesUpload = { file, payload: prepared, problems, contentHash: await hashFileContents(file), totalRevenue };
+      const contentHash = await hashSalesPayload(prepared);
+      let dateConflict = null;
+      if (prepared[0]?.sale_date) {
+        try {
+          dateConflict = await findExistingImportedSalesForDate(prepared[0].sale_date);
+        } catch (error) {
+          dateConflict = { error: error?.message || 'Tanggal import belum dapat diverifikasi.' };
+          addUploadLog('warning', `Tanggal import belum dapat diverifikasi: ${error?.message || 'kesalahan database'}`);
+        }
+      }
+      state.pendingSalesUpload = { file, payload: prepared, problems, contentHash, totalRevenue, dateConflict, sourceHeaderRowIndex: headerRowIndex };
       renderSalesValidation();
       if (problems.length && prepared.length) {
         const reason = problems.slice(0, 20).map((item) => `Baris ${item.row}: ${item.menu}${item.variant !== '-' ? ` / ${item.variant}` : ''} — ${item.reason}`).join('; ');
@@ -8414,16 +8758,19 @@
 
     function renderSalesValidation() {
       const panel = $('#salesValidationPanel'); if (!panel || !state.pendingSalesUpload) return;
-      const { payload, problems, totalRevenue } = state.pendingSalesUpload;
+      const { payload, problems, totalRevenue, dateConflict } = state.pendingSalesUpload;
       panel.classList.remove('hidden');
-      $('#salesValidationSummary').innerHTML = `Baris valid: <strong>${payload.length.toLocaleString('id-ID')}</strong> · Omzet file: <strong>${formatRupiah(totalRevenue)}</strong> · Belum termapping: <strong>${problems.length.toLocaleString('id-ID')}</strong>`;
+      const dateBlocker = dateConflict ? `<div style="color:var(--red);margin-top:8px;">${dateConflict.error ? `Tanggal belum dapat diverifikasi: ${escapeHtml(dateConflict.error)}` : `Tanggal ${escapeHtml(payload[0]?.sale_date || '')} sudah memiliki penjualan hasil import (${escapeHtml(dateConflict.file_name || 'file sebelumnya')}). Upload diblokir agar stok tidak terpotong dua kali.`}</div>` : '';
+      $('#salesValidationSummary').innerHTML = `Baris valid: <strong>${payload.length.toLocaleString('id-ID')}</strong> · Omzet file: <strong>${formatRupiah(totalRevenue)}</strong> · Belum termapping: <strong>${problems.length.toLocaleString('id-ID')}</strong>${dateBlocker}`;
       const wrap = $('#salesValidationTableWrap');
       wrap.innerHTML = problems.length ? `<table class="history-table"><thead><tr><th>Baris</th><th>Menu iSeller</th><th>Varian</th><th>Masalah</th></tr></thead><tbody>${problems.map((row) => `<tr><td>${row.row}</td><td>${escapeHtml(row.menu)}</td><td>${escapeHtml(row.variant)}</td><td>${escapeHtml(row.reason)}</td></tr>`).join('')}</tbody></table>` : '<div class="loading-row" style="color:var(--green);">Semua menu dan varian sudah memiliki pasangan resep.</div>';
-      $('#confirmSalesUploadBtn').disabled = !payload.length || problems.length > 0;
+      $('#confirmSalesUploadBtn').disabled = !payload.length || problems.length > 0 || Boolean(dateConflict);
     }
 
     async function persistPreparedSalesRows(upload) {
       const { file, payload, contentHash } = upload;
+      const existingImport = await findExistingImportedSalesForDate(payload[0]?.sale_date);
+      if (existingImport) throw new Error(`Tanggal ${payload[0].sale_date} sudah memiliki penjualan hasil import dari ${existingImport.file_name || 'file sebelumnya'}.`);
       const { data: result, error } = await supabaseClient.rpc('process_sales_import', { p_content_hash: contentHash, p_file_name: file.name, p_sale_date: payload[0].sale_date, p_lines: payload.map((row, index) => ({ ...row, receipt_number: row.receipt_number || `IMPORT:${contentHash}:${index + 1}`, external_reference: `import:${contentHash}:${index + 1}` })), p_created_by: state.user?.id || null, p_created_by_name: state.user?.displayName || state.user?.username || null });
       if (error) throw makeSupabaseUploadError(error);
       if (result?.status === 'duplicate') return { status: 'duplicate', insertedRows: 0 };
@@ -8481,23 +8828,27 @@
           const firstSheet = workbook.Sheets[firstSheetName];
           const rawRows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '', raw: true, blankrows: false });
           if (!rawRows.length) throw new Error('Sheet pertama tidak memiliki data.');
-          const headers = rawRows[0].map((header) => cleanExcelHeader(header));
-          validateTemplateHeaders(headers);
+          const headerInfo = findSalesHeaderRow(rawRows);
+          if (!headerInfo) throw new Error('Header penjualan tidak ditemukan. Pastikan file berisi Judul Produk/Nama Item, Unit terjual/Unit Terjual, dan Penjualan Kotor/Harga Total.');
+          const { index: headerRowIndex, headers } = headerInfo;
 
-          // Template baru menempatkan header langsung pada Baris ke-1.
-          // SheetJS memakai baris pertama sebagai nama properti JSON secara otomatis.
-          const jsonRows = XLSX.utils.sheet_to_json(firstSheet, {
+          // Export iSeller biasanya menaruh waktu export pada Baris ke-1 dan
+          // header produk pada Baris ke-2. Range dimulai dari header yang
+          // ditemukan agar baris metadata tidak ikut menjadi data penjualan.
+          const sourceRows = XLSX.utils.sheet_to_json(firstSheet, {
+            range: headerRowIndex,
             defval: '',
             raw: true,
             blankrows: false
           });
-          if (!jsonRows.length) throw new Error('Sheet terpilih tidak memiliki baris data setelah header.');
-          const tableRows = [headers, ...jsonRows.map((row) => headers.map((header) => normalizeExcelRow(row)?.[header] ?? ''))];
+          if (!sourceRows.length) throw new Error('Sheet terpilih tidak memiliki baris data setelah header.');
+          const jsonRows = normalizeSalesImportRows(sourceRows, headerRowIndex);
+          const tableRows = [headers, ...sourceRows.map((row) => headers.map((header) => normalizeExcelRow(row)?.[header] ?? ''))];
           clearUploadLog();
           renderPreview(file, firstSheetName, tableRows);
           if (supabaseConfigured) {
             await loadSalesMappingData();
-            await validateSalesUploadRows(file, jsonRows);
+            await validateSalesUploadRows(file, jsonRows, headerRowIndex);
             addUploadLog('warning', 'Upload berhenti di tahap validasi. Periksa mapping lalu klik Simpan Penjualan Setelah Validasi.');
           } else {
             const message = 'Supabase belum siap. Pastikan URL, anon key, dan library Supabase CDN termuat.';
@@ -8505,7 +8856,7 @@
             alert('Sistem Web Error: ' + message);
             showUploadError(message);
           }
-          addUploadLog('success', `Template penjualan terbaca dari sheet “${firstSheetName}” dengan header pada Baris ke-1.`);
+          addUploadLog('success', `Rekap produk iSeller terbaca dari sheet “${firstSheetName}” dengan header pada Baris ke-${headerRowIndex + 1}. Tanggal diambil dari kolom Hari/Tanggal.`);
         } catch (err) {
           console.error(err);
           const errorMessage = err?.message || String(err);
