@@ -1272,7 +1272,7 @@
         <section id="hppReportPage" class="page">
           <div class="section-title"><h1>Real-Time Food Cost &amp; Export HPP</h1><p>HPP aktif mengikuti harga bahan terbaru, sedangkan HPP transaksi lama membaca snapshot pada tanggal penjualan.</p></div>
           <div class="panel">
-            <div class="panel-head"><div><h3>HPP menu saat ini</h3><p class="panel-subtitle">Perhitungan live dari resep, preparation, konversi satuan, yield, dan ledger pembelian/transfer.</p></div><div class="panel-actions"><button id="refreshHppReportBtn" class="reset-btn" type="button">↻ Refresh</button><button id="exportHppCurrentBtn" class="export-btn" type="button">Export HPP Aktif</button></div></div>
+            <div class="panel-head"><div><h3>HPP menu saat ini</h3><p class="panel-subtitle">Perhitungan live dari resep, preparation, konversi satuan, yield, dan ledger pembelian/transfer.</p></div><div class="panel-actions"><button id="refreshHppReportBtn" class="reset-btn" type="button">↻ Refresh</button><button id="backfillSalesHppBtn" class="save-btn" type="button">Sinkronkan HPP Transaksi</button><button id="exportHppCurrentBtn" class="export-btn" type="button">Export HPP Aktif</button></div></div>
             <div id="hppCurrentTableWrap" class="history-table-wrap"><div class="loading-row">Buka menu ini untuk memuat HPP aktif.</div></div>
           </div>
           <div class="panel history-panel">
@@ -2466,6 +2466,7 @@
     $('#exportStockReportExcelBtn').addEventListener('click', exportStockReportToExcel);
     $('#exportStockReportPdfBtn').addEventListener('click', exportStockReportToPdf);
     $('#refreshHppReportBtn').addEventListener('click', loadHppReportData);
+    $('#backfillSalesHppBtn').addEventListener('click', backfillMissingSalesHpp);
     ['hppHistoryStart', 'hppHistoryEnd', 'hppHistoryStatus'].forEach((id) => document.getElementById(id)?.addEventListener('change', loadHppReportData));
     $('#hppHistorySearch')?.addEventListener('input', loadHppReportData);
     $('#hppHistoryTableWrap').addEventListener('click', handleHppHistoryTableClick);
@@ -6262,6 +6263,35 @@
       renderHppHistoryTable();
       message.textContent = salesError ? `HPP aktif berhasil dimuat. Riwayat snapshot belum dapat dibaca: ${salesError.message}` : `HPP aktif dan ${state.hppHistoryRows.length.toLocaleString('id-ID')} snapshot transaksi berhasil dimuat.`;
       message.className = salesError ? 'form-message warning' : 'form-message success';
+    }
+
+    async function backfillMissingSalesHpp() {
+      if (!hasFullAdminAccess()) {
+        window.alert('Hanya Admin atau Super Admin yang dapat menyinkronkan HPP transaksi.');
+        return;
+      }
+      const button = $('#backfillSalesHppBtn');
+      if (!window.confirm('Isi snapshot HPP untuk transaksi yang masih belum lengkap? Penjualan dan stok tidak dihapus.')) return;
+      button.disabled = true;
+      const originalText = button.textContent;
+      button.textContent = 'Menyinkronkan...';
+      try {
+        const { data, error } = await supabaseClient.rpc('backfill_missing_sales_hpp', {});
+        if (error) throw error;
+        const updated = Number(data?.updated_count || 0);
+        const skipped = Number(data?.skipped_count || 0);
+        await Promise.all([loadHppReportData(), loadSalesReport(), loadProfitLossReport(), loadSalesAnalytics({ ignoreCategory: true })]);
+        $('#hppReportMessage').textContent = `Sinkronisasi selesai: ${updated} transaksi diperbarui${skipped ? `, ${skipped} masih menunggu harga/resep lengkap` : ''}.`;
+        $('#hppReportMessage').className = skipped ? 'form-message warning' : 'form-message success';
+        void logActivity('HPP_BACKFILL', `Snapshot HPP transaksi disinkronkan: ${updated} diperbarui, ${skipped} belum lengkap.`);
+      } catch (error) {
+        console.error(error);
+        $('#hppReportMessage').textContent = `Sinkronisasi HPP gagal: ${error.message}`;
+        $('#hppReportMessage').className = 'form-message error';
+      } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
     }
 
     function renderHppCurrentTable() {
