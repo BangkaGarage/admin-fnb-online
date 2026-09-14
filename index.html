@@ -8399,7 +8399,7 @@
           sale_date: fields.saleDate,
           product_name: fields.productName,
           variant: fields.variant ? fields.variant : null,
-          category_item: fields.categoryItem,
+          category_item: fields.categoryItem || 'Other',
           quantity_sold: Number(fields.quantity || 0),
           gross_amount: grossAmount
         });
@@ -8944,7 +8944,8 @@
         const variant = mapping?.variant || fields.variant || 'Default';
         const key = recipeLookupKey(productName, variant);
         if (!menuKeys.has(key)) problems.push({ row: fields.rowNumber || (headerRowIndex + index + 2), menu: fields.productName, variant: fields.variant || '-', reason: 'Belum memiliki mapping atau varian resep yang cocok' });
-        prepared.push({ file_name: file.name, receipt_number: fields.receiptNumber || null, hari: fields.hari, sale_date: fields.saleDate, product_name: productName, variant: variant === 'Default' ? null : variant, category_item: fields.categoryItem, quantity_sold: fields.quantity, gross_amount: Number.isFinite(fields.grossAmount) ? fields.grossAmount : (Number.isFinite(fields.unitPrice) ? fields.unitPrice * fields.quantity : 0) });
+        const masterRow = state.menuMasterRows.find((row) => recipeLookupKey(row.menu_name, row.variant || '') === key);
+        prepared.push({ file_name: file.name, receipt_number: fields.receiptNumber || null, hari: fields.hari, sale_date: fields.saleDate, product_name: productName, variant: variant === 'Default' ? null : variant, category_item: fields.categoryItem || masterRow?.category || 'Other', quantity_sold: fields.quantity, gross_amount: Number.isFinite(fields.grossAmount) ? fields.grossAmount : (Number.isFinite(fields.unitPrice) ? fields.unitPrice * fields.quantity : 0) });
       });
       const dates = [...new Set(prepared.map((row) => row.sale_date).filter(Boolean))];
       if (dates.length > 1) throw new Error(`File berisi lebih dari satu tanggal transaksi (${dates.join(', ')}). Upload satu rekap untuk satu tanggal.`);
