@@ -1538,7 +1538,10 @@
       : null;
     const DIVISIONS = ['Gudang Utama', 'Bar', 'Kitchen', 'Waiters'];
     const TRANSFER_DESTINATIONS = ['Bar', 'Kitchen', 'Waiters'];
-    const SUPER_ADMIN_PAGES = ['reportsWorkspacePage', 'blindOpnamePage', 'stockPage', 'assetPage', 'conversionPage', 'menuMasterPage', 'bomPage', 'transferPage', 'wastePage', 'stockReportPage', 'opnamePage', 'activityLogsPage', 'settingsPage', 'systemResetPage'];
+    // Admin boleh memakai seluruh modul operasional seperti Super Admin.
+    // Reset Sistem tetap menjadi pengecualian dan hanya boleh dibuka Super Admin.
+    const ADMIN_PAGES = ['reportsWorkspacePage', 'blindOpnamePage', 'stockPage', 'assetPage', 'conversionPage', 'menuMasterPage', 'bomPage', 'transferPage', 'wastePage', 'stockReportPage', 'opnamePage', 'activityLogsPage', 'settingsPage'];
+    const SUPER_ADMIN_ONLY_PAGES = ['systemResetPage'];
 
     const state = {
       user: null,
@@ -1586,6 +1589,13 @@
     };
 
     const $ = (selector) => document.querySelector(selector);
+    function isSuperAdmin() {
+      return state.user?.role === 'Super Admin';
+    }
+
+    function hasFullAdminAccess() {
+      return isSuperAdmin() || state.user?.role === 'Admin';
+    }
     const SEARCHABLE_SELECT_SELECTOR = [
       '#mappingTargetMenu', '#mappingTargetVariant', '#conversionInventoryItem', '#transferItem', '#purchaseItem', '#priceBookItem',
       '#wasteItem', '#nonSaleItem', '#nonSalePreparation', '#stockDeductionItemFilter', '#stockMovementAnalyticsItem',
@@ -1893,11 +1903,14 @@
     }
 
     function updateReportAccess() {
-      const isSuperAdmin = state.user?.role === 'Super Admin';
-      SUPER_ADMIN_PAGES.forEach((pageName) => {
-        document.querySelectorAll(`[data-page="${pageName}"]`).forEach((button) => button.classList.toggle('hidden', !isSuperAdmin));
+      const canUseAdminModules = hasFullAdminAccess();
+      ADMIN_PAGES.forEach((pageName) => {
+        document.querySelectorAll(`[data-page="${pageName}"]`).forEach((button) => button.classList.toggle('hidden', !canUseAdminModules));
       });
-      document.querySelectorAll('.nav-btn[data-super-admin-only="true"]').forEach((button) => button.classList.toggle('hidden', !isSuperAdmin));
+      SUPER_ADMIN_ONLY_PAGES.forEach((pageName) => {
+        document.querySelectorAll(`[data-page="${pageName}"]`).forEach((button) => button.classList.toggle('hidden', !isSuperAdmin()));
+      });
+      document.querySelectorAll('.nav-btn[data-super-admin-only="true"]').forEach((button) => button.classList.toggle('hidden', !canUseAdminModules));
       document.querySelectorAll('.nav-group').forEach((group) => {
         const hasVisiblePage = [...group.querySelectorAll('.nav-btn')].some((button) => !button.classList.contains('hidden'));
         group.classList.toggle('hidden', !hasVisiblePage);
@@ -1905,11 +1918,11 @@
     }
 
     function updateBlindOpnameAccess() {
-      const isSuperAdmin = state.user?.role === 'Super Admin';
-      $('#blindOpnameAdminControls')?.classList.toggle('hidden', !isSuperAdmin);
-      $('#blindOpnameAdminNote')?.classList.toggle('hidden', !isSuperAdmin);
-      $('#approveBlindOpnameBtn')?.classList.toggle('hidden', !isSuperAdmin);
-      $('#blindOpnamePreviewPanel')?.classList.toggle('hidden', !isSuperAdmin);
+      const canUseAdminModules = hasFullAdminAccess();
+      $('#blindOpnameAdminControls')?.classList.toggle('hidden', !canUseAdminModules);
+      $('#blindOpnameAdminNote')?.classList.toggle('hidden', !canUseAdminModules);
+      $('#approveBlindOpnameBtn')?.classList.toggle('hidden', !canUseAdminModules);
+      $('#blindOpnamePreviewPanel')?.classList.toggle('hidden', !canUseAdminModules);
     }
 
     async function verifyCurrentUserPassword(password) {
@@ -2076,9 +2089,10 @@
       button.addEventListener('click', () => {
         const requestedPage = button.dataset.page;
 
-        if (SUPER_ADMIN_PAGES.includes(requestedPage) && state.user?.role !== 'Super Admin') return;
+        if (ADMIN_PAGES.includes(requestedPage) && !hasFullAdminAccess()) return;
+        if (SUPER_ADMIN_ONLY_PAGES.includes(requestedPage) && !isSuperAdmin()) return;
 
-        if (requestedPage === 'reportsWorkspacePage' && state.user?.role !== 'Super Admin') {
+        if (requestedPage === 'reportsWorkspacePage' && !hasFullAdminAccess()) {
           return;
         }
         const targetPage = document.getElementById(requestedPage);
@@ -2097,23 +2111,23 @@
           loadSalesMappingData();
           activateOperationsWorkspaceTab(button.dataset.operationTab || document.querySelector('.operations-workspace-tab.active')?.dataset.operationTab || 'sales');
         }
-        if (requestedPage === 'reportsWorkspacePage' && state.user?.role === 'Super Admin') activateReportsWorkspaceTab(button.dataset.reportTab || document.querySelector('.reports-workspace-tab.active')?.dataset.reportTab || 'sales');
+        if (requestedPage === 'reportsWorkspacePage' && hasFullAdminAccess()) activateReportsWorkspaceTab(button.dataset.reportTab || document.querySelector('.reports-workspace-tab.active')?.dataset.reportTab || 'sales');
         if (requestedPage === 'closingPage') loadDailyClosingData();
-        if (requestedPage === 'blindOpnamePage' && state.user?.role === 'Super Admin') loadBlindOpnamePage();
+        if (requestedPage === 'blindOpnamePage' && hasFullAdminAccess()) loadBlindOpnamePage();
         if (requestedPage === 'stockPage') {
           loadCombinedInventoryData();
           activateMasterWorkspaceTab(button.dataset.masterTab || document.querySelector('.master-workspace-tab.active')?.dataset.masterTab || 'materials');
         }
-        if (requestedPage === 'conversionPage' && state.user?.role === 'Super Admin') loadUnitConversionData();
-        if (requestedPage === 'menuMasterPage' && state.user?.role === 'Super Admin') loadMenuMaster();
-        if (requestedPage === 'bomPage' && state.user?.role === 'Super Admin') loadPreparations();
+        if (requestedPage === 'conversionPage' && hasFullAdminAccess()) loadUnitConversionData();
+        if (requestedPage === 'menuMasterPage' && hasFullAdminAccess()) loadMenuMaster();
+        if (requestedPage === 'bomPage' && hasFullAdminAccess()) loadPreparations();
         if (requestedPage === 'transferPage') loadTransferData();
         if (requestedPage === 'wastePage') loadWasteData();
         if (requestedPage === 'stockReportPage') loadStockReport();
         if (requestedPage === 'opnamePage') loadOpnameData();
-        if (requestedPage === 'activityLogsPage' && state.user?.role === 'Super Admin') loadActivityLogs();
-        if (requestedPage === 'settingsPage' && state.user?.role === 'Super Admin') loadSettingsData();
-        if (requestedPage === 'assetPage' && state.user?.role === 'Super Admin') loadAssetData();
+        if (requestedPage === 'activityLogsPage' && hasFullAdminAccess()) loadActivityLogs();
+        if (requestedPage === 'settingsPage' && hasFullAdminAccess()) loadSettingsData();
+        if (requestedPage === 'assetPage' && hasFullAdminAccess()) loadAssetData();
         if (requestedPage === 'dashboardPage') { void loadDashboardDaily(); }
       });
     });
@@ -2493,7 +2507,7 @@
     $('#closingOverrideReason')?.addEventListener('input', () => {
       const blockers = Number(state.closingValidation?.blocking_count || 0);
       const date = $('#dailyClosingDate')?.value;
-      $('#closeDailyPeriodBtn').disabled = state.user?.role !== 'Super Admin' || !date || (blockers > 0 && !String($('#closingOverrideReason').value || '').trim());
+      $('#closeDailyPeriodBtn').disabled = !hasFullAdminAccess() || !date || (blockers > 0 && !String($('#closingOverrideReason').value || '').trim());
     });
     $('#refreshDailyClosingsBtn')?.addEventListener('click', loadDailyClosingData);
     ['backupStart', 'backupEnd'].forEach((id) => document.getElementById(id)?.addEventListener('change', () => { if (state.backupExportData) renderBackupExportCounts(state.backupExportData); }));
@@ -2690,9 +2704,9 @@
     }
 
     function updateMasterWorkspaceAccess() {
-      const isSuperAdmin = state.user?.role === 'Super Admin';
+      const canUseAdminModules = hasFullAdminAccess();
       document.querySelectorAll('[data-master-tab][data-super-admin-only="true"], [data-master-tab-panel][data-super-admin-only="true"]').forEach((element) => {
-        element.classList.toggle('hidden', !isSuperAdmin);
+        element.classList.toggle('hidden', !canUseAdminModules);
       });
       const activeButton = document.querySelector('.master-workspace-tab.active:not(.hidden)') || document.querySelector('.master-workspace-tab:not(.hidden)');
       if (activeButton && !activeButton.classList.contains('active')) activateMasterWorkspaceTab(activeButton.dataset.masterTab);
@@ -3144,8 +3158,8 @@
 
     async function saveSettings(event) {
       event.preventDefault();
-      if (state.user?.role !== 'Super Admin') {
-        showSettingsMessage('Akses ditolak. Hanya Super Admin yang dapat mengubah pengaturan.', 'error');
+      if (!hasFullAdminAccess()) {
+        showSettingsMessage('Akses ditolak. Hanya Admin atau Super Admin yang dapat mengubah pengaturan.', 'error');
         return;
       }
       if (!supabaseConfigured) {
@@ -3255,8 +3269,8 @@
 
     async function saveBrandingSettings(event) {
       event.preventDefault();
-      if (state.user?.role !== 'Super Admin') {
-        showSettingsMessage('Akses ditolak. Hanya Super Admin yang dapat mengubah tampilan.', 'error');
+      if (!hasFullAdminAccess()) {
+        showSettingsMessage('Akses ditolak. Hanya Admin atau Super Admin yang dapat mengubah tampilan.', 'error');
         return;
       }
       if (!supabaseConfigured) {
@@ -3365,8 +3379,8 @@
     }
 
     async function deleteProtectedRecord(tableName, rowId, itemLabel, refreshCallback) {
-      if (state.user?.role !== 'Super Admin') {
-        window.alert('Akses ditolak. Hanya Super Admin yang dapat menghapus data.');
+      if (!hasFullAdminAccess()) {
+        window.alert('Akses ditolak. Hanya Admin atau Super Admin yang dapat menghapus data.');
         return;
       }
       if (!rowId) {
@@ -3407,7 +3421,7 @@
     async function loadActivityLogs() {
       const tableWrap = $('#activityLogsTableWrap');
       if (!tableWrap) return;
-      if (state.user?.role !== 'Super Admin') return;
+      if (!hasFullAdminAccess()) return;
       if (!supabaseConfigured) {
         state.activityLogs = [];
         tableWrap.innerHTML = '<div class="loading-row">Isi konfigurasi Supabase untuk menampilkan log aktivitas.</div>';
@@ -3736,8 +3750,8 @@
     async function handlePurchaseTableClick(event) {
       const button = event.target.closest('[data-void-purchase]');
       if (!button) return;
-      if (state.user?.role !== 'Super Admin') {
-        window.alert('Hanya Super Admin yang dapat membatalkan belanja masuk.');
+      if (!hasFullAdminAccess()) {
+        window.alert('Hanya Admin atau Super Admin yang dapat membatalkan belanja masuk.');
         return;
       }
       const purchaseId = Number(button.dataset.voidPurchase);
@@ -3869,7 +3883,7 @@
         const critical = item.severity === 'blocker';
         return `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:${critical ? '#fff1f2' : '#fffbeb'};border:1px solid ${critical ? '#fecdd3' : '#fde68a'}"><strong style="color:${critical ? '#b91c1c' : '#a16207'}">${critical ? '✗' : '!'}</strong><div><strong>${escapeHtml(item.label || item.key || 'Pemeriksaan')}</strong><div class="field-help">${escapeHtml(item.detail || '')}</div></div></div>`;
       }).join('') : '<div style="padding:10px 12px;border-radius:10px;background:#ecfdf5;border:1px solid #bbf7d0;color:#166534">✓ Tidak ada masalah kritis pada tanggal ini.</div>';
-      if (overrideField) overrideField.classList.toggle('hidden', !(blockers.length && state.user?.role === 'Super Admin'));
+      if (overrideField) overrideField.classList.toggle('hidden', !(blockers.length && hasFullAdminAccess()));
     }
 
     async function loadClosingReadiness(closingDate) {
@@ -3934,17 +3948,17 @@
       const alreadyClosed = Boolean(preview?.already_closed);
       const blockers = Number(validation?.blocking_count || 0);
       const overrideReason = String($('#closingOverrideReason')?.value || '').trim();
-      $('#closeDailyPeriodBtn').disabled = alreadyClosed || state.user?.role !== 'Super Admin' || (blockers > 0 && !overrideReason);
+      $('#closeDailyPeriodBtn').disabled = alreadyClosed || !hasFullAdminAccess() || (blockers > 0 && !overrideReason);
       if (alreadyClosed) showDailyClosingMessage('Tanggal ini sudah ditutup dan terkunci.', 'warning');
-      else if (state.user?.role !== 'Super Admin') showDailyClosingMessage('Ringkasan dapat dilihat. Penutupan tanggal hanya dapat dilakukan oleh Super Admin.', 'warning');
+      else if (!hasFullAdminAccess()) showDailyClosingMessage('Ringkasan dapat dilihat. Penutupan tanggal hanya dapat dilakukan oleh Admin atau Super Admin.', 'warning');
       else if (blockers) showDailyClosingMessage('Closing tertahan oleh checklist. Selesaikan masalah atau isi alasan pengecualian Super Admin.', 'warning');
       else showDailyClosingMessage('Ringkasan dan checklist siap diperiksa sebelum tanggal ditutup.', 'success');
     }
 
     async function closeDailyPeriod(event) {
       event.preventDefault();
-      if (state.user?.role !== 'Super Admin') {
-        showDailyClosingMessage('Hanya Super Admin yang dapat menutup tanggal operasional.', 'error');
+      if (!hasFullAdminAccess()) {
+        showDailyClosingMessage('Hanya Admin atau Super Admin yang dapat menutup tanggal operasional.', 'error');
         return;
       }
       const closingDate = $('#dailyClosingDate').value;
@@ -3977,7 +3991,7 @@
         showDailyClosingMessage(`Closing gagal: ${error.message}`, 'error');
       } finally {
         button.textContent = 'Tutup Tanggal Ini';
-        button.disabled = state.user?.role !== 'Super Admin';
+        button.disabled = !hasFullAdminAccess();
       }
     }
 
@@ -4328,7 +4342,7 @@
       if (!wrap) return;
       const visibleRows = sortNewestFirst(filterRowsByUnified(rows, { dateKey: 'closing_date', menuKeys: ['reference_id', 'reason'], categoryKeys: ['correction_type'] }), ['requested_at', 'closing_date']);
       if (!visibleRows.length) { wrap.innerHTML = '<div class="loading-row">Belum ada permintaan koreksi.</div>'; return; }
-      const body = visibleRows.map((row) => `<tr><td>${escapeHtml(row.requested_at ? new Date(row.requested_at).toLocaleString('id-ID') : '-')}</td><td>${escapeHtml(row.closing_date || '-')}</td><td>${escapeHtml(row.correction_type || '-')}</td><td>${escapeHtml(row.reference_id || '-')}</td><td>${escapeHtml(row.reason || '-')}</td><td><span class="status-badge ${row.status === 'pending' ? 'status-warning' : (row.status === 'approved' || row.status === 'applied' ? 'status-success' : 'status-danger')}">${escapeHtml(String(row.status || '').toUpperCase())}</span></td><td>${row.status === 'pending' && state.user?.role === 'Super Admin' ? `<button type="button" class="reset-btn" data-review-correction="${escapeHtml(String(row.id))}" data-review-status="approved">Setujui &amp; Jalankan</button> <button type="button" class="reset-btn" data-review-correction="${escapeHtml(String(row.id))}" data-review-status="rejected">Tolak</button>` : escapeHtml(row.review_note || '-')}</td></tr>`).join('');
+      const body = visibleRows.map((row) => `<tr><td>${escapeHtml(row.requested_at ? new Date(row.requested_at).toLocaleString('id-ID') : '-')}</td><td>${escapeHtml(row.closing_date || '-')}</td><td>${escapeHtml(row.correction_type || '-')}</td><td>${escapeHtml(row.reference_id || '-')}</td><td>${escapeHtml(row.reason || '-')}</td><td><span class="status-badge ${row.status === 'pending' ? 'status-warning' : (row.status === 'approved' || row.status === 'applied' ? 'status-success' : 'status-danger')}">${escapeHtml(String(row.status || '').toUpperCase())}</span></td><td>${row.status === 'pending' && hasFullAdminAccess() ? `<button type="button" class="reset-btn" data-review-correction="${escapeHtml(String(row.id))}" data-review-status="approved">Setujui &amp; Jalankan</button> <button type="button" class="reset-btn" data-review-correction="${escapeHtml(String(row.id))}" data-review-status="rejected">Tolak</button>` : escapeHtml(row.review_note || '-')}</td></tr>`).join('');
       wrap.innerHTML = `<table class="history-table"><thead><tr><th>Diajukan</th><th>Tanggal Closing</th><th>Jenis</th><th>Referensi</th><th>Alasan</th><th>Status</th><th>Review</th></tr></thead><tbody>${body}</tbody></table>`;
     }
 
@@ -4600,8 +4614,8 @@
 
     async function saveUnitConversion(event) {
       event.preventDefault();
-      if (state.user?.role !== 'Super Admin') {
-        showUnitConversionMessage('Akses ditolak. Hanya Super Admin yang dapat mengubah konversi.', 'error');
+      if (!hasFullAdminAccess()) {
+        showUnitConversionMessage('Akses ditolak. Hanya Admin atau Super Admin yang dapat mengubah konversi.', 'error');
         return;
       }
       if (!supabaseConfigured) {
@@ -4803,8 +4817,8 @@
 
     async function savePreparation(event) {
       event.preventDefault();
-      if (state.user?.role !== 'Super Admin') {
-        showBomMessage('Akses ditolak. Hanya Super Admin yang dapat mengubah preparation.', 'error');
+      if (!hasFullAdminAccess()) {
+        showBomMessage('Akses ditolak. Hanya Admin atau Super Admin yang dapat mengubah preparation.', 'error');
         return;
       }
       const rows = [...document.querySelectorAll('#bomLinesList .bom-line-row')].map((row) => {
@@ -5084,8 +5098,8 @@
 
     async function saveMenuMaster(event) {
       event.preventDefault();
-      if (state.user?.role !== 'Super Admin') {
-        showMenuMasterMessage('Akses ditolak. Hanya Super Admin yang dapat mengubah master menu.', 'error');
+      if (!hasFullAdminAccess()) {
+        showMenuMasterMessage('Akses ditolak. Hanya Admin atau Super Admin yang dapat mengubah master menu.', 'error');
         return;
       }
       if (!supabaseConfigured) {
@@ -6246,8 +6260,8 @@
     async function handleHppHistoryTableClick(event) {
       const button = event.target.closest('[data-void-sale]');
       if (!button) return;
-      if (state.user?.role !== 'Super Admin') {
-        window.alert('Hanya Super Admin yang dapat membatalkan penjualan.');
+      if (!hasFullAdminAccess()) {
+        window.alert('Hanya Admin atau Super Admin yang dapat membatalkan penjualan.');
         return;
       }
       const receiptNumber = button.dataset.voidSale;
@@ -6525,7 +6539,7 @@
 
     async function loadBlindOpnameBatches() {
       const wrap = $('#blindOpnameBatchListWrap');
-      if (!wrap || state.user?.role !== 'Super Admin') return;
+      if (!wrap || !hasFullAdminAccess()) return;
       wrap.innerHTML = '<div class="loading-row">Memuat batch opname...</div>';
       const { data, error } = await supabaseClient.rpc('list_blind_opname_batches');
       if (error) {
@@ -6704,7 +6718,7 @@
       try {
         const { error } = await supabaseClient.rpc('submit_blind_opname', { p_batch_id: state.blindBatchId, p_lines: state.blindUploadLines, p_note: $('#blindOpnameApprovalNote').value.trim() || null });
         if (error) throw error;
-        if (state.user?.role === 'Super Admin') {
+        if (hasFullAdminAccess()) {
           const result = await supabaseClient.rpc('list_blind_opname_result', { p_batch_id: state.blindBatchId });
           if (result.error) throw result.error;
           state.blindResultRows = result.data || [];
@@ -6742,7 +6756,7 @@
       updateBlindOpnameAccess();
       const dateInput = $('#blindOpnameDate');
       if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().slice(0, 10);
-      if (state.user?.role === 'Super Admin') {
+      if (hasFullAdminAccess()) {
         void loadBlindOpnameBatches();
         if (!state.blindBatchId) renderBlindOpnameTable([], false);
       }
@@ -7195,7 +7209,7 @@
           <td>${escapeHtml(item.unit || '-')}</td>
           <td>${formatQuantity(minimum)}</td>
           <td class="${isMinus ? 'stock-minus' : (isLow ? 'stock-low' : 'stock-ok')}">${isMinus ? 'Minus' : (stock === 0 ? 'Habis' : (isLow ? 'Rendah' : 'Aman'))}</td>
-          <td><div class="action-group">${state.user?.role === 'Super Admin' ? `<button class="reset-btn" type="button" data-action="edit-inventory" data-id="${escapeHtml(item.id)}">Edit</button><button class="delete-btn" type="button" data-action="delete-inventory" data-id="${escapeHtml(item.id)}" data-name="${escapeHtml(item.item_name || '')}">🗑 Hapus</button>` : '<span class="panel-subtitle">Gunakan Stok Masuk</span>'}</div></td>
+          <td><div class="action-group">${hasFullAdminAccess() ? `<button class="reset-btn" type="button" data-action="edit-inventory" data-id="${escapeHtml(item.id)}">Edit</button><button class="delete-btn" type="button" data-action="delete-inventory" data-id="${escapeHtml(item.id)}" data-name="${escapeHtml(item.item_name || '')}">🗑 Hapus</button>` : '<span class="panel-subtitle">Gunakan Stok Masuk</span>'}</div></td>
         </tr>`;
       }).join('');
 
