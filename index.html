@@ -1566,6 +1566,7 @@
       preparations: [],
       preparationLines: new Map(),
       menuMasterRows: [],
+      menuMasterEdit: { menuId: '', variantId: '', menuName: '', variant: '' },
       stockReport: [],
       stockDeductionHistory: [],
       salesMappings: [],
@@ -2488,6 +2489,7 @@
     $('#refreshSalesReconciliationBtn')?.addEventListener('click', loadSalesReconciliation);
     $('#salesMappingForm')?.addEventListener('submit', saveSalesMapping);
     $('#refreshSalesMappingBtn')?.addEventListener('click', loadSalesMappingData);
+    $('#salesMappingTableWrap')?.addEventListener('click', handleSalesMappingTableClick);
     $('#mappingTargetMenu')?.addEventListener('change', populateMappingVariants);
     $('#confirmSalesUploadBtn')?.addEventListener('click', confirmValidatedSalesUpload);
     $('#refreshProfitLossBtn').addEventListener('click', loadProfitLossReport);
@@ -4867,6 +4869,7 @@
       menuMasterForm.reset();
       $('#menuMasterId').value = '';
       $('#menuMasterVariantId').value = '';
+      state.menuMasterEdit = { menuId: '', variantId: '', menuName: '', variant: '' };
       $('#menuMasterOutlet').value = 'Rebel House';
       $('#menuMasterUnit').value = 'porsi';
       $('#menuMasterVariant').value = 'Default';
@@ -5065,7 +5068,7 @@
           <td class="numeric">${hppPct}</td>
           <td>${escapeHtml(row.outlet || '-')}</td>
           <td class="${statusClass}">${row.is_active ? 'Aktif' : 'Nonaktif'}</td>
-          <td><button class="reset-btn" type="button" data-action="edit-menu-master" data-menu-id="${escapeHtml(row.menu_id)}" data-variant-id="${escapeHtml(row.variant_id)}">Edit</button></td>
+          <td><div class="action-group"><button class="reset-btn" type="button" data-action="edit-menu-master" data-menu-id="${escapeHtml(row.menu_id)}" data-variant-id="${escapeHtml(row.variant_id)}">Edit</button>${hasFullAdminAccess() ? `<button class="delete-btn" type="button" data-action="delete-menu-master" data-menu-id="${escapeHtml(row.menu_id)}" data-variant-id="${escapeHtml(row.variant_id)}" data-menu-name="${escapeHtml(row.menu_name || '')}" data-variant="${escapeHtml(row.variant || 'Default')}">Hapus</button>` : ''}</div></td>
         </tr>`;
       }).join('');
       tableWrap.innerHTML = `<table class="history-table"><thead><tr><th>Kode</th><th>Nama Menu</th><th>Kategori</th><th>Varian</th><th>Divisi Potong</th><th>Resep</th><th>Harga Jual</th><th>HPP Aktual</th><th>HPP Acuan</th><th>HPP %</th><th>Outlet</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${tableRows}</tbody></table>`;
@@ -5073,27 +5076,58 @@
 
     async function handleMenuMasterTableClick(event) {
       const button = event.target.closest('[data-action="edit-menu-master"]');
-      if (!button) return;
-      const row = state.menuMasterRows.find((item) => String(item.menu_id) === String(button.dataset.menuId) && String(item.variant_id) === String(button.dataset.variantId));
-      if (!row) return;
-      $('#menuMasterId').value = row.menu_id || '';
-      $('#menuMasterVariantId').value = row.variant_id || '';
-      $('#menuMasterCode').value = row.menu_code || '';
-      $('#menuMasterName').value = row.menu_name || '';
-      $('#menuMasterCategory').value = row.category || 'Other';
-      $('#menuMasterOutlet').value = row.outlet || 'Rebel House';
-      $('#menuMasterUnit').value = row.unit || 'porsi';
-      $('#menuMasterVariant').value = row.variant || 'Default';
-      $('#menuMasterStockDivision').value = row.stock_division || 'Kitchen';
-      $('#menuMasterPrice').value = Number(row.selling_price) || 0;
-      $('#menuMasterEffectiveDate').value = row.effective_from || new Date().toISOString().slice(0, 10);
-      $('#menuMasterHpp').value = Number(row.hpp_standard) || '';
-      $('#menuMasterTargetHpp').value = Number(row.target_hpp_pct) || '';
-      $('#menuMasterBuffer').value = Number.isFinite(Number(row.buffer_hpp_pct)) ? Number(row.buffer_hpp_pct) : 10;
-      $('#menuMasterActive').checked = Boolean(row.is_active);
-      await loadMenuRecipeRows(row.menu_name, row.variant);
-      showMenuMasterMessage('Data menu dimuat ke form. Simpan untuk memperbarui.', 'warning');
-      $('#menuMasterCode').focus();
+      if (button) {
+        const row = state.menuMasterRows.find((item) => String(item.menu_id) === String(button.dataset.menuId) && String(item.variant_id) === String(button.dataset.variantId));
+        if (!row) return;
+        // Simpan identitas baris di state, bukan hanya di hidden input.
+        // Ini mencegah mode Edit berubah menjadi mode Tambah bila form di-reset
+        // oleh browser atau komponen dropdown saat data resep dimuat.
+        state.menuMasterEdit = {
+          menuId: String(row.menu_id || ''),
+          variantId: String(row.variant_id || ''),
+          menuName: String(row.menu_name || ''),
+          variant: String(row.variant || 'Default')
+        };
+        $('#menuMasterId').value = row.menu_id || '';
+        $('#menuMasterVariantId').value = row.variant_id || '';
+        $('#menuMasterCode').value = row.menu_code || '';
+        $('#menuMasterName').value = row.menu_name || '';
+        $('#menuMasterCategory').value = row.category || 'Other';
+        $('#menuMasterOutlet').value = row.outlet || 'Rebel House';
+        $('#menuMasterUnit').value = row.unit || 'porsi';
+        $('#menuMasterVariant').value = row.variant || 'Default';
+        $('#menuMasterStockDivision').value = row.stock_division || 'Kitchen';
+        $('#menuMasterPrice').value = Number(row.selling_price) || 0;
+        $('#menuMasterEffectiveDate').value = row.effective_from || new Date().toISOString().slice(0, 10);
+        $('#menuMasterHpp').value = Number(row.hpp_standard) || '';
+        $('#menuMasterTargetHpp').value = Number(row.target_hpp_pct) || '';
+        $('#menuMasterBuffer').value = Number.isFinite(Number(row.buffer_hpp_pct)) ? Number(row.buffer_hpp_pct) : 10;
+        $('#menuMasterActive').checked = Boolean(row.is_active);
+        await loadMenuRecipeRows(row.menu_name, row.variant);
+        showMenuMasterMessage('Data menu dimuat ke form. Simpan untuk memperbarui.', 'warning');
+        $('#menuMasterCode').focus();
+        return;
+      }
+      const deleteButton = event.target.closest('[data-action="delete-menu-master"]');
+      if (!deleteButton) return;
+      if (!hasFullAdminAccess()) return;
+      const menuName = deleteButton.dataset.menuName || 'menu ini';
+      const variant = deleteButton.dataset.variant || 'Default';
+      if (!window.confirm(`Hapus ${menuName} / ${variant}? Resep dan mapping pasangan ini ikut dihapus. Histori penjualan tetap aman.`)) return;
+      try {
+        const { error } = await supabaseClient.rpc('delete_menu_master', {
+          p_menu_id: deleteButton.dataset.menuId,
+          p_variant_id: deleteButton.dataset.variantId
+        });
+        if (error) throw error;
+        void logActivity('MENU_MASTER_DELETE', `Master menu ${menuName} / ${variant} dihapus.`);
+        if (state.menuMasterEdit?.variantId === deleteButton.dataset.variantId) clearMenuMasterForm();
+        showMenuMasterMessage(`Menu ${menuName} / ${variant} berhasil dihapus.`, 'success');
+        await loadMenuMaster();
+      } catch (error) {
+        console.error(error);
+        showMenuMasterMessage(`Menu gagal dihapus: ${error.message}`, 'error');
+      }
     }
 
     async function saveMenuMaster(event) {
@@ -5164,9 +5198,11 @@
       button.disabled = true;
       button.textContent = 'Menyimpan...';
       try {
+        const editMenuId = state.menuMasterEdit?.menuId || $('#menuMasterId').value || null;
+        const editVariantId = state.menuMasterEdit?.variantId || $('#menuMasterVariantId').value || null;
         const { data, error } = await supabaseClient.rpc('save_menu_master', {
-          p_menu_id: $('#menuMasterId').value || null,
-          p_variant_id: $('#menuMasterVariantId').value || null,
+          p_menu_id: editMenuId,
+          p_variant_id: editVariantId,
           p_menu_code: menuCode,
           p_menu_name: menuName,
           p_category: $('#menuMasterCategory').value,
@@ -8903,8 +8939,28 @@
       const wrap = $('#salesMappingTableWrap');
       if (!wrap) return;
       if (!state.salesMappings.length) { wrap.innerHTML = '<div class="loading-row">Belum ada mapping menu iSeller.</div>'; return; }
-      const rows = state.salesMappings.map((row) => `<tr><td>${escapeHtml(row.external_menu_name)}</td><td>${escapeHtml(row.external_variant || '-')}</td><td>${escapeHtml(row.menu_name)}</td><td>${escapeHtml(row.variant || 'Default')}</td><td>${escapeHtml(row.updated_at ? new Date(row.updated_at).toLocaleString('id-ID') : '-')}</td></tr>`).join('');
-      wrap.innerHTML = `<table class="history-table"><thead><tr><th>Menu iSeller</th><th>Varian iSeller</th><th>Menu Aplikasi</th><th>Varian Resep</th><th>Diperbarui</th></tr></thead><tbody>${rows}</tbody></table>`;
+      const rows = state.salesMappings.map((row) => `<tr><td>${escapeHtml(row.external_menu_name)}</td><td>${escapeHtml(row.external_variant || '-')}</td><td>${escapeHtml(row.menu_name)}</td><td>${escapeHtml(row.variant || 'Default')}</td><td>${escapeHtml(row.updated_at ? new Date(row.updated_at).toLocaleString('id-ID') : '-')}</td><td>${hasFullAdminAccess() ? `<button class="delete-btn" type="button" data-action="delete-sales-mapping" data-id="${escapeHtml(row.id)}" data-external-menu="${escapeHtml(row.external_menu_name || '')}" data-external-variant="${escapeHtml(row.external_variant || '')}">Hapus</button>` : ''}</td></tr>`).join('');
+      wrap.innerHTML = `<table class="history-table"><thead><tr><th>Menu iSeller</th><th>Varian iSeller</th><th>Menu Aplikasi</th><th>Varian Resep</th><th>Diperbarui</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    async function handleSalesMappingTableClick(event) {
+      const button = event.target.closest('[data-action="delete-sales-mapping"]');
+      if (!button || !hasFullAdminAccess()) return;
+      const externalMenu = button.dataset.externalMenu || 'mapping ini';
+      const externalVariant = button.dataset.externalVariant || '';
+      if (!window.confirm(`Hapus mapping ${externalMenu}${externalVariant ? ` / ${externalVariant}` : ''}? Histori penjualan tetap aman.`)) return;
+      try {
+        const { error } = await supabaseClient.rpc('delete_sales_menu_mapping', { p_mapping_id: Number(button.dataset.id) });
+        if (error) throw error;
+        void logActivity('SALES_MAPPING_DELETE', `Mapping iSeller ${externalMenu}${externalVariant ? ` / ${externalVariant}` : ''} dihapus.`);
+        $('#salesMappingMessage').textContent = 'Mapping berhasil dihapus.';
+        $('#salesMappingMessage').className = 'form-message success';
+        await loadSalesMappingData();
+      } catch (error) {
+        console.error(error);
+        $('#salesMappingMessage').textContent = `Mapping gagal dihapus: ${error.message}`;
+        $('#salesMappingMessage').className = 'form-message error';
+      }
     }
 
     async function saveSalesMapping(event) {
