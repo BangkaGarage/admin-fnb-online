@@ -996,7 +996,7 @@
           <div class="panel" style="margin-top:18px;"><div class="panel-head"><div><h3>Import Master Menu &amp; Harga Jual</h3><p class="panel-subtitle">Tanpa JSON: satu baris untuk satu bahan resep. Ulangi kode menu dan varian yang sama pada bahan-bahan berikutnya.</p></div><div class="panel-actions"><button class="reset-btn" data-download-template="menu" type="button">Download Template</button><label class="upload-btn" style="cursor:pointer">Pilih File<input type="file" accept=".xlsx,.xls,.csv" data-import-file="menu" hidden /></label></div></div><p id="importMenuMessage" class="form-message"></p></div>
             </div>
             <div class="panel history-panel">
-              <div class="panel-head"><div><h3>Daftar menu aktif &amp; historis</h3><p class="panel-subtitle">Gunakan Edit untuk memperbarui harga atau status menu.</p></div><button id="refreshMenuMasterBtn" class="reset-btn" type="button">↻ Refresh</button></div>
+              <div class="panel-head"><div><h3>Daftar menu aktif &amp; historis</h3><p class="panel-subtitle">Gunakan Edit untuk memperbarui harga atau status menu.</p></div><div class="panel-actions"><button id="syncMenuCatalogBtn" class="save-btn" type="button">Sinkronkan Menu &amp; Laporan</button><button id="refreshMenuMasterBtn" class="reset-btn" type="button">↻ Refresh</button></div></div>
               <div id="menuMasterTableWrap" class="history-table-wrap"><div class="loading-row">Buka menu ini untuk memuat master menu.</div></div>
               <datalist id="menuMasterOptions"></datalist>
             </div>
@@ -2423,6 +2423,7 @@
     $('#stockDeductionItemFilter')?.addEventListener('change', renderStockDeductionHistory);
     $('#refreshOpnamesBtn').addEventListener('click', loadOpnameData);
     $('#refreshMenuMasterBtn').addEventListener('click', loadMenuMaster);
+    $('#syncMenuCatalogBtn').addEventListener('click', synchronizeMenuCatalogAndReports);
     $('#resetMenuMasterBtn').addEventListener('click', () => window.setTimeout(clearMenuMasterForm, 0));
     $('#menuMasterTableWrap').addEventListener('click', handleMenuMasterTableClick);
     $('#addMenuRecipeIngredientBtn').addEventListener('click', () => addMenuRecipeIngredientRow());
@@ -5040,6 +5041,46 @@
       renderMenuMaster(state.menuMasterRows);
     }
 
+    async function synchronizeMenuCatalogAndReports() {
+      if (!hasFullAdminAccess()) {
+        window.alert('Hanya Admin atau Super Admin yang dapat menyinkronkan katalog.');
+        return;
+      }
+      if (!window.confirm('Sinkronkan Master Menu ke resep, mapping, penjualan, HPP, dan laporan? Resep yatim akan dibersihkan; histori penjualan dan stok tetap aman.')) return;
+      const button = $('#syncMenuCatalogBtn');
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = 'Menyinkronkan...';
+      try {
+        const { data: catalog, error: catalogError } = await supabaseClient.rpc('synchronize_menu_catalog', { p_apply: true });
+        if (catalogError) throw catalogError;
+        const { data: hpp, error: hppError } = await supabaseClient.rpc('backfill_missing_sales_hpp', {});
+        if (hppError) throw hppError;
+        await Promise.all([
+          loadMenuMaster(),
+          loadRecipes(),
+          loadSalesMappingData(),
+          loadHppReportData(),
+          loadSalesReport(),
+          loadProfitLossReport(),
+          loadSalesAnalytics({ ignoreCategory: true })
+        ]);
+        const removedRecipes = Number(catalog?.orphan_recipes_removed || 0) + Number(catalog?.duplicate_recipes_removed || 0);
+        const updatedSales = Number(catalog?.sales_labels_updated || 0);
+        const updatedHpp = Number(hpp?.updated_count || 0);
+        const skippedHpp = Number(hpp?.skipped_count || 0);
+        const message = `Sinkronisasi selesai: ${removedRecipes} resep lama dibersihkan, ${updatedSales} label penjualan disamakan, ${updatedHpp} snapshot HPP diperbarui${skippedHpp ? `, ${skippedHpp} transaksi masih menunggu harga/resep` : ''}.`;
+        showMenuMasterMessage(message, skippedHpp ? 'warning' : 'success');
+        void logActivity('MENU_CATALOG_SYNC', message);
+      } catch (error) {
+        console.error(error);
+        showMenuMasterMessage(`Sinkronisasi gagal: ${error.message}`, 'error');
+      } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
+
     function renderMenuMaster(rows) {
       const tableWrap = $('#menuMasterTableWrap');
       const optionRows = [...new Map(rows.filter((row) => row.is_active).map((row) => [String(row.menu_name).toLowerCase(), row])).values()];
@@ -7370,17 +7411,19 @@
       }
 
       tableWrap.innerHTML = '<div class="loading-row">Memuat daftar resep...</div>';
-      const { data, error } = await supabaseClient
-        .from('recipes')
-        .select('id, menu_name, variant, inventory_item_id, quantity_needed')
-        .order('menu_name', { ascending: true });
+      const [{ data, error }, { data: masterRows, error: masterError }] = await Promise.all([
+        supabaseClient.from('recipes').select('id, menu_name, variant, component_type, preparation_id, inventory_item_id, quantity_needed, recipe_unit').order('menu_name', { ascending: true }),
+        supabaseClient.rpc('list_menu_master')
+      ]);
 
       if (error) {
         console.error(error);
         tableWrap.innerHTML = `<div class="loading-row" style="color:var(--red);">Gagal mengambil resep: ${escapeHtml(error.message)}</div>`;
         return;
       }
-      renderRecipeTable(data || []);
+      const masterKeys = new Set((masterRows || []).map((row) => recipeLookupKey(row.menu_name, row.variant)));
+      const canonicalRecipes = masterError ? (data || []) : (data || []).filter((row) => masterKeys.has(recipeLookupKey(row.menu_name, row.variant)));
+      renderRecipeTable(canonicalRecipes);
     }
 
     let recipeDetailVisible = true;
