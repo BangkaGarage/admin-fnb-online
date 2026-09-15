@@ -1576,6 +1576,9 @@
       dashboardExpenseRows: [],
       dashboardDate: '',
       salesReportRows: [],
+      hppMap: new Map(),
+      hppMapPromise: null,
+      hppMapError: null,
       salesAnalytics: { totalRevenue: 0, totalHpp: 0, hasRevenue: false, hppComplete: true, dailyLabels: [], dailyValues: [], dailyKeys: [], dailyRevenue: [], dailyHpp: [], topProducts: [], categoryMetrics: [], variantMetrics: [] },
       activityLogs: [],
       dailyClosings: [],
@@ -3834,6 +3837,7 @@
           : `${formatQuantity(directStorageQuantity)} ${storageUnit} dikirim otomatis ke ${destination}, sisa ${formatQuantity(remainingStorageQuantity)} ${storageUnit} di Gudang Utama`;
         showPurchaseMessage(`Belanja ${formatQuantity(quantity)} ${purchaseUnit} berhasil: ${destinationText}.`, 'success');
         void logActivity('PURCHASE', `Belanja masuk ${formatQuantity(quantity)} ${purchaseUnit} ${selected.item_name}; ${destinationText}.`);
+        invalidateHppMap();
         purchaseForm.reset();
         await loadPurchaseData();
         await loadLowStockAlert();
@@ -4260,6 +4264,7 @@
         nonSaleMessage.textContent = `${NON_SALE_TYPE_LABELS[usageType] || usageType} berhasil dicatat. ${data?.line_count || 0} bahan dipotong. Nilai ${formatRupiah(totalCost)}.`;
         nonSaleMessage.className = 'form-message success';
         void logActivity('NON_SALE_USAGE', `${NON_SALE_TYPE_LABELS[usageType] || usageType}: ${reason}`);
+        invalidateHppMap();
         nonSaleForm.reset();
         $('#nonSaleDate').value = usageDate;
         syncNonSaleSourceFields();
@@ -4453,6 +4458,7 @@
         const lossAmount = Number(result?.loss_amount) || 0;
         showWasteMessage(`Waste tercatat secara atomik. Stok ${target.item_name} di ${division} sekarang ${formatQuantity(newStock)} ${target.unit || ''}. Nilai kerugian ${formatRupiah(lossAmount)}.`, 'success');
         void logActivity('WASTE', `Waste ${formatQuantity(quantity)} ${target.unit || ''} ${target.item_name} di ${division}; alasan: ${reason}.`);
+        invalidateHppMap();
         wasteForm.reset();
         await loadWasteData();
         await loadLowStockAlert();
@@ -4657,6 +4663,7 @@
         void logActivity('UNIT_CONVERSION_UPDATE', `Konversi ${item?.item_name || itemId} diperbarui: ${purchaseQuantity} ${$('#conversionPurchaseUnit').value.trim()} menjadi ${formatQuantity(purchaseQuantity * purchaseToStorage * storageToUsage * yieldPercentage / 100)} ${$('#conversionUsageUnit').value.trim()}.`);
         clearUnitConversionForm();
         showUnitConversionMessage('Konversi satuan dan yield berhasil disimpan.', 'success');
+        invalidateHppMap();
         await loadUnitConversionData();
       } catch (error) {
         console.error(error);
@@ -4853,6 +4860,7 @@
         void logActivity('BOM_UPDATE', `Preparation ${$('#bomName').value.trim()} berhasil disimpan.`);
         clearPreparationForm();
         showBomMessage('Preparation berhasil disimpan. Anda dapat memilihnya di resep menu.', 'success');
+        invalidateHppMap();
         await loadPreparations();
       } catch (error) {
         console.error(error);
@@ -5166,6 +5174,7 @@
         void logActivity('MENU_MASTER_DELETE', `Master menu ${menuName} / ${variant} dihapus.`);
         if (state.menuMasterEdit?.variantId === deleteButton.dataset.variantId) clearMenuMasterForm();
         showMenuMasterMessage(`Menu ${menuName} / ${variant} berhasil dihapus.`, 'success');
+        invalidateHppMap();
         await loadMenuMaster();
       } catch (error) {
         console.error(error);
@@ -5265,6 +5274,7 @@
         void logActivity('MENU_MASTER_UPDATE', `Master menu ${menuName} / ${variant} diperbarui dengan harga ${formatRupiah(price)}.`);
         clearMenuMasterForm();
         showMenuMasterMessage(`Master menu ${menuName} / ${variant} berhasil disimpan.`, 'success');
+        invalidateHppMap();
         await loadMenuMaster();
       } catch (error) {
         console.error(error);
@@ -7646,47 +7656,6 @@
       updateManualSaleTotal();
     }
 
-    async function deductInventoryForManualSales(lines) {
-      throw new Error('Jalur pemotongan stok manual lama dinonaktifkan. Gunakan process_sale_transaction.');
-
-      /* Legacy implementation retained only for historical reference; it must never execute. */
-      const [{ data: recipes, error: recipeError }, { data: inventory, error: inventoryError }] = await Promise.all([
-        supabaseClient.from('recipes').select('id, menu_name, variant, inventory_item_id, quantity_needed'),
-        supabaseClient.from('inventory').select('id, item_name, stock_quantity, unit, division')
-      ]);
-      if (recipeError) throw recipeError;
-      if (inventoryError) throw inventoryError;
-      const inventoryById = new Map((inventory || []).filter((item) => !isVirtualPreparationItem(item)).map((item) => [String(item.id), item]));
-      const deductions = new Map();
-      const missingProducts = [];
-      for (const line of lines) {
-        const matchedRecipes = (recipes || []).filter((recipe) => recipeLookupKey(recipe.menu_name, recipe.variant) === recipeLookupKey(line.productName, line.variant));
-        if (!matchedRecipes.length) {
-          missingProducts.push(`${line.productName}${line.variant ? ` / ${line.variant}` : ''}`);
-          continue;
-        }
-        for (const recipe of matchedRecipes) {
-          const item = inventoryById.get(String(recipe.inventory_item_id));
-          const amount = (Number(recipe.quantity_needed) || 0) * line.quantity;
-          if (!item || !Number.isFinite(amount) || amount <= 0) continue;
-          const existing = deductions.get(String(item.id)) || { item, amount: 0 };
-          existing.amount += amount;
-          deductions.set(String(item.id), existing);
-        }
-      }
-      const details = [];
-      for (const deduction of deductions.values()) {
-        const item = deduction.item;
-        const amount = deduction.amount;
-        const newStock = (Number(item.stock_quantity) || 0) - amount;
-        const { error: updateError } = await supabaseClient.from('inventory').update({ stock_quantity: newStock }).eq('id', item.id);
-        if (updateError) throw updateError;
-        const movementError = await recordStockMovement({ inventory_item_id: item.id, division: item.division || 'Gudang Utama', movement_type: 'sale', quantity: -amount });
-        details.push({ item, amount, newStock, movementError });
-      }
-      return { matched: missingProducts.length < lines.length, missingProducts, details };
-    }
-
     manualSalesForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       clearManualSaleMessage();
@@ -7735,6 +7704,7 @@
           warnings.length ? 'error' : 'success'
         );
         void logActivity('SALE_CREATE', `Penjualan manual nota ${receiptNumber} dengan ${lines.length} produk tersimpan.`);
+        invalidateHppMap();
         resetManualSaleForm();
         await loadExpenses();
         await loadSalesAnalytics();
@@ -7843,7 +7813,7 @@
       return { rows, error: null };
     }
 
-    async function loadRecipeHppMap() {
+    async function loadRecipeHppMapFresh() {
       if (!supabaseConfigured) return { map: new Map(), error: new Error('Supabase belum dikonfigurasi.') };
       await loadUnitConversionsForState();
       const [recipesResult, inventoryResult, movementsResult, purchasesResult, preparationsResult] = await Promise.all([
@@ -7975,6 +7945,26 @@
         hppMap.set(key, current);
       });
       return { map: hppMap, error: null };
+    }
+
+    async function loadRecipeHppMap() {
+      if (state.hppMap && state.hppMap.size && !state.hppMapPromise) {
+        return { map: state.hppMap, error: state.hppMapError };
+      }
+      if (state.hppMapPromise) return state.hppMapPromise;
+      state.hppMapPromise = loadRecipeHppMapFresh()
+        .then((result) => {
+          state.hppMap = result.map || new Map();
+          state.hppMapError = result.error || null;
+          return { map: state.hppMap, error: state.hppMapError };
+        })
+        .finally(() => { state.hppMapPromise = null; });
+      return state.hppMapPromise;
+    }
+
+    function invalidateHppMap() {
+      state.hppMap = new Map();
+      state.hppMapError = null;
     }
 
     function getHppStatus({ recipeCount = 0, info = null, hpp = 0, method = '', rowStatus = 'posted' } = {}) {
@@ -8179,13 +8169,12 @@
         return;
       }
       await Promise.all([loadExpenses(), loadSalesAnalytics({ ignoreCategory: true })]);
-      const hppResult = await loadRecipeHppMap();
-      const hppMap = hppResult.map;
+      const hppMap = state.hppMap || new Map();
       const reportMessage = $('#profitLossMessage');
       reportMessage.textContent = '';
       reportMessage.className = 'form-message';
-      if (hppResult.error) {
-        reportMessage.textContent = `HPP belum dapat dibaca dari Supabase: ${hppResult.error.message}`;
+      if (state.hppMapError) {
+        reportMessage.textContent = `HPP belum dapat dibaca dari Supabase: ${state.hppMapError.message}`;
         reportMessage.className = 'form-message error';
       }
       const monthMap = new Map();
@@ -8746,7 +8735,7 @@
       const hpp = snapshotComplete
         ? Number(row.hpp_total) || 0
         : liveComplete
-          ? Number(liveInfo.unitHpp) || 0
+          ? (Number(liveInfo.unitHpp) || 0) * quantity
           : 0;
       return {
         productName,
@@ -9177,6 +9166,7 @@
             addUploadLog(Math.abs(difference) < 0.01 && (saved.data || []).length === upload.payload.length ? 'success' : 'warning', `Rekonsiliasi omzet: iSeller ${formatRupiah(upload.totalRevenue)} · aplikasi ${formatRupiah(appRevenue)} · selisih ${formatRupiah(difference)} · baris ${(saved.data || []).length}/${upload.payload.length}.`);
           }
           void logActivity('ISSELLER_UPLOAD', `File ${upload.file.name} tersimpan; mapping, stok, HPP, dan rekonsiliasi diproses atomik.`);
+          invalidateHppMap();
         }
         await loadSalesAnalytics(); await loadExpenses(); state.pendingSalesUpload = null; $('#salesValidationPanel').classList.add('hidden');
       } catch (error) {
@@ -9289,173 +9279,7 @@
       tableContainer.innerHTML = `<table><thead><tr>${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`;
     }
 
-    async function deductInventoryFromSales(file, rows) {
-      addUploadLog('warning', 'Jalur pemotongan stok lama dinonaktifkan. Upload penjualan diproses oleh process_sale_transaction.');
-      return { status: 'disabled', validSalesRows: 0, matchedRows: 0 };
-
-      /* Legacy implementation retained only for historical reference; it must never execute. */
-      const headerRow = (rows || []).find((row) => {
-        const normalizedRow = normalizeExcelRow(row);
-        return TEMPLATE_REQUIRED_HEADERS.every((header) => findTemplateColumn(normalizedRow, header));
-      });
-
-      if (!headerRow) {
-        const foundHeaders = Object.keys(normalizeExcelRow(rows?.[0]) || {}).join(', ');
-        addUploadLog('error', `Kolom template penjualan tidak ditemukan. Header terbaca: ${foundHeaders || '(kosong)'}`);
-        $('#uploadActivity').textContent = `${file.name}: kolom template tidak lengkap`;
-        return { status: 'no-match', validSalesRows: 0, matchedRows: 0 };
-      }
-
-      addUploadLog('success', `Kolom template terbaca: ${TEMPLATE_REQUIRED_HEADERS.join(', ')}.`);
-
-      // Versi v4 memaksa file yang pernah diproses sebelum dukungan multi-bahan untuk diuji ulang.
-      const uploadKey = `fb-iseller-deduction:v5-sales-table:${file.name}:${file.size}:${file.lastModified}`;
-      if (getUploadMarker(uploadKey) === 'done') {
-        addUploadLog('warning', `File ${file.name} sudah diproses sebelumnya pada versi logika ini. Stok tidak dipotong ulang.`);
-        $('#uploadActivity').textContent = `${file.name}: sudah diproses sebelumnya`;
-        return { status: 'skipped', validSalesRows: 0, matchedRows: 0 };
-      }
-
-      const soldMenus = new Map();
-      let validSalesRows = 0;
-      (rows || []).forEach((row) => {
-        const fields = extractSalesFields(row);
-        if (!fields) return;
-        const menuName = String(fields.productName ?? '').trim();
-        const variant = String(fields.variant ?? '').trim();
-        const quantity = Number(String(fields.quantity ?? 0));
-        if (!menuName || !Number.isFinite(quantity) || quantity <= 0) return;
-        validSalesRows += 1;
-        const key = recipeLookupKey(menuName, variant);
-        const existing = soldMenus.get(key) || { menuName, variant, quantity: 0, rowCount: 0 };
-        existing.quantity += quantity;
-        existing.rowCount += 1;
-        soldMenus.set(key, existing);
-      });
-
-      if (!soldMenus.size) {
-        addUploadLog('warning', 'Tidak ada baris penjualan valid yang memiliki nama menu dan jumlah lebih dari 0.');
-        $('#uploadActivity').textContent = `${file.name}: tidak ada penjualan valid`;
-        return { status: 'no-match', validSalesRows: 0, matchedRows: 0 };
-      }
-
-      const [{ data: recipes, error: recipesError }, { data: inventory, error: inventoryError }] = await Promise.all([
-        supabaseClient.from('recipes').select('menu_name, variant, inventory_item_id, quantity_needed'),
-        supabaseClient.from('inventory').select('id, item_name, stock_quantity, unit, min_stock, division')
-      ]);
-
-      if (recipesError || inventoryError) {
-        const error = recipesError || inventoryError;
-        console.error(error);
-        addUploadLog('error', `Gagal membaca resep atau stok dari Supabase: ${error.message}`);
-        $('#uploadActivity').textContent = `Gagal membaca resep/stok: ${error.message}`;
-        alertAndThrowSupabaseUploadError(error);
-      }
-
-      const recipeMap = new Map();
-      (recipes || []).forEach((recipe) => {
-        const key = recipeLookupKey(recipe.menu_name, recipe.variant);
-        if (!recipeMap.has(key)) recipeMap.set(key, []);
-        recipeMap.get(key).push(recipe);
-      });
-      const inventoryMap = new Map((inventory || []).map((item) => [String(item.id), item]));
-      const deductions = new Map();
-      const menuDetails = [];
-      let matchedRows = 0;
-
-      soldMenus.forEach((sale) => {
-        const recipeRows = recipeMap.get(recipeLookupKey(sale.menuName, sale.variant));
-        if (!recipeRows?.length) {
-          menuDetails.push({ type: 'warning', menuName: sale.menuName, variant: sale.variant, text: `Menu ${sale.menuName}${sale.variant ? ` varian ${sale.variant}` : ''} terjual sebanyak ${formatQuantity(sale.quantity)} porsi tetapi resep belum di-setup.` });
-          return;
-        }
-        matchedRows += sale.rowCount;
-
-        const details = [];
-        recipeRows.forEach((recipe) => {
-          const inventoryItem = inventoryMap.get(String(recipe.inventory_item_id));
-          const quantityNeeded = Number(recipe.quantity_needed);
-          const totalNeeded = quantityNeeded * sale.quantity;
-          if (!inventoryItem || !Number.isFinite(quantityNeeded) || quantityNeeded <= 0) {
-            details.push({ missing: true, text: `bahan dengan ID ${recipe.inventory_item_id} tidak ditemukan` });
-            return;
-          }
-          const existing = deductions.get(String(inventoryItem.id)) || { item: inventoryItem, quantity: 0 };
-          existing.quantity += totalNeeded;
-          deductions.set(String(inventoryItem.id), existing);
-          details.push({ item: inventoryItem, quantity: totalNeeded, division: inventoryItem.division || 'Gudang Utama' });
-        });
-        menuDetails.push({ type: details.some((detail) => detail.missing) ? 'warning' : 'success', menuName: sale.menuName, variant: sale.variant, quantity: sale.quantity, details });
-      });
-
-      let updatedCount = 0;
-      let updateErrors = 0;
-      const updateResults = new Map();
-      for (const deduction of deductions.values()) {
-        const currentStock = Number(deduction.item.stock_quantity) || 0;
-        const requestedDeduction = Number(deduction.quantity) || 0;
-        // Stok boleh menjadi minus agar kekurangan stok terlihat jelas oleh Admin.
-        const newStock = currentStock - requestedDeduction;
-        const actualDeduction = currentStock - newStock;
-        const { data: updatedRows, error } = await supabaseClient
-          .from('inventory')
-          .update({ stock_quantity: newStock })
-          .eq('id', deduction.item.id)
-          .select('id, stock_quantity');
-        if (error || !updatedRows?.length) {
-          const updateError = error || new Error('Tidak ada baris inventory yang diperbarui. Periksa policy UPDATE/RLS Supabase.');
-          console.error(updateError);
-          updateErrors += 1;
-          updateResults.set(String(deduction.item.id), { ok: false, item: deduction.item, requestedDeduction, error: updateError.message });
-        } else {
-          updatedCount += 1;
-          const movementError = await recordStockMovement({
-            inventory_item_id: deduction.item.id,
-            division: deduction.item.division || 'Gudang Utama',
-            movement_type: 'sale',
-            quantity: -requestedDeduction
-          });
-          updateResults.set(String(deduction.item.id), { ok: true, item: deduction.item, requestedDeduction, actualDeduction, newStock, movementError });
-        }
-      }
-
-      menuDetails.forEach((detail) => {
-        if (detail.type === 'warning' && !detail.details) {
-          addUploadLog('warning', detail.text);
-          return;
-        }
-        if (!detail.menuName) return;
-        const hasMinusStock = detail.details.some((itemDetail) => {
-          const result = itemDetail.missing ? null : updateResults.get(String(itemDetail.item.id));
-          return result?.ok && result.newStock < 0;
-        });
-        const parts = detail.details.map((itemDetail) => {
-          if (itemDetail.missing) return itemDetail.text;
-          const result = updateResults.get(String(itemDetail.item.id));
-          const unit = itemDetail.item.unit || '';
-          if (!result?.ok) return `Stok ${itemDetail.item.item_name} gagal diperbarui (${result?.error || 'periksa policy UPDATE/RLS Supabase'})`;
-          const division = itemDetail.item.division || 'Gudang Utama';
-          if (result.movementError) return `Stok ${itemDetail.item.item_name} berkurang, tetapi log mutasi gagal (${result.movementError.message})`;
-          if (result.newStock < 0) return `Peringatan: Menu ${detail.menuName} terjual, tetapi stok ${itemDetail.item.item_name} di ${division} habis/minus! Stok menjadi ${formatQuantity(result.newStock)} ${unit}`;
-          return `Stok ${itemDetail.item.item_name} di ${division} ${formatQuantity(itemDetail.quantity)} ${unit} otomatis berkurang di Supabase`;
-        });
-        const menuLabel = `${detail.menuName}${detail.variant ? ` varian ${detail.variant}` : ''}`;
-        const sentence = hasMinusStock
-          ? `Peringatan: Menu ${menuLabel} terjual sebanyak ${formatQuantity(detail.quantity)} porsi, tetapi ada stok bahan yang habis/minus di gudang. ${parts.join('; ')}.`
-          : `Berhasil memproses Menu ${menuLabel} sebanyak ${formatQuantity(detail.quantity)} porsi. ${parts.join('; ')}.`;
-        addUploadLog(detail.type === 'warning' || hasMinusStock ? 'warning' : 'success', sentence);
-      });
-
-      if (updateErrors === 0 && deductions.size > 0) setUploadMarker(uploadKey, 'done');
-      if (document.getElementById('stockPage').classList.contains('active')) await loadInventory();
-      await loadLowStockAlert();
-
-      const summary = `${file.name}: ${updatedCount} bahan berhasil diperbarui dari ${soldMenus.size} menu`;
-      $('#uploadActivity').textContent = updateErrors ? `${summary}; ${updateErrors} pembaruan gagal` : `${summary}.`;
-      return { status: matchedRows > 0 ? 'success' : 'no-match', validSalesRows, matchedRows };
-    }
-
-    function findHeaderIndex(headers, keywords) {
+   function findHeaderIndex(headers, keywords) {
       const candidates = headers.map((header, index) => {
         const normalizedHeader = normalizeText(header);
         const scores = keywords.map((keyword) => {
