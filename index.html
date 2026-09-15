@@ -1132,7 +1132,7 @@
             <div class="warehouse-chip"><span>Nilai stok Waiters</span><strong id="stockValueWaiters">Rp0</strong></div>
           </div>
           <div class="panel" style="margin-bottom:18px;">
-            <div class="panel-head"><div><h3>Laporan Stok Gudang Utama</h3><p class="panel-subtitle">Khusus bahan yang tersimpan di Gudang Utama. Transfer keluar ke divisi tidak digabung ke saldo gudang.</p></div><span class="status-badge status-success">Gudang Utama</span></div>
+            <div class="panel-head"><div><h3>Laporan Stok Gudang Utama</h3><p class="panel-subtitle">Khusus bahan yang tersimpan di Gudang Utama. Transfer keluar ke divisi tidak digabung ke saldo gudang.</p></div><div class="panel-actions"><input id="warehouseStockReportSearch" class="compact-select" type="search" placeholder="Cari bahan Gudang Utama" aria-label="Cari bahan Gudang Utama" /><span class="status-badge status-success">Gudang Utama</span></div></div>
             <div id="warehouseStockReportTableWrap" class="report-table-wrap"><div class="loading-row">Memuat stok Gudang Utama...</div></div>
           </div>
           <div class="panel" style="margin-bottom:18px;">
@@ -1160,7 +1160,7 @@
             <div id="stockMovementAnalyticsTableWrap" class="report-table-wrap"><div class="loading-row">Pilih periode lalu refresh analitik.</div></div>
           </div>
           <div class="panel">
-            <div class="panel-head"><div><h3>Laporan Stok Divisi</h3><p class="panel-subtitle">Stok yang sudah berada di Bar, Kitchen, atau Waiters. Pilih satu divisi agar pemeriksaan stok lebih cepat.</p></div><div class="panel-actions"><input id="stockReportStart" class="compact-select" type="date" title="Tanggal mulai" /><input id="stockReportEnd" class="compact-select" type="date" title="Tanggal akhir" /><select id="divisionStockReportFilter" class="compact-select"><option value="all">Semua Divisi</option><option>Bar</option><option>Kitchen</option><option>Waiters</option></select><input id="stockReportSearch" class="compact-select" type="search" placeholder="Cari bahan" /><button id="refreshStockReportBtn" class="reset-btn" type="button">↻ Refresh</button><button id="exportStockReportExcelBtn" class="export-btn" type="button">Export Excel</button><button id="exportStockReportPdfBtn" class="export-btn" type="button">Export PDF</button></div></div>
+            <div class="panel-head"><div><h3>Laporan Stok Divisi</h3><p class="panel-subtitle">Stok yang sudah berada di Bar, Kitchen, atau Waiters. Pilih satu divisi agar pemeriksaan stok lebih cepat.</p></div><div class="panel-actions"><input id="stockReportStart" class="compact-select" type="date" title="Tanggal mulai" /><input id="stockReportEnd" class="compact-select" type="date" title="Tanggal akhir" /><select id="divisionStockReportFilter" class="compact-select"><option value="all">Semua Divisi</option><option>Bar</option><option>Kitchen</option><option>Waiters</option></select><input id="divisionStockReportSearch" class="compact-select" type="search" placeholder="Cari bahan divisi" aria-label="Cari bahan divisi" /><button id="refreshStockReportBtn" class="reset-btn" type="button">↻ Refresh</button><button id="exportStockReportExcelBtn" class="export-btn" type="button">Export Excel</button><button id="exportStockReportPdfBtn" class="export-btn" type="button">Export PDF</button></div></div>
             <div id="divisionStockReportTableWrap" class="report-table-wrap"><div class="loading-row">Buka menu ini untuk memuat laporan stok divisi.</div></div>
             <div class="supabase-note">Saldo divisi dihitung dari transfer masuk, pemakaian resep penjualan, pemakaian non-penjualan, waste, dan opname. Stok Gudang Utama ditampilkan di laporan terpisah di atas.</div>
           </div>
@@ -1787,7 +1787,7 @@
         start: value('hppHistoryStart'), end: value('hppHistoryEnd'), menu: String(value('hppHistorySearch')).trim().toLowerCase(), variant: '', status: value('hppHistoryStatus', 'all').toLowerCase(), user: '', category: 'all', division: 'all'
       };
       if (activePage === 'stockReportPage' || activeMasterTab === 'stock') return {
-        start: value('stockReportStart'), end: value('stockReportEnd'), menu: String(value('stockReportSearch')).trim().toLowerCase(), variant: '', status: 'all', user: '', category: 'all', division: value('divisionStockReportFilter', 'all')
+        start: value('stockReportStart'), end: value('stockReportEnd'), menu: '', variant: '', status: 'all', user: '', category: 'all', division: value('divisionStockReportFilter', 'all')
       };
       if (activePage === 'wastePage' || activeMasterTab === 'waste') return {
         start: value('wasteStart'), end: value('wasteEnd'), menu: String(value('wasteSearch')).trim().toLowerCase(), variant: '', status: 'all', user: '', category: 'all', division: value('wasteDivisionFilter', 'all')
@@ -2459,7 +2459,8 @@
       if ($('#stockMovementAnalyticsPeriod')) $('#stockMovementAnalyticsPeriod').value = 'custom';
       loadStockReport();
     }));
-    $('#stockReportSearch')?.addEventListener('input', () => renderStockReport(state.stockReport));
+    $('#warehouseStockReportSearch')?.addEventListener('input', () => renderStockReport(state.stockReport));
+    $('#divisionStockReportSearch')?.addEventListener('input', () => renderStockReport(state.stockReport));
     $('#refreshStockMovementAnalyticsBtn')?.addEventListener('click', loadStockMovementAnalytics);
     $('#stockMovementAnalyticsPeriod')?.addEventListener('change', applyStockAnalyticsPeriod);
     $('#stockMovementAnalyticsDivision')?.addEventListener('change', loadStockMovementAnalytics);
@@ -5736,14 +5737,17 @@
 
     function renderStockReport(rows) {
       const filter = getUnifiedFilters();
+      const warehouseSearch = normalizeText($('#warehouseStockReportSearch')?.value || '');
+      const divisionSearch = normalizeText($('#divisionStockReportSearch')?.value || '');
       const baseRows = (rows || []).filter((row) => {
         const date = rowDateValue(row, 'date');
         return (!filter.start || !date || date >= filter.start)
-          && (!filter.end || !date || date <= filter.end)
-          && (!filter.menu || normalizeText(row.itemName).includes(filter.menu));
+          && (!filter.end || !date || date <= filter.end);
       });
-      const warehouseRows = baseRows.filter((row) => row.division === 'Gudang Utama');
-      const divisionRows = baseRows.filter((row) => row.division !== 'Gudang Utama' && (filter.division === 'all' || row.division === filter.division));
+      const warehouseRows = baseRows.filter((row) => row.division === 'Gudang Utama' && (!warehouseSearch || normalizeText(row.itemName).includes(warehouseSearch)));
+      const divisionRows = baseRows.filter((row) => row.division !== 'Gudang Utama'
+        && (filter.division === 'all' || row.division === filter.division)
+        && (!divisionSearch || normalizeText(row.itemName).includes(divisionSearch)));
       const allVisibleRows = [...warehouseRows, ...divisionRows];
       $('#stockReportItemCount').textContent = allVisibleRows.length.toLocaleString('id-ID');
       $('#stockReportLowCount').textContent = allVisibleRows.filter((row) => isLowStockQuantity(row.final, row.minStock)).length.toLocaleString('id-ID');
@@ -5771,7 +5775,16 @@
 
     function getVisibleStockReportRows() {
       const rows = state.stockReport || [];
-      return filterRowsByUnified(rows, { dateKey: 'date', menuKeys: ['itemName'], categoryKeys: ['division'] });
+      const filter = getUnifiedFilters();
+      const warehouseSearch = normalizeText($('#warehouseStockReportSearch')?.value || '');
+      const divisionSearch = normalizeText($('#divisionStockReportSearch')?.value || '');
+      return rows.filter((row) => {
+        const date = rowDateValue(row, 'date');
+        const matchesDate = (!filter.start || !date || date >= filter.start) && (!filter.end || !date || date <= filter.end);
+        if (!matchesDate) return false;
+        if (row.division === 'Gudang Utama') return !warehouseSearch || normalizeText(row.itemName).includes(warehouseSearch);
+        return (filter.division === 'all' || row.division === filter.division) && (!divisionSearch || normalizeText(row.itemName).includes(divisionSearch));
+      });
     }
 
     function exportStockReportToExcel() {
@@ -6275,31 +6288,37 @@
           status: hppStatus.key
         };
       });
-      state.hppHistoryRows = salesError ? [] : (sales || []).map((row) => ({
-        id: row.id,
-        receiptNumber: row.receipt_number || '-',
-        date: row.sale_date,
-        menuName: row.product_name,
-        variant: row.variant || 'Default',
-        categoryItem: row.category_item || '',
-        quantity: Number(row.quantity_sold) || 0,
-        revenue: Number(row.gross_amount) || 0,
-        hppUnit: row.hpp_unit_cost === null || row.hpp_unit_cost === undefined ? null : Number(row.hpp_unit_cost),
-        hppTotal: row.hpp_total === null || row.hpp_total === undefined ? null : Number(row.hpp_total),
-        profit: row.hpp_total === null || row.hpp_total === undefined ? null : (Number(row.gross_amount) || 0) - (Number(row.hpp_total) || 0),
-        method: row.hpp_method || 'Belum ada snapshot',
-        hppStatus: getHppStatus({
-          recipeCount: String(row.hpp_method || '').toLowerCase() === 'incomplete_recipe' ? 0 : 1,
-          method: row.hpp_method,
-          hpp: row.hpp_total === null || row.hpp_total === undefined ? 0 : Number(row.hpp_total),
-          rowStatus: row.status
-        }),
-        recordedAt: row.hpp_recorded_at,
-        snapshot: row.hpp_snapshot || [],
-        status: String(row.status || 'posted').toLowerCase(),
-        created_by: row.created_by,
-        voidReason: row.void_reason || ''
-      }));
+      state.hppHistoryRows = salesError ? [] : (sales || []).map((row) => {
+        const metrics = getSaleProfitMetrics(row, hppMap);
+        const liveInfo = hppMap.get(recipeLookupKey(row.product_name, row.variant || 'Default'));
+        const isLiveFallback = metrics.source === 'live_fallback';
+        return {
+          id: row.id,
+          receiptNumber: row.receipt_number || '-',
+          date: row.sale_date,
+          menuName: row.product_name,
+          variant: row.variant || 'Default',
+          categoryItem: row.category_item || '',
+          quantity: Number(row.quantity_sold) || 0,
+          revenue: Number(row.gross_amount) || 0,
+          hppUnit: metrics.hppKnown ? metrics.hpp / (metrics.quantity || 1) : null,
+          hppTotal: metrics.hppKnown ? metrics.hpp : null,
+          profit: metrics.hppKnown ? metrics.revenue - metrics.hpp : null,
+          method: isLiveFallback ? 'weighted_average_ledger_live (belum tersimpan)' : (row.hpp_method || 'Belum ada snapshot'),
+          hppStatus: getHppStatus({
+            recipeCount: String(row.hpp_method || '').toLowerCase() === 'incomplete_recipe' && !isLiveFallback ? 0 : 1,
+            info: isLiveFallback ? liveInfo : null,
+            method: isLiveFallback ? '' : row.hpp_method,
+            hpp: metrics.hppKnown ? metrics.hpp : 0,
+            rowStatus: row.status
+          }),
+          recordedAt: row.hpp_recorded_at,
+          snapshot: row.hpp_snapshot || [],
+          status: String(row.status || 'posted').toLowerCase(),
+          created_by: row.created_by,
+          voidReason: row.void_reason || ''
+        };
+      });
       renderHppCurrentTable();
       renderHppHistoryTable();
       message.textContent = salesError ? `HPP aktif berhasil dimuat. Riwayat snapshot belum dapat dibaca: ${salesError.message}` : `HPP aktif dan ${state.hppHistoryRows.length.toLocaleString('id-ID')} snapshot transaksi berhasil dimuat.`;
@@ -8104,6 +8123,9 @@
         return;
       }
       const rows = filterRowsByUnified(fetchedRows, { dateKey: 'sale_date', menuKeys: ['product_name'], categoryKeys: ['category_item'] });
+      const hppResult = await loadRecipeHppMap();
+      const hppMap = hppResult.map || new Map();
+      if (hppResult.error) console.warn('HPP live fallback tidak tersedia:', hppResult.error);
       state.salesReportRows = rows;
       const productMap = new Map();
       rows.forEach((row) => {
@@ -8112,7 +8134,7 @@
         const categoryItem = String(row.category_item || '').trim();
         const key = `${normalizeMenuName(productName)}::${normalizeMenuName(variant)}::${normalizeMenuName(categoryItem)}`;
         const quantity = Number(row.quantity_sold) || 0;
-        const metrics = getSaleProfitMetrics(row);
+        const metrics = getSaleProfitMetrics(row, hppMap);
         const current = productMap.get(key) || { productName, variant, categoryItem, quantity: 0, revenue: 0, hpp: 0, hppKnown: true, files: new Set() };
         current.quantity += quantity;
         current.revenue += Number(row.gross_amount) || 0;
@@ -8716,17 +8738,29 @@
       const revenue = Number(row.gross_amount) || 0;
       const hasSnapshot = Boolean(row.hpp_recorded_at && row.hpp_total !== null && row.hpp_total !== undefined);
       const hppMethod = String(row.hpp_method || '').toLowerCase();
-      const hppKnown = hasSnapshot && Number(row.hpp_total) > 0 && !['incomplete_recipe', 'incomplete_price', 'incomplete'].includes(hppMethod);
+      const snapshotComplete = hasSnapshot && Number(row.hpp_total) > 0 && !['incomplete_recipe', 'incomplete_price', 'incomplete'].includes(hppMethod);
+      const lookupKey = recipeLookupKey(productName, variant || 'Default');
+      const liveInfo = hppMap instanceof Map ? (hppMap.get(lookupKey) || (variant ? hppMap.get(recipeLookupKey(productName, 'Default')) : null)) : null;
+      const liveComplete = Boolean(liveInfo && !liveInfo.missingPrice && !liveInfo.zeroCost && Number(liveInfo.unitHpp) > 0);
+      const hppKnown = snapshotComplete || liveComplete;
+      const hpp = snapshotComplete
+        ? Number(row.hpp_total) || 0
+        : liveComplete
+          ? Number(liveInfo.unitHpp) || 0
+          : 0;
       return {
         productName,
         variant,
         categoryItem,
         quantity,
         revenue,
-        // Never subtract a partial HPP. Previously the table showed '-'
-        // while a partial HPP was still silently deducted from net profit.
-        hpp: hppKnown ? Number(row.hpp_total) || 0 : 0,
-        hppKnown
+        // Prefer the immutable transaction snapshot. If it is still
+        // incomplete, use the same live HPP map shown by HPP Aktif so all
+        // reports remain consistent until the snapshot is synchronized.
+        hpp,
+        hppKnown,
+        source: snapshotComplete ? 'snapshot' : liveComplete ? 'live_fallback' : 'unknown',
+        liveInfo
       };
     }
 
