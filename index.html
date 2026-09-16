@@ -905,7 +905,7 @@
                   <div class="panel-actions"><button id="toggleRecipeDetailBtn" class="reset-btn" type="button">Sembunyikan Detail</button><button id="exportRecipeDetailBtn" class="save-btn" type="button">Export Detail Excel</button><button id="refreshRecipesBtn" class="reset-btn" type="button">↻ Refresh</button></div>
                 </div>
                 <div class="recipe-table-wrap" id="recipeTableWrap"><div class="loading-row">Buka halaman ini untuk memuat resep.</div></div>
-                <div class="supabase-note">Resep penjualan wajib menunjuk stok divisi pemakaian: Bar, Kitchen, atau Waiters. Gudang Utama hanya menjadi stok sumber.</div>
+                <div class="supabase-note">Resep penjualan memotong stok pada divisi pemakaian: Bar, Kitchen, atau Waiters. Bahan dari Gudang Utama dapat dipakai untuk membuat resep; sistem akan menyiapkan baris bahan di divisi tujuan dengan stok 0 tanpa menunggu transfer.</div>
               </div>
             </div>
           </div>
@@ -999,7 +999,7 @@
                   <div class="form-field"><label for="menuMasterTargetHpp">Target HPP (%)</label><input id="menuMasterTargetHpp" type="number" min="0" max="100" step="0.1" placeholder="Contoh: 30" /></div>
                   <div class="form-field"><label for="menuMasterBuffer">Buffer HPP (%)</label><input id="menuMasterBuffer" type="number" min="0" max="100" step="0.1" value="10" placeholder="Contoh: 10" /><small class="field-help">Cadangan biaya tidak terhitung. Tidak memotong stok dan tidak menjadi pengeluaran.</small></div>
                   <div class="form-field full"><label><input id="menuMasterActive" type="checkbox" checked /> Menu aktif dan dapat digunakan dalam penjualan</label></div>
-                  <div class="form-field full"><label>Resep dan kebutuhan per porsi</label><div id="menuRecipeIngredientsList" class="recipe-ingredients-list"></div><button id="addMenuRecipeIngredientBtn" class="reset-btn add-ingredient-btn" type="button">+ Tambah Komponen Resep</button><small class="field-help">Pilih bahan dari stok Bar, Kitchen, atau Waiters, atau pilih preparation dari tab Preparation &amp; Produksi. Untuk preparation, isi 1 porsi jika menu memakai 1 porsi.</small></div>
+                  <div class="form-field full"><label>Resep dan kebutuhan per porsi</label><div id="menuRecipeIngredientsList" class="recipe-ingredients-list"></div><button id="addMenuRecipeIngredientBtn" class="reset-btn add-ingredient-btn" type="button">+ Tambah Komponen Resep</button><small class="field-help">Bahan dari Gudang Utama boleh dipilih. Saat disimpan, sistem otomatis menyiapkan baris stok 0 di divisi pemotongan menu. Saat penjualan terjadi, stok dipotong dari divisi tersebut.</small></div>
                   <div class="form-field"><label for="menuMasterCalculatedHpp">HPP Bahan Aktual</label><input id="menuMasterCalculatedHpp" type="text" value="Rp0" readonly /></div>
                   <div class="form-field"><label for="menuMasterReferenceHpp">HPP Acuan Setelah Buffer</label><input id="menuMasterReferenceHpp" type="text" value="Rp0" readonly /><small class="field-help">HPP aktual × (1 + Buffer HPP).</small></div>
                 </div>
@@ -4716,11 +4716,10 @@
         const value = `inventory:${item.id}`;
         const warehouse = isWarehouseInventoryItem(item);
         const selected = value === selectedValue ? ' selected' : '';
-        const disabled = warehouse ? ' disabled' : '';
         const label = warehouse
-          ? `${item.item_name} — Gudang Utama (transfer dulu)`
+          ? `${item.item_name} — Gudang Utama (akan disiapkan di divisi produksi)`
           : `${item.item_name} — ${item.division || '-'} (${getRecipeUnitForItem(item.id)})`;
-        return `<option value="${escapeHtml(value)}"${selected}${disabled}>${escapeHtml(label)}</option>`;
+        return `<option value="${escapeHtml(value)}"${selected}>${escapeHtml(label)}</option>`;
       }).join('');
       const preparationOptions = state.preparations
         .filter((row) => String(row.id) !== String(currentId) && row.is_active !== false)
@@ -4821,6 +4820,70 @@
       tableWrap.innerHTML = `<table class="history-table"><thead><tr><th>Kode</th><th>Preparation</th><th>Output</th><th>Divisi</th><th>Yield</th><th>Komponen</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${tableRows}</tbody></table>`;
     }
 
+    async function ensureInventoryItemForDivision(sourceItem, targetDivision) {
+      if (!sourceItem || !targetDivision || String(sourceItem.division || 'Gudang Utama') === String(targetDivision)) return sourceItem;
+      const existing = state.inventory.find((item) =>
+        normalizeMenuName(item.item_name) === normalizeMenuName(sourceItem.item_name) &&
+        String(item.division || 'Gudang Utama') === String(targetDivision)
+      );
+      if (existing) return existing;
+      const { data: existingRows, error: lookupError } = await supabaseClient.from('inventory')
+        .select('id, item_name, stock_quantity, unit, min_stock, division, reference_unit_cost, reference_cost_updated_at, reference_cost_note')
+        .eq('item_name', sourceItem.item_name)
+        .eq('division', targetDivision)
+        .limit(1);
+      if (lookupError) throw lookupError;
+      if (existingRows?.[0]) {
+        state.inventory.push(existingRows[0]);
+        return existingRows[0];
+      }
+      const { data: created, error: createError } = await supabaseClient.from('inventory').insert([{
+        item_name: sourceItem.item_name,
+        division: targetDivision,
+        stock_quantity: 0,
+        unit: sourceItem.unit || '',
+        min_stock: Number(sourceItem.min_stock) || 0,
+        reference_unit_cost: Number.isFinite(Number(sourceItem.reference_unit_cost)) ? Number(sourceItem.reference_unit_cost) : null,
+        reference_cost_updated_at: sourceItem.reference_cost_updated_at || null,
+        reference_cost_note: sourceItem.reference_cost_note || null
+      }]).select('id, item_name, stock_quantity, unit, min_stock, division, reference_unit_cost, reference_cost_updated_at, reference_cost_note').single();
+      if (createError) throw createError;
+      state.inventory.push(created);
+      if (!state.unitConversions.length) await loadUnitConversionsForState();
+      const sourceConversion = getUnitConversionForItem(sourceItem.id);
+      if (sourceConversion) {
+        const { error: conversionError } = await supabaseClient.rpc('save_unit_conversion', {
+          p_inventory_item_id: created.id,
+          p_purchase_unit: sourceConversion.purchase_unit,
+          p_purchase_quantity: Number(sourceConversion.purchase_quantity) || 1,
+          p_storage_unit: created.unit || sourceConversion.storage_unit,
+          p_purchase_to_storage: Number(sourceConversion.purchase_to_storage) || 1,
+          p_usage_unit: sourceConversion.usage_unit,
+          p_storage_to_usage: Number(sourceConversion.storage_to_usage) || 1,
+          p_yield_percentage: Number(sourceConversion.yield_percentage) || 100,
+          p_notes: sourceConversion.notes || null,
+          p_is_active: sourceConversion.is_active !== false
+        });
+        if (conversionError) throw conversionError;
+      }
+      void logActivity('INVENTORY_DIVISION_PREPARE', `${sourceItem.item_name} otomatis disiapkan di ${targetDivision} dengan stok 0 untuk resep.`);
+      return created;
+    }
+
+    async function mapRecipeInventoryToDivision(rows, targetDivision) {
+      const mappedRows = [];
+      for (const row of rows) {
+        if (row.component_type !== 'inventory') {
+          mappedRows.push(row);
+          continue;
+        }
+        const sourceItem = state.inventory.find((item) => String(item.id) === String(row.inventory_item_id));
+        const targetItem = await ensureInventoryItemForDivision(sourceItem, targetDivision);
+        mappedRows.push({ ...row, inventory_item_id: targetItem?.id || row.inventory_item_id });
+      }
+      return mappedRows;
+    }
+
     async function handleBomTableClick(event) {
       const button = event.target.closest('[data-action="edit-bom"]');
       if (!button) return;
@@ -4864,6 +4927,7 @@
       button.disabled = true;
       button.textContent = 'Menyimpan...';
       try {
+        const rowsForSave = await mapRecipeInventoryToDivision(rows, $('#bomDivision').value || 'Kitchen');
         const { error } = await supabaseClient.rpc('save_preparation', {
           p_preparation_id: $('#bomId').value || null,
           p_prep_code: $('#bomCode').value.trim().toUpperCase(),
@@ -4872,7 +4936,7 @@
           p_output_unit: $('#bomOutputUnit').value.trim(),
           p_division: $('#bomDivision').value,
           p_yield_percentage: Number($('#bomYield').value) || 100,
-          p_lines: rows
+          p_lines: rowsForSave
         });
         if (error) throw error;
         void logActivity('BOM_UPDATE', `Preparation ${$('#bomName').value.trim()} berhasil disimpan.`);
@@ -4920,11 +4984,10 @@
         const value = `inventory:${item.id}`;
         const warehouse = isWarehouseInventoryItem(item);
         const selected = value === normalizedValue ? ' selected' : '';
-        const disabled = warehouse ? ' disabled' : '';
         const label = warehouse
-          ? `${item.item_name} — Gudang Utama (transfer dulu ke Bar/Kitchen/Waiters)`
+          ? `${item.item_name} — Gudang Utama (akan disiapkan di divisi menu)`
           : `${item.item_name} — ${item.division || '-'} (${getRecipeUnitForItem(item.id)})`;
-        return `<option value="${escapeHtml(value)}"${selected}${disabled}>${escapeHtml(label)}</option>`;
+        return `<option value="${escapeHtml(value)}"${selected}>${escapeHtml(label)}</option>`;
       }).join('');
       const prepOptions = state.preparations.filter((row) => row.is_active !== false).map((row) => {
         const value = `preparation:${row.id}`;
@@ -5239,19 +5302,10 @@
         showMenuMasterMessage('Lengkapi bahan dan jumlah resep, atau kosongkan seluruh baris resep.', 'error');
         return;
       }
-      const validRecipeRows = recipeRows.filter((row) => ((row.component_type === 'inventory' && row.inventory_item_id) || (row.component_type === 'preparation' && row.preparation_id)) && Number.isFinite(row.quantity_needed) && row.quantity_needed > 0);
-      const warehouseRecipeItem = validRecipeRows
-        .filter((row) => row.component_type === 'inventory')
-        .map((row) => state.inventory.find((item) => String(item.id) === String(row.inventory_item_id)))
-        .find((item) => item && isWarehouseInventoryItem(item));
-      if (warehouseRecipeItem) {
-        showMenuMasterMessage(`Resep tidak boleh memakai ${warehouseRecipeItem.item_name} dari Gudang Utama. Transfer bahan itu ke Bar, Kitchen, atau Waiters lalu pilih stok divisinya.`, 'error');
-        return;
-      }
+      let validRecipeRows = recipeRows.filter((row) => ((row.component_type === 'inventory' && row.inventory_item_id) || (row.component_type === 'preparation' && row.preparation_id)) && Number.isFinite(row.quantity_needed) && row.quantity_needed > 0);
       const mismatchedRecipeComponent = validRecipeRows.map((row) => {
         if (row.component_type === 'inventory') {
-          const item = state.inventory.find((inventoryItem) => String(inventoryItem.id) === String(row.inventory_item_id));
-          return item && String(item.division || '') !== stockDivision ? `${item.item_name} (${item.division || '-'})` : null;
+          return null;
         }
         const preparation = state.preparations.find((prep) => String(prep.id) === String(row.preparation_id));
         return preparation && String(preparation.division || '') !== stockDivision ? `${preparation.prep_name} (${preparation.division || '-'})` : null;
@@ -5268,6 +5322,9 @@
       button.disabled = true;
       button.textContent = 'Menyimpan...';
       try {
+        // Bahan dari Gudang Utama boleh dipakai untuk menyiapkan HPP.
+        // Jika baris divisi tujuan belum ada, sistem membuatnya dengan stok 0.
+        validRecipeRows = await mapRecipeInventoryToDivision(validRecipeRows, stockDivision);
         const editMenuId = state.menuMasterEdit?.menuId || $('#menuMasterId').value || null;
         const editVariantId = state.menuMasterEdit?.variantId || $('#menuMasterVariantId').value || null;
         const { data, error } = await supabaseClient.rpc('save_menu_master', {
@@ -7295,11 +7352,10 @@
       return '<option value="">Pilih bahan dari stok divisi</option>' + items.map((item) => {
         const warehouse = isWarehouseInventoryItem(item);
         const selected = String(item.id) === String(selectedId) ? ' selected' : '';
-        const disabled = warehouse ? ' disabled' : '';
         const label = warehouse
-          ? `${item.item_name} — Gudang Utama (transfer dulu ke Bar/Kitchen/Waiters)`
+          ? `${item.item_name} — Gudang Utama (akan disiapkan di divisi resep)`
           : `${item.item_name} — ${item.division || '-'} (${item.unit || '-'})`;
-        return `<option value="${escapeHtml(item.id)}"${selected}${disabled}>${escapeHtml(label)}</option>`;
+        return `<option value="${escapeHtml(item.id)}"${selected}>${escapeHtml(label)}</option>`;
       }).join('');
     }
 
