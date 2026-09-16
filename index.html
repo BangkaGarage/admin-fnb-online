@@ -846,6 +846,19 @@
                     <input id="inventoryUnit" type="text" placeholder="gr, ml, pcs" required />
                     <small class="field-help">Gunakan satuan operasional terkecil yang dipakai resep, misalnya gr atau ml.</small>
                   </div>
+                  <div class="form-field">
+                    <label for="inventoryReferenceUnitCost">Harga Acuan per Satuan Stok</label>
+                    <input id="inventoryReferenceUnitCost" type="number" min="0" step="0.0001" placeholder="Contoh: 85 (per gr)" />
+                    <small class="field-help">Opsional. Isi harga per satuan stok dasar (Rp/gr, Rp/ml, atau Rp/pcs). Tidak menambah stok.</small>
+                  </div>
+                  <div class="form-field full"><label>Konversi Bahan <span style="font-weight:400;color:#64748b">(opsional)</span></label><small class="field-help">Isi di sini sekaligus saat membuat bahan. Contoh: 1 dus → 12.000 ml, lalu resep memakai ml. Satuan simpan mengikuti Satuan Stok Dasar di atas.</small></div>
+                  <div class="form-field"><label for="inventoryPurchaseQuantity">Jumlah Satuan Beli</label><input id="inventoryPurchaseQuantity" type="number" min="0.0001" step="0.0001" value="1" placeholder="Contoh: 1" /></div>
+                  <div class="form-field"><label for="inventoryPurchaseUnit">Satuan Beli</label><input id="inventoryPurchaseUnit" type="text" placeholder="dus, pack, karung" /></div>
+                  <div class="form-field"><label for="inventoryPurchaseToStorage">Hasil ke Satuan Simpan</label><input id="inventoryPurchaseToStorage" type="number" min="0.0001" step="0.0001" value="1" placeholder="Contoh: 12000" /><small class="field-help">1 satuan beli menghasilkan berapa satuan stok dasar.</small></div>
+                  <div class="form-field"><label for="inventoryStorageToUsage">Satuan Simpan ke Pakai</label><input id="inventoryStorageToUsage" type="number" min="0.0001" step="0.0001" value="1" placeholder="Contoh: 1" /></div>
+                  <div class="form-field"><label for="inventoryUsageUnit">Satuan Pakai / Resep</label><input id="inventoryUsageUnit" type="text" placeholder="ml, gr, pcs" /></div>
+                  <div class="form-field"><label for="inventoryYieldPercentage">Yield Efektif (%)</label><input id="inventoryYieldPercentage" type="number" min="0.01" max="100" step="0.01" value="100" placeholder="100" /></div>
+                  <div class="form-field full"><label for="inventoryConversionNotes">Catatan Konversi</label><textarea id="inventoryConversionNotes" rows="2" placeholder="Contoh: 1 dus berisi 12 botol @ 1 liter"></textarea></div>
                   <div class="form-field full">
                     <label for="inventoryMinStock">Batas Minimum Stok *</label>
                     <input id="inventoryMinStock" type="number" min="0" step="0.01" placeholder="Contoh: 5" required />
@@ -870,7 +883,7 @@
               </div>
               <div class="inventory-table-wrap" id="inventoryTableWrap"><div class="loading-row">Buka halaman ini untuk memuat data stok.</div></div>
               <div class="supabase-note">Preparation/semi-finished bersifat virtual dan tidak ditampilkan sebagai stok fisik. Yang dikontrol di sini hanya bahan mentah per divisi.</div>
-              <div class="supabase-note">Master bahan hanya membuat baris <code>inventory</code> dengan stok 0. Untuk stok awal yang sudah tersedia, gunakan Penyesuaian Stok; untuk pembelian baru, gunakan Stok Masuk.</div>
+              <div class="supabase-note">Master bahan hanya membuat baris <code>inventory</code> dengan stok 0. Harga acuan hanya dipakai untuk menghitung HPP dan tidak menambah stok. Untuk stok awal yang sudah tersedia, gunakan Penyesuaian Stok; untuk pembelian baru, gunakan Belanja Masuk.</div>
             </div>
 
             <div class="panel inventory-panel">
@@ -3349,6 +3362,16 @@
         $('#inventoryItemName').value = item.item_name || '';
         $('#inventoryDivision').value = item.division || 'Gudang Utama';
         $('#inventoryUnit').value = item.unit || '';
+        $('#inventoryReferenceUnitCost').value = Number.isFinite(Number(item.reference_unit_cost)) ? Number(item.reference_unit_cost) : '';
+        if (!state.unitConversions.length) await loadUnitConversionsForState();
+        const conversion = getUnitConversionForItem(item.id);
+        $('#inventoryPurchaseQuantity').value = conversion ? Number(conversion.purchase_quantity) || 1 : 1;
+        $('#inventoryPurchaseUnit').value = conversion?.purchase_unit || '';
+        $('#inventoryPurchaseToStorage').value = conversion ? Number(conversion.purchase_to_storage) || 1 : 1;
+        $('#inventoryStorageToUsage').value = conversion ? Number(conversion.storage_to_usage) || 1 : 1;
+        $('#inventoryUsageUnit').value = conversion?.usage_unit || '';
+        $('#inventoryYieldPercentage').value = conversion ? Number(conversion.yield_percentage) || 100 : 100;
+        $('#inventoryConversionNotes').value = conversion?.notes || '';
         $('#inventoryMinStock').value = Number(item.min_stock) || 0;
         $('#saveInventoryBtn').textContent = 'Simpan Perubahan';
         $('#cancelInventoryEditBtn').classList.remove('hidden');
@@ -3578,8 +3601,9 @@
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (error || !data) return 0;
-      return Number(data.price_per_unit) || 0;
+      if (!error && data && Number.isFinite(Number(data.price_per_unit))) return Number(data.price_per_unit) || 0;
+      const inventoryItem = state.inventory.find((item) => String(item.id) === String(inventoryItemId));
+      return Number(inventoryItem?.reference_unit_cost) || 0;
     }
 
     function populateWarehouseItemSelect(selectId, items, placeholder = 'Pilih bahan baku') {
@@ -7248,7 +7272,7 @@
       tableWrap.innerHTML = '<div class="loading-row">Memuat data stok...</div>';
       const { data, error } = await supabaseClient
         .from('inventory')
-        .select('id, item_name, stock_quantity, unit, min_stock, division')
+        .select('id, item_name, stock_quantity, unit, min_stock, division, reference_unit_cost, reference_cost_updated_at, reference_cost_note')
         .order('item_name', { ascending: true });
 
       if (error) {
@@ -7343,13 +7367,14 @@
           <td>${escapeHtml(item.division || 'Gudang Utama')}</td>
           <td class="${isMinus ? 'stock-minus' : (isLow ? 'stock-low' : 'stock-ok')}" title="${isMinus ? 'Stok minus: segera input stok masuk' : ''}">${formatStockDisplay(stock, item)}</td>
           <td>${escapeHtml(item.unit || '-')}</td>
+          <td class="amount">${item.reference_unit_cost === null || item.reference_unit_cost === undefined ? '-' : formatRupiah(item.reference_unit_cost)}</td>
           <td>${formatQuantity(minimum)}</td>
           <td class="${isMinus ? 'stock-minus' : (isLow ? 'stock-low' : 'stock-ok')}">${isMinus ? 'Minus' : (stock === 0 ? 'Habis' : (isLow ? 'Rendah' : 'Aman'))}</td>
           <td><div class="action-group">${hasFullAdminAccess() ? `<button class="reset-btn" type="button" data-action="edit-inventory" data-id="${escapeHtml(item.id)}">Edit</button><button class="delete-btn" type="button" data-action="delete-inventory" data-id="${escapeHtml(item.id)}" data-name="${escapeHtml(item.item_name || '')}">🗑 Hapus</button>` : '<span class="panel-subtitle">Gunakan Stok Masuk</span>'}</div></td>
         </tr>`;
       }).join('');
 
-      tableWrap.innerHTML = `<table class="inventory-table"><thead><tr><th>Nama Bahan</th><th>Divisi</th><th>Stok</th><th>Satuan</th><th>Min. Stok</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`;
+      tableWrap.innerHTML = `<table class="inventory-table"><thead><tr><th>Nama Bahan</th><th>Divisi</th><th>Stok</th><th>Satuan</th><th>Harga Acuan / Satuan</th><th>Min. Stok</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`;
     }
 
     async function saveInventoryItem(event) {
@@ -7365,6 +7390,15 @@
       const itemName = $('#inventoryItemName').value.trim();
       const division = $('#inventoryDivision').value;
       const unit = $('#inventoryUnit').value.trim();
+      const referenceUnitCostRaw = $('#inventoryReferenceUnitCost').value.trim();
+      const referenceUnitCost = referenceUnitCostRaw === '' ? null : Number(referenceUnitCostRaw);
+      const conversionPurchaseQuantity = Number($('#inventoryPurchaseQuantity').value);
+      const conversionPurchaseUnit = $('#inventoryPurchaseUnit').value.trim();
+      const conversionPurchaseToStorage = Number($('#inventoryPurchaseToStorage').value);
+      const conversionStorageToUsage = Number($('#inventoryStorageToUsage').value);
+      const conversionUsageUnit = $('#inventoryUsageUnit').value.trim();
+      const conversionYieldPercentage = Number($('#inventoryYieldPercentage').value);
+      const hasAnyConversionValue = Boolean(conversionPurchaseUnit || $('#inventoryUsageUnit').value.trim() || $('#inventoryConversionNotes').value.trim() || $('#inventoryPurchaseToStorage').value !== '1' || $('#inventoryStorageToUsage').value !== '1');
       if (!Number.isFinite(minStock) || minStock < 0) {
         showInventoryMessage('Batas minimum harus berupa angka nol atau lebih.', 'error');
         return;
@@ -7375,6 +7409,14 @@
       }
       if (!unit) {
         showInventoryMessage('Satuan stok wajib diisi.', 'error');
+        return;
+      }
+      if (referenceUnitCost !== null && (!Number.isFinite(referenceUnitCost) || referenceUnitCost < 0)) {
+        showInventoryMessage('Harga acuan harus berupa angka nol atau lebih.', 'error');
+        return;
+      }
+      if (hasAnyConversionValue && (!conversionPurchaseUnit || !conversionUsageUnit || ![conversionPurchaseQuantity, conversionPurchaseToStorage, conversionStorageToUsage].every((value) => Number.isFinite(value) && value > 0) || !Number.isFinite(conversionYieldPercentage) || conversionYieldPercentage <= 0 || conversionYieldPercentage > 100)) {
+        showInventoryMessage('Lengkapi satuan beli, satuan pakai, faktor konversi, dan yield, atau kosongkan seluruh bagian konversi.', 'error');
         return;
       }
 
@@ -7402,9 +7444,9 @@
       button.disabled = true;
       button.textContent = editId ? 'Menyimpan Perubahan...' : 'Menyimpan...';
       const query = editId
-        ? supabaseClient.from('inventory').update({ item_name: itemName, division, unit, min_stock: minStock }).eq('id', editId)
-        : supabaseClient.from('inventory').insert([{ item_name: itemName, division, stock_quantity: 0, unit, min_stock: minStock }]);
-      const { error } = await query;
+        ? supabaseClient.from('inventory').update({ item_name: itemName, division, unit, min_stock: minStock, reference_unit_cost: referenceUnitCost, reference_cost_updated_at: referenceUnitCost === null ? null : new Date().toISOString() }).eq('id', editId).select('id').single()
+        : supabaseClient.from('inventory').insert([{ item_name: itemName, division, stock_quantity: 0, unit, min_stock: minStock, reference_unit_cost: referenceUnitCost, reference_cost_updated_at: referenceUnitCost === null ? null : new Date().toISOString() }]).select('id').single();
+      const { data: savedInventory, error } = await query;
       button.disabled = false;
       button.textContent = editId ? 'Simpan Perubahan' : 'Simpan Bahan';
 
@@ -7413,9 +7455,30 @@
         showInventoryMessage(`Gagal menyimpan bahan: ${error.message}`, 'error');
         return;
       }
+      const savedItemId = editId || savedInventory?.id;
+      if (hasAnyConversionValue && savedItemId) {
+        const { error: conversionError } = await supabaseClient.rpc('save_unit_conversion', {
+          p_inventory_item_id: savedItemId,
+          p_purchase_unit: conversionPurchaseUnit,
+          p_purchase_quantity: conversionPurchaseQuantity,
+          p_storage_unit: unit,
+          p_purchase_to_storage: conversionPurchaseToStorage,
+          p_usage_unit: conversionUsageUnit,
+          p_storage_to_usage: conversionStorageToUsage,
+          p_yield_percentage: conversionYieldPercentage,
+          p_notes: $('#inventoryConversionNotes').value.trim() || null,
+          p_is_active: true
+        });
+        if (conversionError) {
+          showInventoryMessage(`Bahan tersimpan, tetapi konversi gagal: ${conversionError.message}`, 'error');
+          await loadInventory();
+          return;
+        }
+        await loadUnitConversionsForState();
+      }
       showInventoryMessage(editId
         ? `Bahan ${itemName} berhasil diperbarui. Saldo stok tetap dipertahankan.`
-        : 'Bahan baku berhasil disimpan dengan stok 0. Gunakan Stok Masuk saat stok supplier diterima, atau Penyesuaian Stok untuk saldo fisik awal.', 'success');
+        : 'Bahan baku berhasil disimpan. Konversi dan harga acuan ikut tersimpan tanpa menambah stok.', 'success');
       void logActivity(editId ? 'INVENTORY_UPDATE' : 'INVENTORY_CREATE', editId
         ? `Bahan ${itemName} diperbarui di ${division}. Saldo stok tidak diubah.`
         : `Bahan ${itemName} berhasil ditambahkan di ${division} sebagai master bahan dengan stok 0.`);
@@ -7818,7 +7881,7 @@
       await loadUnitConversionsForState();
       const [recipesResult, inventoryResult, movementsResult, purchasesResult, preparationsResult] = await Promise.all([
         supabaseClient.from('recipes').select('menu_name, variant, component_type, preparation_id, inventory_item_id, quantity_needed, recipe_unit'),
-        supabaseClient.from('inventory').select('id, item_name, division, stock_quantity'),
+        supabaseClient.from('inventory').select('id, item_name, division, stock_quantity, reference_unit_cost'),
         fetchAllReportRows('stock_movements', 'inventory_item_id, quantity, unit_cost, movement_type, reference_type, reference_id, created_at', 'created_at'),
         fetchAllReportRows('stock_purchases', 'id, inventory_item_id, item_name, division, quantity_in, price_per_unit, created_at, status', 'created_at'),
         supabaseClient.rpc('list_preparations')
@@ -7894,6 +7957,10 @@
         }
         if (latestPriceByItem.has(itemKey)) {
           return { value: latestPriceByItem.get(itemKey), source: 'latest_purchase_item' };
+        }
+        const referencePrice = Number(inventoryItem?.reference_unit_cost);
+        if (Number.isFinite(referencePrice) && referencePrice >= 0) {
+          return { value: referencePrice, source: 'reference_unit_cost' };
         }
         return null;
       };
