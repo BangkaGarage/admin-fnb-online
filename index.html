@@ -422,6 +422,8 @@
     .conversion-table-wrap { max-height: 500px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
     .conversion-table { min-width: 980px; }
     .conversion-table td.numeric, .conversion-table th.numeric { text-align: right; }
+    /* Konversi sekarang dikelola dari form Master Bahan Baku. */
+    #conversionPage { display: none !important; }
     .manual-sale-items-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 18px 0 10px; }
     .manual-sale-items-head h4 { margin: 0; color: var(--navy); font-size: 14px; }
     .manual-sale-items-head p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
@@ -586,7 +588,6 @@
           <button class="nav-group-toggle" type="button" aria-expanded="false">Master Data &amp; Persediaan</button>
           <div class="nav-submenu">
             <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="materials" data-title="Bahan Baku &amp; Resep"><span class="nav-icon">▤</span><span>Bahan &amp; Resep</span></button>
-            <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="conversion" data-super-admin-only="true" data-title="Konversi Satuan"><span class="nav-icon">⇄</span><span>Konversi Satuan</span></button>
             <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="bom" data-super-admin-only="true" data-title="Preparation / Resep Acuan"><span class="nav-icon">≡</span><span>Preparation / Resep</span></button>
             <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="menu" data-super-admin-only="true" data-title="Master Menu &amp; HPP"><span class="nav-icon">▥</span><span>Menu &amp; HPP</span></button>
             <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="purchase" data-title="Belanja Masuk"><span class="nav-icon">＋</span><span>Belanja Masuk</span></button>
@@ -2233,7 +2234,6 @@
 
     const ASSISTANT_ROUTES = {
       'Belanja Masuk': { page: 'stockPage', tab: 'purchase' },
-      'Konversi Satuan': { page: 'stockPage', tab: 'conversion' },
       'Transfer Stok': { page: 'stockPage', tab: 'transfer' },
       'Penjualan dan Import iSeller': { page: 'expensePage' },
       'Resep dan HPP': { page: 'stockPage', tab: 'menu' },
@@ -2744,7 +2744,6 @@
       document.querySelector('.nav-btn[data-page="stockPage"][data-master-tab="' + tabKey + '"]')?.classList.add('active');
       const loaders = {
         materials: async () => { await loadInventory(); await loadRecipes(); },
-        conversion: loadUnitConversionData,
         menu: async () => { await loadPreparations(); await loadMenuMaster(); },
         bom: loadPreparations,
         purchase: loadPurchaseData,
@@ -2769,7 +2768,6 @@
       host.id = 'masterWorkspaceTabHost';
       const specs = [
         ['materials', 'Bahan Baku & Resep', ['stockPage'], false],
-        ['conversion', 'Konversi Satuan', ['conversionPage'], true],
         ['bom', 'Preparation / Resep Acuan', ['bomPage'], true],
         ['menu', 'Master Menu & HPP', ['menuMasterPage'], true],
         ['purchase', 'Belanja Masuk', ['purchasePage'], false],
@@ -2958,10 +2956,6 @@
         { label: 'Daftar Preparation', getNodes: (root) => [root.querySelector('.expense-layout > .panel.history-panel')] },
         { label: 'Import Preparation', getNodes: (root) => [panelBy(root, '#importPreparationMessage')] }
       ], { ariaLabel: 'Preparation dan resep acuan', removeSelectors: [':scope > .supabase-note'] });
-      createInnerWorkspace($('#conversionPage'), [
-        { label: 'Atur Konversi', getNodes: (root) => [root.querySelector('.expense-layout > .panel:nth-child(1)')] },
-        { label: 'Daftar Konversi', getNodes: (root) => [root.querySelector('.expense-layout > .panel.history-panel')] }
-      ], { ariaLabel: 'Konversi satuan' });
       createInnerWorkspace($('#menuMasterPage'), [
         { label: 'Form Menu & HPP', getNodes: (root) => [root.querySelector('.expense-layout > .panel:nth-child(1)')] },
         { label: 'Daftar Menu', getNodes: (root) => [root.querySelector('.expense-layout > .panel.history-panel')] },
