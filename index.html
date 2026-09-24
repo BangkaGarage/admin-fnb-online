@@ -3369,7 +3369,7 @@
         $('#inventoryItemName').value = item.item_name || '';
         $('#inventoryDivision').value = item.division || 'Gudang Utama';
         $('#inventoryUnit').value = item.unit || '';
-        $('#inventoryReferencePrice').value = item.reference_price === null || item.reference_price === undefined ? '' : Number(item.reference_price);
+        $('#inventoryReferencePrice').value = item.reference_unit_cost === null || item.reference_unit_cost === undefined ? '' : Number(item.reference_unit_cost);
         $('#inventoryMinStock').value = Number(item.min_stock) || 0;
         const existingConversion = getUnitConversionForItem(item.id);
         $('#conversionInventoryItem').value = item.id;
@@ -5088,7 +5088,7 @@
       const purchasePrice = await getLatestPurchasePrice(itemId, item.item_name || '');
       const price = Number.isFinite(purchasePrice) && purchasePrice > 0
         ? purchasePrice
-        : Number(item.reference_price);
+        : Number(item.reference_unit_cost);
       if (!Number.isFinite(price) || price < 0) return null;
       const conversion = getUnitConversionForItem(itemId);
       if (conversion && recipeUnit && recipeUnit.toLowerCase() === String(conversion.usage_unit || '').toLowerCase() && String(item.unit || '').toLowerCase() === String(conversion.storage_unit || '').toLowerCase()) {
@@ -7365,7 +7365,7 @@
       tableWrap.innerHTML = '<div class="loading-row">Memuat data stok...</div>';
       const { data, error } = await supabaseClient
         .from('inventory')
-        .select('id, item_name, stock_quantity, unit, reference_price, min_stock, division')
+        .select('id, item_name, stock_quantity, unit, reference_unit_cost, min_stock, division')
         .order('item_name', { ascending: true });
 
       if (error) {
@@ -7464,7 +7464,7 @@
           <td>${escapeHtml(item.division || 'Gudang Utama')}</td>
           <td class="${isMinus ? 'stock-minus' : (isLow ? 'stock-low' : 'stock-ok')}" title="${isMinus ? 'Stok minus: segera input stok masuk' : ''}">${formatStockDisplay(stock, item)}</td>
           <td>${escapeHtml(item.unit || '-')}</td>
-          <td class="numeric">${item.reference_price === null || item.reference_price === undefined || item.reference_price === '' ? '-' : formatRupiah(item.reference_price)}</td>
+          <td class="numeric">${item.reference_unit_cost === null || item.reference_unit_cost === undefined || item.reference_unit_cost === '' ? '-' : formatRupiah(item.reference_unit_cost)}</td>
           <td>${formatQuantity(minimum)}</td>
           <td class="${isMinus ? 'stock-minus' : (isLow ? 'stock-low' : 'stock-ok')}">${isMinus ? 'Minus' : (stock === 0 ? 'Habis' : (isLow ? 'Rendah' : 'Aman'))}</td>
           <td><div class="action-group">${hasFullAdminAccess() ? `<button class="reset-btn" type="button" data-action="edit-inventory" data-id="${escapeHtml(item.id)}">Edit</button><button class="delete-btn" type="button" data-action="delete-inventory" data-id="${escapeHtml(item.id)}" data-name="${escapeHtml(item.item_name || '')}">🗑 Hapus</button>` : '<span class="panel-subtitle">Gunakan Stok Masuk</span>'}</div></td>
@@ -7490,7 +7490,7 @@
       const unit = $('#inventoryUnit').value.trim();
       const referencePriceInput = $('#inventoryReferencePrice').value.trim();
       const referencePrice = referencePriceInput === ''
-        ? (existingItem?.reference_price ?? null)
+        ? (existingItem?.reference_unit_cost ?? null)
         : Number(referencePriceInput);
       if (!Number.isFinite(minStock) || minStock < 0) {
         showInventoryMessage('Batas minimum harus berupa angka nol atau lebih.', 'error');
@@ -7532,8 +7532,8 @@
       button.disabled = true;
       button.textContent = editId ? 'Menyimpan Perubahan...' : 'Menyimpan...';
       const query = editId
-        ? supabaseClient.from('inventory').update({ item_name: itemName, division, unit, reference_price: referencePrice, min_stock: minStock }).eq('id', editId).select('id').single()
-        : supabaseClient.from('inventory').insert([{ item_name: itemName, division, stock_quantity: 0, unit, reference_price: referencePrice, min_stock: minStock }]).select('id').single();
+        ? supabaseClient.from('inventory').update({ item_name: itemName, division, unit, reference_unit_cost: referencePrice, min_stock: minStock }).eq('id', editId).select('id').single()
+        : supabaseClient.from('inventory').insert([{ item_name: itemName, division, stock_quantity: 0, unit, reference_unit_cost: referencePrice, min_stock: minStock }]).select('id').single();
       const { data: savedInventory, error } = await query;
       button.disabled = false;
       button.textContent = editId ? 'Simpan Perubahan' : 'Simpan Bahan';
@@ -8006,7 +8006,7 @@
       await loadUnitConversionsForState();
       const [recipesResult, inventoryResult, movementsResult, purchasesResult, preparationsResult] = await Promise.all([
         supabaseClient.from('recipes').select('menu_name, variant, component_type, preparation_id, inventory_item_id, quantity_needed, recipe_unit'),
-        supabaseClient.from('inventory').select('id, item_name, division, stock_quantity, reference_price'),
+        supabaseClient.from('inventory').select('id, item_name, division, stock_quantity, reference_unit_cost'),
         fetchAllReportRows('stock_movements', 'inventory_item_id, quantity, unit_cost, movement_type, reference_type, reference_id, created_at', 'created_at'),
         fetchAllReportRows('stock_purchases', 'id, inventory_item_id, item_name, division, quantity_in, price_per_unit, created_at, status', 'created_at'),
         supabaseClient.rpc('list_preparations')
@@ -8083,9 +8083,9 @@
         if (latestPriceByItem.has(itemKey)) {
           return { value: latestPriceByItem.get(itemKey), source: 'latest_purchase_item' };
         }
-        const referencePrice = Number(inventoryItem?.reference_price);
+        const referencePrice = Number(inventoryItem?.reference_unit_cost);
         if (Number.isFinite(referencePrice) && referencePrice >= 0) {
-          return { value: referencePrice, source: 'reference_price' };
+          return { value: referencePrice, source: 'reference_unit_cost' };
         }
         return null;
       };
