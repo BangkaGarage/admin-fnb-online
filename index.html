@@ -7483,12 +7483,15 @@
       }
 
       const editId = $('#inventoryEditId').value.trim();
+      const existingItem = editId ? state.inventory.find((item) => String(item.id) === String(editId)) : null;
       const minStock = Number($('#inventoryMinStock').value);
       const itemName = $('#inventoryItemName').value.trim();
       const division = $('#inventoryDivision').value;
       const unit = $('#inventoryUnit').value.trim();
       const referencePriceInput = $('#inventoryReferencePrice').value.trim();
-      const referencePrice = referencePriceInput === '' ? null : Number(referencePriceInput);
+      const referencePrice = referencePriceInput === ''
+        ? (existingItem?.reference_price ?? null)
+        : Number(referencePriceInput);
       if (!Number.isFinite(minStock) || minStock < 0) {
         showInventoryMessage('Batas minimum harus berupa angka nol atau lebih.', 'error');
         return;
@@ -7516,7 +7519,6 @@
         return;
       }
 
-      const existingItem = editId ? state.inventory.find((item) => String(item.id) === String(editId)) : null;
       if (existingItem && String(existingItem.division || 'Gudang Utama') !== String(division) && (Number(existingItem.stock_quantity) || 0) !== 0) {
         showInventoryMessage('Divisi tidak dapat diubah saat bahan masih memiliki stok. Gunakan Transfer Stok agar saldo dan audit tetap benar.', 'error');
         return;
