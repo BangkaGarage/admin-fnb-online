@@ -1618,7 +1618,7 @@
       return isSuperAdmin() || state.user?.role === 'Admin';
     }
     const SEARCHABLE_SELECT_SELECTOR = [
-      '#mappingTargetMenu', '#mappingTargetVariant', '#conversionInventoryItem', '#transferItem', '#purchaseItem', '#priceBookItem',
+      '#mappingTargetMenu', '#mappingTargetVariant', '#transferItem', '#purchaseItem', '#priceBookItem',
       '#wasteItem', '#nonSaleItem', '#nonSalePreparation', '#stockDeductionItemFilter', '#stockMovementAnalyticsItem',
       '#assetEventAsset', '#opnameItem', '.recipe-ingredient-item', '.bom-component-select', '.menu-recipe-ingredient-item'
     ].join(', ');
@@ -1694,7 +1694,7 @@
     }
 
     function enhanceSearchableSelect(select) {
-      if (!select || select._searchableUI || select.multiple) return;
+      if (!select || select.tagName !== 'SELECT' || select._searchableUI || select.multiple) return;
       const wrapper = document.createElement('div');
       wrapper.className = 'searchable-select-wrap';
       const input = document.createElement('input');
