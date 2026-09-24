@@ -420,6 +420,9 @@
     .conversion-preview div { padding: 11px 12px; border: 1px solid var(--line); border-radius: 9px; background: #f8fafc; }
     .conversion-preview span { display: block; color: var(--muted); font-size: 11px; }
     .conversion-preview strong { display: block; margin-top: 4px; color: var(--navy); font-size: 14px; }
+    .inventory-conversion-block { margin-top: 18px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: #fbfcfe; }
+    .compact-panel-head { margin-bottom: 10px; }
+    .inventory-conversion-block input[readonly] { background: #eef2f7; color: var(--muted); }
     .conversion-table-wrap { max-height: 500px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
     .conversion-table { min-width: 980px; }
     .conversion-table td.numeric, .conversion-table th.numeric { text-align: right; }
@@ -587,8 +590,7 @@
           <div class="nav-group collapsed">
           <button class="nav-group-toggle" type="button" aria-expanded="false">Master Data &amp; Persediaan</button>
           <div class="nav-submenu">
-            <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="materials" data-title="Bahan Baku &amp; Resep"><span class="nav-icon">▤</span><span>Bahan &amp; Resep</span></button>
-            <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="conversion" data-super-admin-only="true" data-title="Konversi Satuan"><span class="nav-icon">⇄</span><span>Konversi Satuan</span></button>
+            <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="materials" data-title="Bahan Baku &amp; Konversi"><span class="nav-icon">▤</span><span>Bahan &amp; Konversi</span></button>
             <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="bom" data-super-admin-only="true" data-title="Preparation / Resep Acuan"><span class="nav-icon">≡</span><span>Preparation / Resep</span></button>
             <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="menu" data-super-admin-only="true" data-title="Master Menu &amp; HPP"><span class="nav-icon">▥</span><span>Menu &amp; HPP</span></button>
             <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="purchase" data-title="Belanja Masuk"><span class="nav-icon">＋</span><span>Belanja Masuk</span></button>
@@ -858,6 +860,30 @@
                     <input id="inventoryMinStock" type="number" min="0" step="0.01" placeholder="Contoh: 5" required />
                   </div>
                 </div>
+                <div class="inventory-conversion-block" id="inventoryConversionBlock">
+                  <div class="panel-head compact-panel-head">
+                    <div><h3>Konversi pembelian (opsional)</h3><p class="panel-subtitle">Atur di form yang sama. Stok selalu disimpan dalam satuan dasar bahan, sementara belanja dapat diinput dalam pack, dus, botol, karung, atau kemasan lain.</p></div>
+                  </div>
+                  <input id="conversionInventoryItem" type="hidden" />
+                  <div class="form-grid">
+                    <div class="form-field"><label for="conversionPurchaseQuantity">Contoh jumlah pembelian</label><input id="conversionPurchaseQuantity" type="number" min="0.0001" step="0.0001" value="1" /><small class="field-help">Untuk melihat pratinjau hasil konversi.</small></div>
+                    <div class="form-field"><label for="conversionPurchaseUnit">Satuan beli</label><input id="conversionPurchaseUnit" type="text" placeholder="pack, dus, botol, karung" /><small class="field-help">Contoh: 1 pack, 1 dus, atau 1 karung.</small></div>
+                    <div class="form-field"><label for="conversionPurchaseToStorage">Isi satuan dasar per 1 satuan beli</label><input id="conversionPurchaseToStorage" type="number" min="0.0001" step="0.0001" value="1" /><small class="field-help">Contoh: 1 pack susu = 1.000 ml, isi 1.000.</small></div>
+                    <div class="form-field"><label for="conversionStorageUnit">Satuan stok dasar</label><input id="conversionStorageUnit" type="text" placeholder="otomatis mengikuti Satuan Stok Dasar" readonly /><small class="field-help">Diambil otomatis dari Satuan Stok Dasar di atas.</small></div>
+                    <div class="form-field"><label for="conversionStorageToUsage">Satuan dasar ke satuan resep</label><input id="conversionStorageToUsage" type="number" min="0.0001" step="0.0001" value="1" /><small class="field-help">Biasanya 1 jika resep memakai ml/gr/pcs yang sama.</small></div>
+                    <div class="form-field"><label for="conversionUsageUnit">Satuan resep / pemakaian</label><input id="conversionUsageUnit" type="text" placeholder="ml, gr, pcs" /><small class="field-help">Satuan yang dipakai pada resep menu.</small></div>
+                    <div class="form-field"><label for="conversionYieldPercentage">Yield / hasil bersih (%)</label><input id="conversionYieldPercentage" type="number" min="0.01" max="100" step="0.01" value="100" /><small class="field-help">100% berarti tidak ada susut.</small></div>
+                    <div class="form-field full"><label for="conversionNotes">Catatan konversi</label><textarea id="conversionNotes" rows="2" placeholder="Contoh: 1 dus berisi 12 pack × 1.000 ml"></textarea></div>
+                  </div>
+                  <div class="conversion-preview">
+                    <div><span>Total stok dasar contoh</span><strong id="conversionTheoreticalStorage">-</strong></div>
+                    <div><span>Total satuan resep teoritis</span><strong id="conversionTheoreticalUsage">-</strong></div>
+                    <div><span>Total hasil efektif setelah yield</span><strong id="conversionUsableUsage">-</strong></div>
+                  </div>
+                  <p id="unitConversionMessage" class="form-message" role="status"></p>
+                  <input id="conversionActive" type="checkbox" checked hidden />
+                  <div id="unitConversionTableWrap" class="hidden"></div>
+                </div>
                 <div class="form-actions">
                   <button id="saveInventoryBtn" class="save-btn" type="submit">Simpan Bahan</button>
                   <button id="cancelInventoryEditBtn" class="reset-btn hidden" type="button">Batal Edit</button>
@@ -939,41 +965,6 @@
           </div>
           <div class="supabase-note">Contoh: Singkong memiliki acuan 30 porsi dan total ubi kayu 10.000 gr, bumbu 150/20/50/50/10 gr. Saat terjual 1 porsi, sistem memotong 10.000 ÷ 30 dari ubi kayu dan membagi bahan lain dengan cara yang sama.</div>
           <div class="panel" style="margin-top:18px;"><div class="panel-head"><div><h3>Import Preparation / Resep Acuan</h3><p class="panel-subtitle">Tanpa JSON: satu baris untuk satu bahan. Ulangi kode preparation pada bahan-bahan berikutnya.</p></div><div class="panel-actions"><button class="reset-btn" data-download-template="preparation" type="button">Download Template</button><label class="upload-btn" style="cursor:pointer">Pilih File<input type="file" accept=".xlsx,.xls,.csv" data-import-file="preparation" hidden /></label></div></div><p id="importPreparationMessage" class="form-message"></p></div>
-        </section>
-
-        <section id="conversionPage" class="page">
-          <div class="section-title"><h1>Konversi Satuan &amp; Yield</h1><p>Normalisasi bahan dari satuan beli ke satuan simpan dan satuan pakai, termasuk susut proses.</p></div>
-          <div class="expense-layout">
-            <div class="panel">
-              <div class="panel-head"><div><h3>Atur konversi bahan</h3><p class="panel-subtitle">Gunakan satuan yang mudah diinput staf. Contoh susu: beli 12 pack → stok 12.000 ml. Jika 2 pack dikirim ke Bar, sistem menghitung 2.000 ml untuk pemakaian resep.</p></div></div>
-              <form id="unitConversionForm">
-                <div class="form-grid">
-                  <div class="form-field full"><label for="conversionInventoryItem">Bahan Baku *</label><select id="conversionInventoryItem" required><option value="">Memuat bahan baku...</option></select></div>
-                  <div class="form-field"><label for="conversionPurchaseQuantity">Contoh Jumlah Pembelian *</label><input id="conversionPurchaseQuantity" type="number" min="0.0001" step="0.0001" value="1" required /><small class="field-help">Hanya untuk preview. Saat belanja, jumlah diinput pada form Stok Masuk.</small></div>
-                  <div class="form-field"><label for="conversionPurchaseUnit">Satuan Beli *</label><input id="conversionPurchaseUnit" type="text" placeholder="karton, dus, botol" required /></div>
-                  <div class="form-field"><label for="conversionPurchaseToStorage">Konversi Beli ke Simpan *</label><input id="conversionPurchaseToStorage" type="number" min="0.0001" step="0.0001" value="1" required /><small class="field-help">Berapa satuan simpan dalam 1 satuan beli. Contoh: 1 pack = 1.000 ml, isi 1.000.</small></div>
-                  <div class="form-field"><label for="conversionStorageUnit">Satuan Simpan *</label><input id="conversionStorageUnit" type="text" placeholder="pcs, pack, kg" required /></div>
-                  <div class="form-field"><label for="conversionStorageToUsage">Simpan ke Pakai *</label><input id="conversionStorageToUsage" type="number" min="0.0001" step="0.0001" value="1" required /><small class="field-help">Berapa satuan pakai dalam 1 satuan simpan. Contoh: 1 pack = 1.000 ml, isi 1.000.</small></div>
-                  <div class="form-field"><label for="conversionUsageUnit">Satuan Pakai / Resep *</label><input id="conversionUsageUnit" type="text" placeholder="gram, ml, pcs" required /></div>
-                  <div class="form-field"><label for="conversionYieldPercentage">Yield / Hasil Bersih (%) *</label><input id="conversionYieldPercentage" type="number" min="0.01" max="100" step="0.01" value="100" required /><small class="field-help">100% berarti tidak ada susut. Contoh daging bersih 80%.</small></div>
-                  <div class="form-field full"><label for="conversionNotes">Catatan</label><textarea id="conversionNotes" rows="2" placeholder="Contoh: 1 pack = 1.000 gram setelah dibuka"></textarea></div>
-                  <div class="form-field full"><label><input id="conversionActive" type="checkbox" checked /> Konversi aktif untuk HPP dan pemakaian resep</label></div>
-                </div>
-                <div class="conversion-preview">
-                  <div><span>Total satuan simpan</span><strong id="conversionTheoreticalStorage">-</strong></div>
-                  <div><span>Total satuan pakai teoritis</span><strong id="conversionTheoreticalUsage">-</strong></div>
-                  <div><span>Total pakai efektif setelah yield</span><strong id="conversionUsableUsage">-</strong></div>
-                </div>
-                <div class="form-actions"><button id="saveUnitConversionBtn" class="save-btn" type="submit">Simpan Konversi</button><button id="resetUnitConversionBtn" class="reset-btn" type="reset">Kosongkan</button></div>
-                <p id="unitConversionMessage" class="form-message" role="status"></p>
-              </form>
-              <div class="supabase-note">Gunakan satuan stok dasar yang sama dengan inventory, misalnya <code>gr</code>. Contoh: 20 kg dibeli, faktor beli ke stok dasar 1.000, sehingga stok menjadi 20.000 gr. Transfer dan resep kemudian dapat memakai gram secara langsung.</div>
-            </div>
-            <div class="panel history-panel">
-              <div class="panel-head"><div><h3>Daftar konversi bahan</h3><p class="panel-subtitle">Satu konfigurasi aktif per bahan. Gunakan Edit untuk memperbarui faktor konversi.</p></div><button id="refreshUnitConversionBtn" class="reset-btn" type="button">↻ Refresh</button></div>
-              <div id="unitConversionTableWrap" class="conversion-table-wrap"><div class="loading-row">Buka menu ini untuk memuat konfigurasi konversi.</div></div>
-            </div>
-          </div>
         </section>
 
         <section id="menuMasterPage" class="page">
@@ -1569,7 +1560,7 @@
     const TRANSFER_DESTINATIONS = ['Bar', 'Kitchen', 'Waiters'];
     // Admin boleh memakai seluruh modul operasional seperti Super Admin.
     // Reset Sistem tetap menjadi pengecualian dan hanya boleh dibuka Super Admin.
-    const ADMIN_PAGES = ['reportsWorkspacePage', 'blindOpnamePage', 'stockPage', 'assetPage', 'conversionPage', 'menuMasterPage', 'bomPage', 'transferPage', 'wastePage', 'stockReportPage', 'opnamePage', 'activityLogsPage', 'settingsPage'];
+    const ADMIN_PAGES = ['reportsWorkspacePage', 'blindOpnamePage', 'stockPage', 'assetPage', 'menuMasterPage', 'bomPage', 'transferPage', 'wastePage', 'stockReportPage', 'opnamePage', 'activityLogsPage', 'settingsPage'];
     const SUPER_ADMIN_ONLY_PAGES = ['systemResetPage'];
 
     const state = {
@@ -2148,7 +2139,6 @@
           loadCombinedInventoryData();
           activateMasterWorkspaceTab(button.dataset.masterTab || document.querySelector('.master-workspace-tab.active')?.dataset.masterTab || 'materials');
         }
-        if (requestedPage === 'conversionPage' && hasFullAdminAccess()) loadUnitConversionData();
         if (requestedPage === 'menuMasterPage' && hasFullAdminAccess()) loadMenuMaster();
         if (requestedPage === 'bomPage' && hasFullAdminAccess()) loadPreparations();
         if (requestedPage === 'transferPage') loadTransferData();
@@ -2230,7 +2220,7 @@
         closingPage: 'Closing Harian', blindOpnamePage: 'Blind Stock Opname', assetPage: 'Inventaris Aset',
         activityLogsPage: 'Log Aktivitas Staf', settingsPage: 'Pengaturan', systemResetPage: 'Reset Sistem'
       };
-      const masterLabels = { materials: 'Bahan Baku & Resep', conversion: 'Konversi Satuan', bom: 'Preparation / Resep Acuan', menu: 'Master Menu & HPP', purchase: 'Belanja Masuk', transfer: 'Transfer Stok', stock: 'Stok Gudang & Divisi', waste: 'Waste & Non-Penjualan', opname: 'Penyesuaian & Opname', movements: 'Audit Detail Mutasi' };
+      const masterLabels = { materials: 'Bahan Baku & Konversi', bom: 'Preparation / Resep Acuan', menu: 'Master Menu & HPP', purchase: 'Belanja Masuk', transfer: 'Transfer Stok', stock: 'Stok Gudang & Divisi', waste: 'Waste & Non-Penjualan', opname: 'Penyesuaian & Opname', movements: 'Audit Detail Mutasi' };
       const reportLabels = { sales: 'Penjualan & Rekonsiliasi', hpp: 'Food Cost & HPP', finance: 'Laba Rugi', backup: 'Backup & Export' };
       const operationLabels = { sales: 'Penjualan Manual', import: 'Import iSeller', expenses: 'Pengeluaran' };
       if (page === 'stockPage' && masterLabels[masterTab]) return `Konteks: ${masterLabels[masterTab]}`;
@@ -2246,7 +2236,6 @@
 
     const ASSISTANT_ROUTES = {
       'Belanja Masuk': { page: 'stockPage', tab: 'purchase' },
-      'Konversi Satuan': { page: 'stockPage', tab: 'conversion' },
       'Transfer Stok': { page: 'stockPage', tab: 'transfer' },
       'Penjualan dan Import iSeller': { page: 'expensePage' },
       'Resep dan HPP': { page: 'stockPage', tab: 'menu' },
@@ -2387,7 +2376,7 @@
     const menuMasterMessage = $('#menuMasterMessage');
     const bomForm = $('#bomForm');
     const bomMessage = $('#bomMessage');
-    const unitConversionForm = $('#unitConversionForm');
+    const unitConversionForm = $('#inventoryConversionBlock');
     const unitConversionMessage = $('#unitConversionMessage');
     const settingsGeneralForm = $('#settingsGeneralForm');
     const settingsStockForm = $('#settingsStockForm');
@@ -2400,6 +2389,7 @@
     const assetEventForm = $('#assetEventForm');
 
     inventoryForm.addEventListener('submit', saveInventoryItem);
+    $('#inventoryUnit')?.addEventListener('input', () => { const el = $('#conversionStorageUnit'); if (el) el.value = $('#inventoryUnit').value.trim(); updateUnitConversionPreview(); });
     transferForm.addEventListener('submit', saveStockTransfer);
     purchaseForm.addEventListener('submit', savePurchase);
     $('#purchaseDestination')?.addEventListener('change', syncPurchaseDestinationFields);
@@ -2410,7 +2400,6 @@
     opnameForm.addEventListener('submit', saveOpname);
     menuMasterForm.addEventListener('submit', saveMenuMaster);
     bomForm.addEventListener('submit', savePreparation);
-    unitConversionForm.addEventListener('submit', saveUnitConversion);
     settingsGeneralForm.addEventListener('submit', saveSettings);
     settingsStockForm.addEventListener('submit', saveSettings);
     settingsBrandingForm.addEventListener('submit', saveBrandingSettings);
@@ -2476,11 +2465,11 @@
     $('#bomLinesList').addEventListener('click', handleBomLineClick);
     $('#bomLinesList').addEventListener('change', handleBomLineChange);
     $('#bomTableWrap').addEventListener('click', handleBomTableClick);
-    $('#refreshUnitConversionBtn').addEventListener('click', loadUnitConversionData);
-    $('#resetUnitConversionBtn').addEventListener('click', () => window.setTimeout(clearUnitConversionForm, 0));
-    $('#conversionInventoryItem').addEventListener('change', updateUnitConversionPreview);
+    $('#refreshUnitConversionBtn')?.addEventListener('click', loadUnitConversionData);
+    $('#resetUnitConversionBtn')?.addEventListener('click', () => window.setTimeout(clearUnitConversionForm, 0));
+    $('#conversionInventoryItem')?.addEventListener('change', updateUnitConversionPreview);
     ['#conversionPurchaseQuantity', '#conversionPurchaseToStorage', '#conversionStorageToUsage', '#conversionYieldPercentage'].forEach((selector) => $(selector).addEventListener('input', updateUnitConversionPreview));
-    $('#unitConversionTableWrap').addEventListener('click', handleUnitConversionTableClick);
+    $('#unitConversionTableWrap')?.addEventListener('click', handleUnitConversionTableClick);
     $('#resetOpnameBtn').addEventListener('click', clearOpnameMessage);
     $('#previewOpnameBtn').addEventListener('click', () => {
       updateOpnamePreview();
@@ -2790,8 +2779,7 @@
       const host = document.createElement('div');
       host.id = 'masterWorkspaceTabHost';
       const specs = [
-        ['materials', 'Bahan Baku & Resep', ['stockPage'], false],
-        ['conversion', 'Konversi Satuan', ['conversionPage'], true],
+        ['materials', 'Bahan Baku & Konversi', ['stockPage'], false],
         ['bom', 'Preparation / Resep Acuan', ['bomPage'], true],
         ['menu', 'Master Menu & HPP', ['menuMasterPage'], true],
         ['purchase', 'Belanja Masuk', ['purchasePage'], false],
@@ -2971,7 +2959,7 @@
     function prepareCompactWorkspaces() {
       const panelBy = (root, selector) => root.querySelector(selector)?.closest('.panel');
       createInnerWorkspace($('#stockPage'), [
-        { label: 'Bahan Baku', getNodes: (root) => [root.querySelector('.inventory-layout > .inventory-panel:nth-child(1)'), root.querySelector(':scope > .deduction-note')] },
+        { label: 'Bahan Baku & Konversi', getNodes: (root) => [root.querySelector('.inventory-layout > .inventory-panel:nth-child(1)'), root.querySelector(':scope > .deduction-note')] },
         { label: 'Resep Menu', getNodes: (root) => [root.querySelector('.inventory-layout > .inventory-panel:nth-child(2)')] },
         { label: 'Import Bahan', getNodes: (root) => [panelBy(root, '#importInventoryMessage')] }
       ], { ariaLabel: 'Master bahan dan resep' });
@@ -2980,10 +2968,6 @@
         { label: 'Daftar Preparation', getNodes: (root) => [root.querySelector('.expense-layout > .panel.history-panel')] },
         { label: 'Import Preparation', getNodes: (root) => [panelBy(root, '#importPreparationMessage')] }
       ], { ariaLabel: 'Preparation dan resep acuan', removeSelectors: [':scope > .supabase-note'] });
-      createInnerWorkspace($('#conversionPage'), [
-        { label: 'Atur Konversi', getNodes: (root) => [root.querySelector('.expense-layout > .panel:nth-child(1)')] },
-        { label: 'Daftar Konversi', getNodes: (root) => [root.querySelector('.expense-layout > .panel.history-panel')] }
-      ], { ariaLabel: 'Konversi satuan' });
       createInnerWorkspace($('#menuMasterPage'), [
         { label: 'Form Menu & HPP', getNodes: (root) => [root.querySelector('.expense-layout > .panel:nth-child(1)')] },
         { label: 'Daftar Menu', getNodes: (root) => [root.querySelector('.expense-layout > .panel.history-panel')] },
@@ -3387,6 +3371,18 @@
         $('#inventoryUnit').value = item.unit || '';
         $('#inventoryReferencePrice').value = item.reference_price === null || item.reference_price === undefined ? '' : Number(item.reference_price);
         $('#inventoryMinStock').value = Number(item.min_stock) || 0;
+        const existingConversion = getUnitConversionForItem(item.id);
+        $('#conversionInventoryItem').value = item.id;
+        $('#conversionPurchaseQuantity').value = Number(existingConversion?.purchase_quantity) || 1;
+        $('#conversionPurchaseUnit').value = existingConversion?.purchase_unit || '';
+        $('#conversionPurchaseToStorage').value = Number(existingConversion?.purchase_to_storage) || 1;
+        $('#conversionStorageUnit').value = item.unit || '';
+        $('#conversionStorageToUsage').value = Number(existingConversion?.storage_to_usage) || 1;
+        $('#conversionUsageUnit').value = existingConversion?.usage_unit || item.unit || '';
+        $('#conversionYieldPercentage').value = Number(existingConversion?.yield_percentage) || 100;
+        $('#conversionNotes').value = existingConversion?.notes || '';
+        $('#conversionActive').checked = existingConversion?.is_active !== false;
+        updateUnitConversionPreview();
         $('#saveInventoryBtn').textContent = 'Simpan Perubahan';
         $('#cancelInventoryEditBtn').classList.remove('hidden');
         showInventoryMessage(`Mode edit: ${item.item_name}. Stok saat ini ${formatQuantity(item.stock_quantity)} ${item.unit || ''} tidak diubah.`, 'warning');
@@ -4613,7 +4609,7 @@
     }
 
     function clearUnitConversionForm() {
-      unitConversionForm.reset();
+      ['conversionInventoryItem','conversionPurchaseUnit','conversionStorageUnit','conversionUsageUnit','conversionNotes'].forEach((id) => { const el = $('#' + id); if (el) el.value = ''; });
       $('#conversionPurchaseQuantity').value = '1';
       $('#conversionPurchaseToStorage').value = '1';
       $('#conversionStorageToUsage').value = '1';
@@ -4734,53 +4730,72 @@
       $('#conversionPurchaseQuantity').focus();
     }
 
-    async function saveUnitConversion(event) {
-      event.preventDefault();
+    async function saveUnitConversionForItem(itemId, { silent = false } = {}) {
       if (!hasFullAdminAccess()) {
-        showUnitConversionMessage('Akses ditolak. Hanya Admin atau Super Admin yang dapat mengubah konversi.', 'error');
-        return;
+        if (!silent) showUnitConversionMessage('Akses ditolak. Hanya Admin atau Super Admin yang dapat mengubah konversi.', 'error');
+        return { error: new Error('Akses ditolak') };
       }
       if (!supabaseConfigured) {
-        showUnitConversionMessage('Supabase belum dikonfigurasi.', 'error');
-        return;
+        if (!silent) showUnitConversionMessage('Supabase belum dikonfigurasi.', 'error');
+        return { error: new Error('Supabase belum dikonfigurasi') };
       }
-      const itemId = $('#conversionInventoryItem').value;
-      const purchaseQuantity = Number($('#conversionPurchaseQuantity').value);
-      const purchaseToStorage = Number($('#conversionPurchaseToStorage').value);
-      const storageToUsage = Number($('#conversionStorageToUsage').value);
-      const yieldPercentage = Number($('#conversionYieldPercentage').value);
-      if (!itemId || !$('#conversionPurchaseUnit').value.trim() || !$('#conversionStorageUnit').value.trim() || !$('#conversionUsageUnit').value.trim() || ![purchaseQuantity, purchaseToStorage, storageToUsage].every((value) => Number.isFinite(value) && value > 0) || !Number.isFinite(yieldPercentage) || yieldPercentage <= 0 || yieldPercentage > 100) {
-        showUnitConversionMessage('Lengkapi bahan, tiga satuan, faktor konversi, dan yield 0–100% dengan benar.', 'error');
-        return;
+      const purchaseUnit = $('#conversionPurchaseUnit')?.value.trim() || '';
+      const storageUnit = ($('#conversionStorageUnit')?.value.trim() || $('#inventoryUnit')?.value.trim() || '').trim();
+      const usageUnit = $('#conversionUsageUnit')?.value.trim() || storageUnit;
+      const purchaseQuantityRaw = $('#conversionPurchaseQuantity')?.value;
+      const purchaseToStorageRaw = $('#conversionPurchaseToStorage')?.value;
+      const storageToUsageRaw = $('#conversionStorageToUsage')?.value;
+      const yieldRaw = $('#conversionYieldPercentage')?.value;
+      const hasConversionInput = Boolean(purchaseUnit || (purchaseQuantityRaw && Number(purchaseQuantityRaw) !== 1) || (purchaseToStorageRaw && Number(purchaseToStorageRaw) !== 1) || (storageToUsageRaw && Number(storageToUsageRaw) !== 1) || (yieldRaw && Number(yieldRaw) !== 100) || $('#conversionNotes')?.value.trim());
+      if (!hasConversionInput && !purchaseUnit) return { skipped: true };
+      const purchaseQuantity = Number(purchaseQuantityRaw || 1);
+      const purchaseToStorage = Number(purchaseToStorageRaw || 1);
+      const storageToUsage = Number(storageToUsageRaw || 1);
+      const yieldPercentage = Number(yieldRaw || 100);
+      if (!itemId || !purchaseUnit || !storageUnit || !usageUnit || ![purchaseQuantity, purchaseToStorage, storageToUsage].every((value) => Number.isFinite(value) && value > 0) || !Number.isFinite(yieldPercentage) || yieldPercentage <= 0 || yieldPercentage > 100) {
+        const error = new Error('Lengkapi satuan beli, satuan dasar, faktor konversi, satuan resep, dan yield 0–100% dengan benar.');
+        if (!silent) showUnitConversionMessage(error.message, 'error');
+        return { error };
       }
-      const button = $('#saveUnitConversionBtn');
-      button.disabled = true;
-      button.textContent = 'Menyimpan...';
-      try {
-        const { error } = await supabaseClient.rpc('save_unit_conversion', {
-          p_inventory_item_id: itemId,
-          p_purchase_unit: $('#conversionPurchaseUnit').value.trim(),
-          p_purchase_quantity: purchaseQuantity,
-          p_storage_unit: $('#conversionStorageUnit').value.trim(),
-          p_purchase_to_storage: purchaseToStorage,
-          p_usage_unit: $('#conversionUsageUnit').value.trim(),
-          p_storage_to_usage: storageToUsage,
-          p_yield_percentage: yieldPercentage,
-          p_notes: $('#conversionNotes').value.trim() || null,
-          p_is_active: $('#conversionActive').checked
-        });
-        if (error) throw error;
+      const { error } = await supabaseClient.rpc('save_unit_conversion', {
+        p_inventory_item_id: itemId,
+        p_purchase_unit: purchaseUnit,
+        p_purchase_quantity: purchaseQuantity,
+        p_storage_unit: storageUnit,
+        p_purchase_to_storage: purchaseToStorage,
+        p_usage_unit: usageUnit,
+        p_storage_to_usage: storageToUsage,
+        p_yield_percentage: yieldPercentage,
+        p_notes: $('#conversionNotes')?.value.trim() || null,
+        p_is_active: $('#conversionActive')?.checked !== false
+      });
+      if (!error) {
         const item = state.inventory.find((row) => String(row.id) === String(itemId));
-        void logActivity('UNIT_CONVERSION_UPDATE', `Konversi ${item?.item_name || itemId} diperbarui: ${purchaseQuantity} ${$('#conversionPurchaseUnit').value.trim()} menjadi ${formatQuantity(purchaseQuantity * purchaseToStorage * storageToUsage * yieldPercentage / 100)} ${$('#conversionUsageUnit').value.trim()}.`);
-        clearUnitConversionForm();
-        showUnitConversionMessage('Konversi satuan dan yield berhasil disimpan.', 'success');
-        await loadUnitConversionData();
+        void logActivity('UNIT_CONVERSION_UPDATE', `Konversi ${item?.item_name || itemId} disimpan: 1 ${purchaseUnit} menjadi ${formatQuantity(purchaseToStorage)} ${storageUnit}.`);
+      }
+      if (error && !silent) showUnitConversionMessage(`Konversi gagal disimpan: ${error.message}`, 'error');
+      return { error };
+    }
+
+    async function saveUnitConversion(event, forcedItemId = null) {
+      if (event?.preventDefault) event.preventDefault();
+      const itemId = forcedItemId || $('#conversionInventoryItem')?.value;
+      const button = $('#saveUnitConversionBtn');
+      if (button) { button.disabled = true; button.textContent = 'Menyimpan...'; }
+      try {
+        const result = await saveUnitConversionForItem(itemId);
+        if (!result.error && !result.skipped) {
+          showUnitConversionMessage('Konversi satuan berhasil disimpan bersama master bahan.', 'success');
+          await loadUnitConversionsForState();
+          updateUnitConversionPreview();
+        }
+        return result;
       } catch (error) {
         console.error(error);
         showUnitConversionMessage(`Konversi gagal disimpan: ${error.message}`, 'error');
+        return { error };
       } finally {
-        button.disabled = false;
-        button.textContent = 'Simpan Konversi';
+        if (button) { button.disabled = false; button.textContent = 'Simpan Konversi'; }
       }
     }
 
@@ -7515,9 +7530,9 @@
       button.disabled = true;
       button.textContent = editId ? 'Menyimpan Perubahan...' : 'Menyimpan...';
       const query = editId
-        ? supabaseClient.from('inventory').update({ item_name: itemName, division, unit, reference_price: referencePrice, min_stock: minStock }).eq('id', editId)
-        : supabaseClient.from('inventory').insert([{ item_name: itemName, division, stock_quantity: 0, unit, reference_price: referencePrice, min_stock: minStock }]);
-      const { error } = await query;
+        ? supabaseClient.from('inventory').update({ item_name: itemName, division, unit, reference_price: referencePrice, min_stock: minStock }).eq('id', editId).select('id').single()
+        : supabaseClient.from('inventory').insert([{ item_name: itemName, division, stock_quantity: 0, unit, reference_price: referencePrice, min_stock: minStock }]).select('id').single();
+      const { data: savedInventory, error } = await query;
       button.disabled = false;
       button.textContent = editId ? 'Simpan Perubahan' : 'Simpan Bahan';
 
@@ -7526,9 +7541,26 @@
         showInventoryMessage(`Gagal menyimpan bahan: ${error.message}`, 'error');
         return;
       }
-      showInventoryMessage(editId
-        ? `Bahan ${itemName} berhasil diperbarui. Saldo stok tetap dipertahankan.`
-        : 'Bahan baku berhasil disimpan dengan stok 0. Gunakan Stok Masuk saat stok supplier diterima, atau Penyesuaian Stok untuk saldo fisik awal.', 'success');
+      const savedItemId = savedInventory?.id || editId;
+      $('#conversionInventoryItem').value = savedItemId || '';
+      $('#conversionStorageUnit').value = unit;
+      let conversionSaveError = null;
+      try {
+        const conversionResult = await saveUnitConversionForItem(savedItemId, { silent: true });
+        if (conversionResult?.error) conversionSaveError = conversionResult.error;
+      } catch (conversionError) {
+        console.error(conversionError);
+        conversionSaveError = conversionError;
+      }
+      if (!conversionSaveError) await loadUnitConversionsForState();
+      showInventoryMessage(
+        conversionSaveError
+          ? `Bahan tersimpan, tetapi konversi belum tersimpan: ${conversionSaveError.message}`
+          : (editId
+            ? `Bahan ${itemName} dan konversinya berhasil diperbarui. Saldo stok tetap dipertahankan.`
+            : 'Bahan baku dan konversinya berhasil disimpan dengan stok 0. Gunakan Stok Masuk saat stok supplier diterima, atau Penyesuaian Stok untuk saldo fisik awal.'),
+        conversionSaveError ? 'warning' : 'success'
+      );
       void logActivity(editId ? 'INVENTORY_UPDATE' : 'INVENTORY_CREATE', editId
         ? `Bahan ${itemName} diperbarui di ${division}. Saldo stok tidak diubah.`
         : `Bahan ${itemName} berhasil ditambahkan di ${division} sebagai master bahan dengan stok 0.`);
@@ -7542,6 +7574,7 @@
       $('#inventoryEditId').value = '';
       $('#saveInventoryBtn').textContent = 'Simpan Bahan';
       $('#cancelInventoryEditBtn').classList.add('hidden');
+      clearUnitConversionForm();
       clearInventoryMessage();
     }
 
