@@ -908,7 +908,7 @@
               </div>
             </div>
           </div>
-          <div class="deduction-note">Saat laporan iSeller diunggah, sistem mencocokkan nama menu dengan resep, menghitung jumlah terjual × kebutuhan per porsi, lalu mengurangi stok pada divisi tempat bahan resep terdaftar: Bar, Kitchen, atau Waiters. Gudang Utama tidak dipotong langsung oleh penjualan.</div>
+            <div class="deduction-note">Saat laporan iSeller diunggah, sistem mencocokkan nama menu dengan resep dan menghitung HPP berdasarkan jumlah terjual. Stok aktual dicatat melalui Pemakaian Bahan Harian pada divisi Bar, Kitchen, atau Waiters agar tidak terjadi pemotongan ganda.</div>
           <div class="panel" style="margin-top:18px;"><div class="panel-head"><div><h3>Import Master Bahan Baku</h3><p class="panel-subtitle">Upload Excel sesuai template untuk membuat banyak bahan sekaligus.</p></div><div class="panel-actions"><button class="reset-btn" data-download-template="inventory" type="button">Download Template</button><label class="upload-btn" style="cursor:pointer">Pilih File<input type="file" accept=".xlsx,.xls,.csv" data-import-file="inventory" hidden /></label></div></div><p id="importInventoryMessage" class="form-message"></p></div>
         </section>
 
@@ -1170,7 +1170,7 @@
               <input id="stockDeductionStart" class="compact-select" type="date" title="Tanggal mulai" />
               <input id="stockDeductionEnd" class="compact-select" type="date" title="Tanggal akhir" />
               <select id="stockDeductionDivisionFilter" class="compact-select"><option value="all">Semua Divisi</option><option>Gudang Utama</option><option>Bar</option><option>Kitchen</option><option>Waiters</option></select>
-              <select id="stockDeductionTypeFilter" class="compact-select"><option value="all">Semua Jenis</option><option value="purchase">Belanja masuk</option><option value="sale">Penjualan / HPP</option><option value="transfer_in">Transfer masuk</option><option value="transfer_out">Transfer keluar</option><option value="waste">Waste</option><option value="non_sale">Non-penjualan</option><option value="opname">Opname / Koreksi</option><option value="production_in">Output preparation</option><option value="production_consume">Produksi / Preparation</option><option value="void">Void / Refund</option></select>
+              <select id="stockDeductionTypeFilter" class="compact-select"><option value="all">Semua Jenis</option><option value="purchase">Belanja masuk</option><option value="sale">Penjualan / HPP</option><option value="daily_usage">Pemakaian Harian</option><option value="transfer_in">Transfer masuk</option><option value="transfer_out">Transfer keluar</option><option value="waste">Waste</option><option value="non_sale">Non-penjualan</option><option value="opname">Opname / Koreksi</option><option value="production_in">Output preparation</option><option value="production_consume">Produksi / Preparation</option><option value="void">Void / Refund</option></select>
               <select id="stockDeductionItemFilter" class="compact-select"><option value="all">Semua Bahan</option></select>
               <button id="refreshStockDeductionBtn" class="reset-btn" type="button">↻ Refresh</button><button id="exportStockDeductionBtn" class="export-btn" type="button">Export Excel</button>
             </div>
@@ -2181,7 +2181,7 @@
       {
         keywords: ['penjualan', 'iseller', 'import', 'upload', 'nota', 'menu', 'varian'],
         title: 'Penjualan dan Import iSeller',
-        answer: 'Buka Input Penjualan & Pengeluaran. Untuk satu nota, gunakan Input Penjualan Manual. Untuk banyak transaksi, gunakan Import Penjualan iSeller.\n\nPastikan tanggal, nama menu, varian, unit terjual, harga satuan, dan harga total benar. Sistem akan melakukan validasi menu-varian dan resep sebelum data disimpan agar stok tidak salah potong.'
+        answer: 'Buka Input Penjualan & Pengeluaran. Untuk satu nota, gunakan Input Penjualan Manual. Untuk banyak transaksi, gunakan Import Penjualan iSeller.\n\nPastikan tanggal, nama menu, varian, unit terjual, harga satuan, dan harga total benar. Sistem menghitung HPP dari resep dan harga acuan/pembelian, tetapi stok dicatat terpisah melalui Pemakaian Bahan Harian agar stok tidak terpotong dua kali.'
       },
       {
         keywords: ['resep', 'hpp', 'harga pokok', 'menu', 'varian', 'bahan'],
@@ -5443,6 +5443,10 @@
         const waste = maps.wastes.get(referenceId);
         return { key: 'waste', label: 'Waste', purpose: waste?.reason || 'Bahan terbuang', reason: waste?.reason || movement.notes || '-' };
       }
+      if (type === 'daily_usage') {
+        const event = maps.nonSale.get(referenceId);
+        return { key: 'daily_usage', label: 'Pemakaian Bahan Harian', purpose: event?.reason || 'Pemakaian aktual harian', reason: event?.reason || movement.notes || '-' };
+      }
       if (type === 'non_sale') {
         const event = maps.nonSale.get(referenceId);
         const label = NON_SALE_TYPE_LABELS[event?.usage_type] || 'Pemakaian non-penjualan';
@@ -5564,7 +5568,7 @@
         fetchAllReportRows('stock_transfers', 'id, reference_id, item_name, source_division, destination_division, quantity, unit, status, created_at', 'created_at'),
         fetchAllReportRows('sales', 'product_name, variant, quantity_sold, sale_date, created_at, status, created_by', 'sale_date'),
         fetchAllReportRows('recipes', 'menu_name, variant, inventory_item_id, quantity_needed, recipe_unit', 'menu_name'),
-        fetchAllReportRows('fb_non_sale_events', 'id, usage_date, status', 'usage_date'),
+        fetchAllReportRows('fb_non_sale_events', 'id, usage_date, usage_type, status', 'usage_date'),
         fetchAllReportRows('fb_non_sale_event_lines', 'event_id, inventory_item_id, total_cost', 'event_id')
       ]);
       const { data: inventory, error: inventoryError } = inventoryResult;
@@ -5605,6 +5609,7 @@
       const safeNonSaleEvents = nonSaleEventError ? [] : (nonSaleEvents || []).filter((row) => String(row.status || 'posted').toLowerCase() !== 'void' && isStockReportDateInRange(row.usage_date, reportPeriod));
       const safeNonSaleEventIds = new Set(safeNonSaleEvents.map((row) => String(row.id)));
       const safeNonSaleLines = nonSaleLineError ? [] : (nonSaleLines || []).filter((row) => safeNonSaleEventIds.has(String(row.event_id)));
+      const nonSaleEventById = new Map(safeNonSaleEvents.map((row) => [String(row.id), row]));
       const visibleInventory = (inventory || []).filter((item) => !isVirtualPreparationItem(item));
       state.inventory = visibleInventory;
       const inventoryById = new Map(visibleInventory.map((item) => [String(item.id), item]));
@@ -5652,7 +5657,10 @@
       const nonSaleValueByItemId = new Map();
       safeNonSaleLines.forEach((line) => {
         const key = String(line.inventory_item_id);
-        nonSaleValueByItemId.set(key, (nonSaleValueByItemId.get(key) || 0) + (Number(line.total_cost) || 0));
+        const event = nonSaleEventById.get(String(line.event_id));
+        if (event?.usage_type !== 'daily_usage') {
+          nonSaleValueByItemId.set(key, (nonSaleValueByItemId.get(key) || 0) + (Number(line.total_cost) || 0));
+        }
       });
       safeWasteExpenses.filter((item) => item.category === 'Operasional / Food Waste').forEach((item) => {
         const itemName = String(item.expense_name || '').replace(/^(?:Food Waste|Waste) - /i, '').trim();
@@ -5678,6 +5686,7 @@
           if (movement.movement_type === 'void' && movement.reference_type === 'sales') return sum - Math.max(quantity, 0);
           return sum;
         }, 0) + fallbackSold;
+        const dailyUsage = itemMovements.filter((movement) => movement.movement_type === 'daily_usage').reduce((sum, movement) => sum + Math.abs(Number(movement.quantity) || 0), 0);
         const waste = itemMovements.filter((movement) => ['waste', 'non_sale'].includes(movement.movement_type)).reduce((sum, movement) => sum + Math.abs(Number(movement.quantity) || 0), 0);
         const finalStock = Number(item.stock_quantity) || 0;
         const movementsAfterEnd = reportPeriod.end
@@ -5703,6 +5712,7 @@
           transferIn,
           stockOut: transferOut,
           sold,
+          dailyUsage,
           waste,
           productionIn,
           productionConsume,
@@ -5807,7 +5817,7 @@
         const bucket = stockAnalyticsBucket(date, range.mode);
         const current = trend.get(bucket) || { inbound: 0, consumed: 0, waste: 0 };
         const inbound = ['purchase', 'transfer_in', 'return', 'production_in'].includes(type) && qty > 0;
-        const consumed = ['sale', 'non_sale'].includes(type) && qty < 0;
+        const consumed = ['sale', 'non_sale', 'daily_usage'].includes(type) && qty < 0;
         const waste = type === 'waste' || (type === 'non_sale' && String(row.reference_type || '').toLowerCase().includes('waste'));
         if (inbound) current.inbound += Math.abs(qty);
         if (consumed) current.consumed += Math.abs(qty);
@@ -5881,12 +5891,12 @@
       if (warehouseWrap) warehouseWrap.innerHTML = warehouseRows.length ? `<table class="report-table"><thead><tr><th>Nama Bahan</th><th>Satuan</th><th class="numeric">Stok Awal</th><th class="numeric">Belanja Masuk</th><th class="numeric">Transfer Keluar</th><th class="numeric">Pemakaian</th><th class="numeric">Waste</th><th class="numeric">Sisa Stok</th><th class="numeric">Nilai Sisa</th><th>Status</th></tr></thead><tbody>${warehouseRows.map((row) => {
         const isLow = isLowStockQuantity(row.final, row.minStock);
         const statusClass = row.final < 0 ? 'variance-positive' : (isLow ? 'stock-low' : 'stock-ok');
-        return `<tr><td>${escapeHtml(row.itemName || '-')}</td><td>${escapeHtml(row.unit || '-')}</td><td class="numeric">${formatStockDisplay(row.initial, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.purchaseIn, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.stockOut, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.sold, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.waste, row, row.unit)}</td><td class="numeric ${statusClass}">${formatStockDisplay(row.final, row, row.unit)}</td><td class="numeric">${formatRupiah(row.stockValue)}</td><td class="${statusClass}">${isLow ? 'Low Stock' : 'Aman'}</td></tr>`;
+        return `<tr><td>${escapeHtml(row.itemName || '-')}</td><td>${escapeHtml(row.unit || '-')}</td><td class="numeric">${formatStockDisplay(row.initial, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.purchaseIn, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.stockOut, row, row.unit)}</td><td class="numeric">${formatStockDisplay((row.sold || 0) + (row.dailyUsage || 0), row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.waste, row, row.unit)}</td><td class="numeric ${statusClass}">${formatStockDisplay(row.final, row, row.unit)}</td><td class="numeric">${formatRupiah(row.stockValue)}</td><td class="${statusClass}">${isLow ? 'Low Stock' : 'Aman'}</td></tr>`;
       }).join('')}</tbody></table>` : '<div class="loading-row">Belum ada stok di Gudang Utama sesuai filter.</div>';
       if (divisionWrap) divisionWrap.innerHTML = divisionRows.length ? `<table class="report-table"><thead><tr><th>Divisi</th><th>Nama Bahan</th><th>Satuan</th><th class="numeric">Stok Awal</th><th class="numeric">Transfer Masuk</th><th class="numeric">Pemakaian</th><th class="numeric">Waste</th><th class="numeric">Sisa Stok</th><th class="numeric">Nilai Sisa</th><th>Status</th></tr></thead><tbody>${divisionRows.map((row) => {
         const isLow = isLowStockQuantity(row.final, row.minStock);
         const statusClass = row.final < 0 ? 'variance-positive' : (isLow ? 'stock-low' : 'stock-ok');
-        return `<tr><td>${escapeHtml(row.division)}</td><td>${escapeHtml(row.itemName || '-')}</td><td>${escapeHtml(row.unit || '-')}</td><td class="numeric">${formatStockDisplay(row.initial, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.transferIn, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.sold, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.waste, row, row.unit)}</td><td class="numeric ${statusClass}">${formatStockDisplay(row.final, row, row.unit)}</td><td class="numeric">${formatRupiah(row.stockValue)}</td><td class="${statusClass}">${isLow ? 'Low Stock' : 'Aman'}</td></tr>`;
+        return `<tr><td>${escapeHtml(row.division)}</td><td>${escapeHtml(row.itemName || '-')}</td><td>${escapeHtml(row.unit || '-')}</td><td class="numeric">${formatStockDisplay(row.initial, row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.transferIn, row, row.unit)}</td><td class="numeric">${formatStockDisplay((row.sold || 0) + (row.dailyUsage || 0), row, row.unit)}</td><td class="numeric">${formatStockDisplay(row.waste, row, row.unit)}</td><td class="numeric ${statusClass}">${formatStockDisplay(row.final, row, row.unit)}</td><td class="numeric">${formatRupiah(row.stockValue)}</td><td class="${statusClass}">${isLow ? 'Low Stock' : 'Aman'}</td></tr>`;
       }).join('')}</tbody></table>` : `<div class="loading-row">Belum ada stok divisi${filter.division !== 'all' ? ` ${escapeHtml(filter.division)}` : ''} sesuai filter.</div>`;
     }
 
@@ -5913,7 +5923,7 @@
         'Belanja Masuk': row.purchaseIn,
         'Transfer Masuk': row.transferIn,
         'Transfer Keluar': row.stockOut,
-        'Terjual / HPP': row.sold,
+        'Terjual / Pemakaian Harian': (row.sold || 0) + (row.dailyUsage || 0),
         'Waste / Non-Penjualan': row.waste,
         'Penyesuaian Opname': row.adjustment,
         'Sisa Stok Akhir': row.final,
@@ -9388,7 +9398,7 @@
     }
 
     async function deductInventoryFromSales(file, rows) {
-      addUploadLog('warning', 'Jalur pemotongan stok lama dinonaktifkan. Upload penjualan diproses oleh process_sale_transaction.');
+      addUploadLog('warning', 'Penjualan berhasil diproses tanpa pemotongan stok otomatis. Catat pemakaian aktual melalui Pemakaian Bahan Harian.');
       return { status: 'disabled', validSalesRows: 0, matchedRows: 0 };
 
       /* Legacy implementation retained only for historical reference; it must never execute. */
