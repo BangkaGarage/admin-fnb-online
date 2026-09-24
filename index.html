@@ -997,7 +997,7 @@
                 <p id="menuMasterMessage" class="form-message" role="status"></p>
               </form>
           <div class="supabase-note">Harga yang disimpan akan memiliki riwayat tanggal berlaku. Perubahan harga tidak mengubah harga transaksi lama.</div>
-          <div class="panel" style="margin-top:18px;"><div class="panel-head"><div><h3>Import Master Menu &amp; Harga Jual</h3><p class="panel-subtitle">Tanpa JSON: satu baris untuk satu bahan resep. Ulangi kode menu dan varian yang sama pada bahan-bahan berikutnya.</p></div><div class="panel-actions"><button class="reset-btn" data-download-template="menu" type="button">Download Template</button><label class="upload-btn" style="cursor:pointer">Pilih File<input type="file" accept=".xlsx,.xls,.csv" data-import-file="menu" hidden /></label></div></div><p id="importMenuMessage" class="form-message"></p></div>
+          <div class="panel" style="margin-top:18px;"><div class="panel-head"><div><h3>Import Master Menu &amp; Harga Jual</h3><p class="panel-subtitle">Bisa memakai template resep aplikasi atau file produk iSeller. File produk iSeller otomatis mengambil nama, varian, kategori, dan harga tanpa menghapus resep yang sudah ada.</p></div><div class="panel-actions"><button class="reset-btn" data-download-template="menu" type="button">Download Template</button><label class="upload-btn" style="cursor:pointer">Pilih File<input type="file" accept=".xlsx,.xls,.csv" data-import-file="menu" hidden /></label></div></div><p id="importMenuMessage" class="form-message"></p></div>
             </div>
             <div class="panel history-panel">
               <div class="panel-head"><div><h3>Daftar menu aktif &amp; historis</h3><p class="panel-subtitle">Gunakan Edit untuk memperbarui harga atau status menu.</p></div><div class="panel-actions"><button id="syncMenuCatalogBtn" class="save-btn" type="button">Sinkronkan Menu &amp; Laporan</button><button id="refreshMenuMasterBtn" class="reset-btn" type="button">↻ Refresh</button></div></div>
@@ -6112,6 +6112,111 @@
     function importRowValue(row, key, fallback = '') { const found = Object.keys(row).find((name) => normalizeText(name).replace(/[^a-z0-9]/g, '') === normalizeText(key).replace(/[^a-z0-9]/g, '')); return found ? row[found] : fallback; }
     function importNumber(value, fallback = NaN) { if (typeof value === 'number') return value; const parsed = Number(String(value ?? '').trim().replace(/\.(?=\d{3}(?:\D|$))/g, '').replace(',', '.')); return Number.isFinite(parsed) ? parsed : fallback; }
     function importBoolean(value, fallback = true) { if (value === '' || value === null || value === undefined) return fallback; return !['false', '0', 'no', 'tidak', 'nonaktif'].includes(normalizeText(value)); }
+    function cleanISellerCsvField(value) {
+      return String(value ?? '').trim().replace(/^"+|"+$/g, '').replace(/""/g, '"').trim();
+    }
+    function isISellerProductCsv(text) {
+      const header = String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/)[0] || '';
+      const normalized = normalizeText(header).replace(/[^a-z0-9]/g, '');
+      return normalized.includes('createdat') && normalized.includes('handle') && normalized.includes('sku') && normalized.includes('name') && normalized.includes('price');
+    }
+    function parseISellerProductCsv(text) {
+      const lines = String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/).filter((line) => line.trim());
+      if (lines.length < 2 || !isISellerProductCsv(text)) throw new Error('Format file bukan product CSV iSeller yang dikenali.');
+      const operations = [];
+      const seen = new Set();
+      const duplicateRows = [];
+      const pricePattern = /""([0-9]+(?:[.,][0-9]+)?)"",""False""/;
+      const categoryMap = (raw) => {
+        const value = normalizeText(raw);
+        if (value === 'minuman') return 'Minuman';
+        if (value === 'makanan' || value === 'breakfast') return 'Makanan';
+        if (value === 'beer') return 'Beer';
+        return 'Other';
+      };
+      const divisionMap = (category) => ['Minuman', 'Beer'].includes(category) ? 'Bar' : 'Kitchen';
+      lines.slice(1).forEach((line, index) => {
+        const parts = line.split(',');
+        if (parts.length < 14) return;
+        const createdAt = cleanISellerCsvField(parts[0]);
+        const handle = cleanISellerCsvField(parts[1]);
+        const sku = cleanISellerCsvField(parts[2]);
+        const menuName = cleanISellerCsvField(parts[3]).replace(/\s+/g, ' ');
+        const category = categoryMap(cleanISellerCsvField(parts[7]));
+        const variant = cleanISellerCsvField(parts[12]).replace(/\s+/g, ' ') || 'Default';
+        const priceMatch = line.match(pricePattern);
+        const price = importNumber(priceMatch ? priceMatch[1] : '', NaN);
+        if (!menuName || !Number.isFinite(price) || price < 0) return;
+        const key = `${normalizeText(menuName)}::${normalizeText(variant)}`;
+        if (seen.has(key)) { duplicateRows.push(index + 2); return; }
+        seen.add(key);
+        const rawCode = sku || `${handle || 'ISELLER'}-${variant}`;
+        const menuCode = normalizeText(rawCode).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').toUpperCase().slice(0, 60) || `ISELLER-${index + 1}`;
+        const effectiveDateMatch = String(createdAt).match(/(\d{4})-(\d{2})-(\d{2})/);
+        operations.push({
+          menuCode,
+          menuName,
+          variant,
+          category,
+          outlet: 'Rebel House',
+          unit: 'porsi',
+          price,
+          effectiveDate: effectiveDateMatch ? `${effectiveDateMatch[1]}-${effectiveDateMatch[2]}-${effectiveDateMatch[3]}` : new Date().toISOString().slice(0, 10),
+          hppStandard: 0,
+          targetHppPct: 0,
+          stockDivision: divisionMap(category),
+          isActive: true,
+          bufferHppPct: 10,
+          recipeItems: []
+        });
+      });
+      if (!operations.length) throw new Error('Tidak ada baris menu iSeller yang dapat dibaca.');
+      return { operations, duplicateRows };
+    }
+    async function importISellerProductCsv(text) {
+      const parsed = parseISellerProductCsv(text);
+      const { data: existingRows, error: existingError } = await supabaseClient.rpc('list_menu_master');
+      if (existingError) throw existingError;
+      state.menuMasterRows = existingRows || [];
+      const existingKeys = new Set(state.menuMasterRows.map((row) => `${normalizeText(row.menu_name)}::${normalizeText(row.variant || 'Default')}`));
+      const usedCodes = new Set(state.menuMasterRows.map((row) => normalizeText(row.menu_code || '')));
+      let added = 0;
+      let skipped = 0;
+      const failures = [];
+      for (let index = 0; index < parsed.operations.length; index += 1) {
+        const operation = parsed.operations[index];
+        const key = `${normalizeText(operation.menuName)}::${normalizeText(operation.variant)}`;
+        if (existingKeys.has(key)) { skipped += 1; continue; }
+        let menuCode = operation.menuCode;
+        let suffix = 2;
+        while (usedCodes.has(menuCode)) menuCode = `${operation.menuCode.slice(0, Math.max(1, 60 - String(suffix).length - 1))}-${suffix++}`;
+        const { error } = await supabaseClient.rpc('save_menu_master', {
+          p_menu_id: null,
+          p_variant_id: null,
+          p_menu_code: menuCode,
+          p_menu_name: operation.menuName,
+          p_category: operation.category,
+          p_outlet: operation.outlet,
+          p_unit: operation.unit,
+          p_variant: operation.variant,
+          p_price: operation.price,
+          p_effective_date: operation.effectiveDate,
+          p_hpp_standard: 0,
+          p_target_hpp_pct: 0,
+          p_stock_division: operation.stockDivision,
+          p_is_active: true,
+          p_recipe_items: [],
+          p_buffer_hpp_pct: 10
+        });
+        if (error) failures.push(`${operation.menuName} / ${operation.variant}: ${error.message}`);
+        else { added += 1; existingKeys.add(key); usedCodes.add(menuCode); }
+        if ((index + 1) % 25 === 0 || index === parsed.operations.length - 1) importMessage('menu', `Memproses ${index + 1} dari ${parsed.operations.length} menu iSeller...`, 'warning');
+      }
+      await loadMenuMaster();
+      const duplicateNote = parsed.duplicateRows.length ? `, ${parsed.duplicateRows.length} duplikat di file dilewati` : '';
+      const failureNote = failures.length ? `, ${failures.length} gagal disimpan: ${failures.slice(0, 2).join(' | ')}` : '';
+      importMessage('menu', `Import iSeller selesai: ${added} menu-varian ditambahkan, ${skipped} sudah ada${duplicateNote}${failureNote}. Resep tetap kosong dan dapat diisi melalui tombol Edit.`, failures.length ? 'error' : 'success');
+    }
     function findImportInventory(itemName, division = '') {
       const candidates = state.inventory.filter((item) => normalizeText(item.item_name) === normalizeText(itemName));
       const sameDivision = candidates.find((item) => normalizeText(item.division || 'Gudang Utama') === normalizeText(division));
@@ -6314,6 +6419,13 @@
     async function importMassal(kind, file) {
       if (!file || !supabaseConfigured) return;
       try {
+        if (kind === 'menu' && file.name.toLowerCase().endsWith('.csv')) {
+          const csvText = await file.text();
+          if (isISellerProductCsv(csvText)) {
+            await importISellerProductCsv(csvText);
+            return;
+          }
+        }
         const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
         const firstDataSheet = workbook.SheetNames.find((name) => normalizeText(name) !== 'petunjuk') || workbook.SheetNames[0];
         const rows = (sheetName) => importSheetRows(workbook, sheetName) || [];
