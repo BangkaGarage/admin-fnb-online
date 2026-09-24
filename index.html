@@ -400,6 +400,7 @@
     .inventory-panel { min-width: 0; }
     .inventory-table-wrap { max-height: 430px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
     .inventory-table { min-width: 560px; }
+    .inventory-filter-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, .55fr); gap: 12px; margin: 16px 0 0; }
     .stock-low { color: var(--red); font-weight: 850; }
     .stock-minus { color: #7f1d1d; font-weight: 900; }
     .stock-ok { color: var(--green); font-weight: 750; }
@@ -422,8 +423,6 @@
     .conversion-table-wrap { max-height: 500px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
     .conversion-table { min-width: 980px; }
     .conversion-table td.numeric, .conversion-table th.numeric { text-align: right; }
-    /* Konversi sekarang dikelola dari form Master Bahan Baku. */
-    #conversionPage { display: none !important; }
     .manual-sale-items-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 18px 0 10px; }
     .manual-sale-items-head h4 { margin: 0; color: var(--navy); font-size: 14px; }
     .manual-sale-items-head p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
@@ -511,6 +510,7 @@
       .stats-grid, .finance-stats-grid { grid-template-columns: 1fr; }
       .nav { grid-template-columns: 1fr; }
       .form-grid { grid-template-columns: 1fr; }
+      .inventory-filter-grid { grid-template-columns: 1fr; }
       .calculation-box { grid-template-columns: 1fr; }
       .conversion-preview { grid-template-columns: 1fr; }
       .recipe-ingredient-row { grid-template-columns: 1fr; }
@@ -588,6 +588,7 @@
           <button class="nav-group-toggle" type="button" aria-expanded="false">Master Data &amp; Persediaan</button>
           <div class="nav-submenu">
             <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="materials" data-title="Bahan Baku &amp; Resep"><span class="nav-icon">▤</span><span>Bahan &amp; Resep</span></button>
+            <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="conversion" data-super-admin-only="true" data-title="Konversi Satuan"><span class="nav-icon">⇄</span><span>Konversi Satuan</span></button>
             <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="bom" data-super-admin-only="true" data-title="Preparation / Resep Acuan"><span class="nav-icon">≡</span><span>Preparation / Resep</span></button>
             <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="menu" data-super-admin-only="true" data-title="Master Menu &amp; HPP"><span class="nav-icon">▥</span><span>Menu &amp; HPP</span></button>
             <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="purchase" data-title="Belanja Masuk"><span class="nav-icon">＋</span><span>Belanja Masuk</span></button>
@@ -847,19 +848,6 @@
                     <input id="inventoryUnit" type="text" placeholder="gr, ml, pcs" required />
                     <small class="field-help">Gunakan satuan operasional terkecil yang dipakai resep, misalnya gr atau ml.</small>
                   </div>
-                  <div class="form-field">
-                    <label for="inventoryReferenceUnitCost">Harga Acuan per Satuan Stok</label>
-                    <input id="inventoryReferenceUnitCost" type="number" min="0" step="0.0001" placeholder="Contoh: 85 (per gr)" />
-                    <small class="field-help">Opsional. Isi harga per satuan stok dasar (Rp/gr, Rp/ml, atau Rp/pcs). Tidak menambah stok.</small>
-                  </div>
-                  <div class="form-field full"><label>Konversi Bahan <span style="font-weight:400;color:#64748b">(opsional)</span></label><small class="field-help">Isi di sini sekaligus saat membuat bahan. Contoh: 1 dus → 12.000 ml, lalu resep memakai ml. Satuan simpan mengikuti Satuan Stok Dasar di atas.</small></div>
-                  <div class="form-field"><label for="inventoryPurchaseQuantity">Jumlah Satuan Beli</label><input id="inventoryPurchaseQuantity" type="number" min="0.0001" step="0.0001" value="1" placeholder="Contoh: 1" /></div>
-                  <div class="form-field"><label for="inventoryPurchaseUnit">Satuan Beli</label><input id="inventoryPurchaseUnit" type="text" placeholder="dus, pack, karung" /></div>
-                  <div class="form-field"><label for="inventoryPurchaseToStorage">Hasil ke Satuan Simpan</label><input id="inventoryPurchaseToStorage" type="number" min="0.0001" step="0.0001" value="1" placeholder="Contoh: 12000" /><small class="field-help">1 satuan beli menghasilkan berapa satuan stok dasar.</small></div>
-                  <div class="form-field"><label for="inventoryStorageToUsage">Satuan Simpan ke Pakai</label><input id="inventoryStorageToUsage" type="number" min="0.0001" step="0.0001" value="1" placeholder="Contoh: 1" /></div>
-                  <div class="form-field"><label for="inventoryUsageUnit">Satuan Pakai / Resep</label><input id="inventoryUsageUnit" type="text" placeholder="ml, gr, pcs" /></div>
-                  <div class="form-field"><label for="inventoryYieldPercentage">Yield Efektif (%)</label><input id="inventoryYieldPercentage" type="number" min="0.01" max="100" step="0.01" value="100" placeholder="100" /></div>
-                  <div class="form-field full"><label for="inventoryConversionNotes">Catatan Konversi</label><textarea id="inventoryConversionNotes" rows="2" placeholder="Contoh: 1 dus berisi 12 botol @ 1 liter"></textarea></div>
                   <div class="form-field full">
                     <label for="inventoryMinStock">Batas Minimum Stok *</label>
                     <input id="inventoryMinStock" type="number" min="0" step="0.01" placeholder="Contoh: 5" required />
@@ -872,19 +860,25 @@
                 </div>
                 <p id="inventoryMessage" class="form-message" role="status"></p>
               </form>
-              <div class="form-field" style="margin:16px 0 0;">
-                <label for="inventoryDivisionFilter">Filter Divisi</label>
-                <select id="inventoryDivisionFilter">
-                  <option value="all">Semua Divisi</option>
-                  <option value="Gudang Utama">Gudang Utama</option>
-                  <option value="Bar">Bar</option>
-                  <option value="Kitchen">Kitchen</option>
-                  <option value="Waiters">Waiters</option>
-                </select>
+              <div class="inventory-filter-grid">
+                <div class="form-field">
+                  <label for="inventorySearch">Cari bahan</label>
+                  <input id="inventorySearch" type="search" placeholder="Ketik nama bahan, satuan, atau divisi..." autocomplete="off" />
+                </div>
+                <div class="form-field">
+                  <label for="inventoryDivisionFilter">Filter Divisi</label>
+                  <select id="inventoryDivisionFilter">
+                    <option value="all">Semua Divisi</option>
+                    <option value="Gudang Utama">Gudang Utama</option>
+                    <option value="Bar">Bar</option>
+                    <option value="Kitchen">Kitchen</option>
+                    <option value="Waiters">Waiters</option>
+                  </select>
+                </div>
               </div>
               <div class="inventory-table-wrap" id="inventoryTableWrap"><div class="loading-row">Buka halaman ini untuk memuat data stok.</div></div>
               <div class="supabase-note">Preparation/semi-finished bersifat virtual dan tidak ditampilkan sebagai stok fisik. Yang dikontrol di sini hanya bahan mentah per divisi.</div>
-              <div class="supabase-note">Master bahan hanya membuat baris <code>inventory</code> dengan stok 0. Harga acuan hanya dipakai untuk menghitung HPP dan tidak menambah stok. Untuk stok awal yang sudah tersedia, gunakan Penyesuaian Stok; untuk pembelian baru, gunakan Belanja Masuk.</div>
+              <div class="supabase-note">Master bahan hanya membuat baris <code>inventory</code> dengan stok 0. Untuk stok awal yang sudah tersedia, gunakan Penyesuaian Stok; untuk pembelian baru, gunakan Stok Masuk.</div>
             </div>
 
             <div class="panel inventory-panel">
@@ -905,7 +899,7 @@
                   <div class="panel-actions"><button id="toggleRecipeDetailBtn" class="reset-btn" type="button">Sembunyikan Detail</button><button id="exportRecipeDetailBtn" class="save-btn" type="button">Export Detail Excel</button><button id="refreshRecipesBtn" class="reset-btn" type="button">↻ Refresh</button></div>
                 </div>
                 <div class="recipe-table-wrap" id="recipeTableWrap"><div class="loading-row">Buka halaman ini untuk memuat resep.</div></div>
-                <div class="supabase-note">Resep penjualan memotong stok pada divisi pemakaian: Bar, Kitchen, atau Waiters. Bahan dari Gudang Utama dapat dipakai untuk membuat resep; sistem akan menyiapkan baris bahan di divisi tujuan dengan stok 0 tanpa menunggu transfer.</div>
+                <div class="supabase-note">Resep penjualan wajib menunjuk stok divisi pemakaian: Bar, Kitchen, atau Waiters. Gudang Utama hanya menjadi stok sumber.</div>
               </div>
             </div>
           </div>
@@ -999,7 +993,7 @@
                   <div class="form-field"><label for="menuMasterTargetHpp">Target HPP (%)</label><input id="menuMasterTargetHpp" type="number" min="0" max="100" step="0.1" placeholder="Contoh: 30" /></div>
                   <div class="form-field"><label for="menuMasterBuffer">Buffer HPP (%)</label><input id="menuMasterBuffer" type="number" min="0" max="100" step="0.1" value="10" placeholder="Contoh: 10" /><small class="field-help">Cadangan biaya tidak terhitung. Tidak memotong stok dan tidak menjadi pengeluaran.</small></div>
                   <div class="form-field full"><label><input id="menuMasterActive" type="checkbox" checked /> Menu aktif dan dapat digunakan dalam penjualan</label></div>
-                  <div class="form-field full"><label>Resep dan kebutuhan per porsi</label><div id="menuRecipeIngredientsList" class="recipe-ingredients-list"></div><button id="addMenuRecipeIngredientBtn" class="reset-btn add-ingredient-btn" type="button">+ Tambah Komponen Resep</button><small class="field-help">Bahan dari Gudang Utama boleh dipilih. Saat disimpan, sistem otomatis menyiapkan baris stok 0 di divisi pemotongan menu. Saat penjualan terjadi, stok dipotong dari divisi tersebut.</small></div>
+                  <div class="form-field full"><label>Resep dan kebutuhan per porsi</label><div id="menuRecipeIngredientsList" class="recipe-ingredients-list"></div><button id="addMenuRecipeIngredientBtn" class="reset-btn add-ingredient-btn" type="button">+ Tambah Komponen Resep</button><small class="field-help">Pilih bahan dari stok Bar, Kitchen, atau Waiters, atau pilih preparation dari tab Preparation &amp; Produksi. Untuk preparation, isi 1 porsi jika menu memakai 1 porsi.</small></div>
                   <div class="form-field"><label for="menuMasterCalculatedHpp">HPP Bahan Aktual</label><input id="menuMasterCalculatedHpp" type="text" value="Rp0" readonly /></div>
                   <div class="form-field"><label for="menuMasterReferenceHpp">HPP Acuan Setelah Buffer</label><input id="menuMasterReferenceHpp" type="text" value="Rp0" readonly /><small class="field-help">HPP aktual × (1 + Buffer HPP).</small></div>
                 </div>
@@ -1146,7 +1140,7 @@
             <div class="warehouse-chip"><span>Nilai stok Waiters</span><strong id="stockValueWaiters">Rp0</strong></div>
           </div>
           <div class="panel" style="margin-bottom:18px;">
-            <div class="panel-head"><div><h3>Laporan Stok Gudang Utama</h3><p class="panel-subtitle">Khusus bahan yang tersimpan di Gudang Utama. Transfer keluar ke divisi tidak digabung ke saldo gudang.</p></div><div class="panel-actions"><input id="warehouseStockReportSearch" class="compact-select" type="search" placeholder="Cari bahan Gudang Utama" aria-label="Cari bahan Gudang Utama" /><span class="status-badge status-success">Gudang Utama</span></div></div>
+            <div class="panel-head"><div><h3>Laporan Stok Gudang Utama</h3><p class="panel-subtitle">Khusus bahan yang tersimpan di Gudang Utama. Transfer keluar ke divisi tidak digabung ke saldo gudang.</p></div><span class="status-badge status-success">Gudang Utama</span></div>
             <div id="warehouseStockReportTableWrap" class="report-table-wrap"><div class="loading-row">Memuat stok Gudang Utama...</div></div>
           </div>
           <div class="panel" style="margin-bottom:18px;">
@@ -1174,7 +1168,7 @@
             <div id="stockMovementAnalyticsTableWrap" class="report-table-wrap"><div class="loading-row">Pilih periode lalu refresh analitik.</div></div>
           </div>
           <div class="panel">
-            <div class="panel-head"><div><h3>Laporan Stok Divisi</h3><p class="panel-subtitle">Stok yang sudah berada di Bar, Kitchen, atau Waiters. Pilih satu divisi agar pemeriksaan stok lebih cepat.</p></div><div class="panel-actions"><input id="stockReportStart" class="compact-select" type="date" title="Tanggal mulai" /><input id="stockReportEnd" class="compact-select" type="date" title="Tanggal akhir" /><select id="divisionStockReportFilter" class="compact-select"><option value="all">Semua Divisi</option><option>Bar</option><option>Kitchen</option><option>Waiters</option></select><input id="divisionStockReportSearch" class="compact-select" type="search" placeholder="Cari bahan divisi" aria-label="Cari bahan divisi" /><button id="refreshStockReportBtn" class="reset-btn" type="button">↻ Refresh</button><button id="exportStockReportExcelBtn" class="export-btn" type="button">Export Excel</button><button id="exportStockReportPdfBtn" class="export-btn" type="button">Export PDF</button></div></div>
+            <div class="panel-head"><div><h3>Laporan Stok Divisi</h3><p class="panel-subtitle">Stok yang sudah berada di Bar, Kitchen, atau Waiters. Pilih satu divisi agar pemeriksaan stok lebih cepat.</p></div><div class="panel-actions"><input id="stockReportStart" class="compact-select" type="date" title="Tanggal mulai" /><input id="stockReportEnd" class="compact-select" type="date" title="Tanggal akhir" /><select id="divisionStockReportFilter" class="compact-select"><option value="all">Semua Divisi</option><option>Bar</option><option>Kitchen</option><option>Waiters</option></select><input id="stockReportSearch" class="compact-select" type="search" placeholder="Cari bahan" /><button id="refreshStockReportBtn" class="reset-btn" type="button">↻ Refresh</button><button id="exportStockReportExcelBtn" class="export-btn" type="button">Export Excel</button><button id="exportStockReportPdfBtn" class="export-btn" type="button">Export PDF</button></div></div>
             <div id="divisionStockReportTableWrap" class="report-table-wrap"><div class="loading-row">Buka menu ini untuk memuat laporan stok divisi.</div></div>
             <div class="supabase-note">Saldo divisi dihitung dari transfer masuk, pemakaian resep penjualan, pemakaian non-penjualan, waste, dan opname. Stok Gudang Utama ditampilkan di laporan terpisah di atas.</div>
           </div>
@@ -1590,9 +1584,6 @@
       dashboardExpenseRows: [],
       dashboardDate: '',
       salesReportRows: [],
-      hppMap: new Map(),
-      hppMapPromise: null,
-      hppMapError: null,
       salesAnalytics: { totalRevenue: 0, totalHpp: 0, hasRevenue: false, hppComplete: true, dailyLabels: [], dailyValues: [], dailyKeys: [], dailyRevenue: [], dailyHpp: [], topProducts: [], categoryMetrics: [], variantMetrics: [] },
       activityLogs: [],
       dailyClosings: [],
@@ -1804,7 +1795,7 @@
         start: value('hppHistoryStart'), end: value('hppHistoryEnd'), menu: String(value('hppHistorySearch')).trim().toLowerCase(), variant: '', status: value('hppHistoryStatus', 'all').toLowerCase(), user: '', category: 'all', division: 'all'
       };
       if (activePage === 'stockReportPage' || activeMasterTab === 'stock') return {
-        start: value('stockReportStart'), end: value('stockReportEnd'), menu: '', variant: '', status: 'all', user: '', category: 'all', division: value('divisionStockReportFilter', 'all')
+        start: value('stockReportStart'), end: value('stockReportEnd'), menu: String(value('stockReportSearch')).trim().toLowerCase(), variant: '', status: 'all', user: '', category: 'all', division: value('divisionStockReportFilter', 'all')
       };
       if (activePage === 'wastePage' || activeMasterTab === 'waste') return {
         start: value('wasteStart'), end: value('wasteEnd'), menu: String(value('wasteSearch')).trim().toLowerCase(), variant: '', status: 'all', user: '', category: 'all', division: value('wasteDivisionFilter', 'all')
@@ -2234,6 +2225,7 @@
 
     const ASSISTANT_ROUTES = {
       'Belanja Masuk': { page: 'stockPage', tab: 'purchase' },
+      'Konversi Satuan': { page: 'stockPage', tab: 'conversion' },
       'Transfer Stok': { page: 'stockPage', tab: 'transfer' },
       'Penjualan dan Import iSeller': { page: 'expensePage' },
       'Resep dan HPP': { page: 'stockPage', tab: 'menu' },
@@ -2411,6 +2403,7 @@
     $('#inventoryTableWrap').addEventListener('click', handleInventoryTableClick);
     $('#recipeTableWrap').addEventListener('click', handleRecipeTableClick);
     $('#inventoryDivisionFilter').addEventListener('change', () => renderInventoryTable(state.inventory));
+    $('#inventorySearch').addEventListener('input', () => renderInventoryTable(state.inventory));
     $('#refreshTransfersBtn').addEventListener('click', loadTransferData);
     $('#transferTableWrap').addEventListener('click', handleTransferTableClick);
     $('#transferItem').addEventListener('change', updateTransferUnitHint);
@@ -2475,8 +2468,7 @@
       if ($('#stockMovementAnalyticsPeriod')) $('#stockMovementAnalyticsPeriod').value = 'custom';
       loadStockReport();
     }));
-    $('#warehouseStockReportSearch')?.addEventListener('input', () => renderStockReport(state.stockReport));
-    $('#divisionStockReportSearch')?.addEventListener('input', () => renderStockReport(state.stockReport));
+    $('#stockReportSearch')?.addEventListener('input', () => renderStockReport(state.stockReport));
     $('#refreshStockMovementAnalyticsBtn')?.addEventListener('click', loadStockMovementAnalytics);
     $('#stockMovementAnalyticsPeriod')?.addEventListener('change', applyStockAnalyticsPeriod);
     $('#stockMovementAnalyticsDivision')?.addEventListener('change', loadStockMovementAnalytics);
@@ -2744,6 +2736,7 @@
       document.querySelector('.nav-btn[data-page="stockPage"][data-master-tab="' + tabKey + '"]')?.classList.add('active');
       const loaders = {
         materials: async () => { await loadInventory(); await loadRecipes(); },
+        conversion: loadUnitConversionData,
         menu: async () => { await loadPreparations(); await loadMenuMaster(); },
         bom: loadPreparations,
         purchase: loadPurchaseData,
@@ -2768,6 +2761,7 @@
       host.id = 'masterWorkspaceTabHost';
       const specs = [
         ['materials', 'Bahan Baku & Resep', ['stockPage'], false],
+        ['conversion', 'Konversi Satuan', ['conversionPage'], true],
         ['bom', 'Preparation / Resep Acuan', ['bomPage'], true],
         ['menu', 'Master Menu & HPP', ['menuMasterPage'], true],
         ['purchase', 'Belanja Masuk', ['purchasePage'], false],
@@ -2956,6 +2950,10 @@
         { label: 'Daftar Preparation', getNodes: (root) => [root.querySelector('.expense-layout > .panel.history-panel')] },
         { label: 'Import Preparation', getNodes: (root) => [panelBy(root, '#importPreparationMessage')] }
       ], { ariaLabel: 'Preparation dan resep acuan', removeSelectors: [':scope > .supabase-note'] });
+      createInnerWorkspace($('#conversionPage'), [
+        { label: 'Atur Konversi', getNodes: (root) => [root.querySelector('.expense-layout > .panel:nth-child(1)')] },
+        { label: 'Daftar Konversi', getNodes: (root) => [root.querySelector('.expense-layout > .panel.history-panel')] }
+      ], { ariaLabel: 'Konversi satuan' });
       createInnerWorkspace($('#menuMasterPage'), [
         { label: 'Form Menu & HPP', getNodes: (root) => [root.querySelector('.expense-layout > .panel:nth-child(1)')] },
         { label: 'Daftar Menu', getNodes: (root) => [root.querySelector('.expense-layout > .panel.history-panel')] },
@@ -3356,16 +3354,6 @@
         $('#inventoryItemName').value = item.item_name || '';
         $('#inventoryDivision').value = item.division || 'Gudang Utama';
         $('#inventoryUnit').value = item.unit || '';
-        $('#inventoryReferenceUnitCost').value = Number.isFinite(Number(item.reference_unit_cost)) ? Number(item.reference_unit_cost) : '';
-        if (!state.unitConversions.length) await loadUnitConversionsForState();
-        const conversion = getUnitConversionForItem(item.id);
-        $('#inventoryPurchaseQuantity').value = conversion ? Number(conversion.purchase_quantity) || 1 : 1;
-        $('#inventoryPurchaseUnit').value = conversion?.purchase_unit || '';
-        $('#inventoryPurchaseToStorage').value = conversion ? Number(conversion.purchase_to_storage) || 1 : 1;
-        $('#inventoryStorageToUsage').value = conversion ? Number(conversion.storage_to_usage) || 1 : 1;
-        $('#inventoryUsageUnit').value = conversion?.usage_unit || '';
-        $('#inventoryYieldPercentage').value = conversion ? Number(conversion.yield_percentage) || 100 : 100;
-        $('#inventoryConversionNotes').value = conversion?.notes || '';
         $('#inventoryMinStock').value = Number(item.min_stock) || 0;
         $('#saveInventoryBtn').textContent = 'Simpan Perubahan';
         $('#cancelInventoryEditBtn').classList.remove('hidden');
@@ -3595,9 +3583,8 @@
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (!error && data && Number.isFinite(Number(data.price_per_unit))) return Number(data.price_per_unit) || 0;
-      const inventoryItem = state.inventory.find((item) => String(item.id) === String(inventoryItemId));
-      return Number(inventoryItem?.reference_unit_cost) || 0;
+      if (error || !data) return 0;
+      return Number(data.price_per_unit) || 0;
     }
 
     function populateWarehouseItemSelect(selectId, items, placeholder = 'Pilih bahan baku') {
@@ -3855,7 +3842,6 @@
           : `${formatQuantity(directStorageQuantity)} ${storageUnit} dikirim otomatis ke ${destination}, sisa ${formatQuantity(remainingStorageQuantity)} ${storageUnit} di Gudang Utama`;
         showPurchaseMessage(`Belanja ${formatQuantity(quantity)} ${purchaseUnit} berhasil: ${destinationText}.`, 'success');
         void logActivity('PURCHASE', `Belanja masuk ${formatQuantity(quantity)} ${purchaseUnit} ${selected.item_name}; ${destinationText}.`);
-        invalidateHppMap();
         purchaseForm.reset();
         await loadPurchaseData();
         await loadLowStockAlert();
@@ -4282,7 +4268,6 @@
         nonSaleMessage.textContent = `${NON_SALE_TYPE_LABELS[usageType] || usageType} berhasil dicatat. ${data?.line_count || 0} bahan dipotong. Nilai ${formatRupiah(totalCost)}.`;
         nonSaleMessage.className = 'form-message success';
         void logActivity('NON_SALE_USAGE', `${NON_SALE_TYPE_LABELS[usageType] || usageType}: ${reason}`);
-        invalidateHppMap();
         nonSaleForm.reset();
         $('#nonSaleDate').value = usageDate;
         syncNonSaleSourceFields();
@@ -4476,7 +4461,6 @@
         const lossAmount = Number(result?.loss_amount) || 0;
         showWasteMessage(`Waste tercatat secara atomik. Stok ${target.item_name} di ${division} sekarang ${formatQuantity(newStock)} ${target.unit || ''}. Nilai kerugian ${formatRupiah(lossAmount)}.`, 'success');
         void logActivity('WASTE', `Waste ${formatQuantity(quantity)} ${target.unit || ''} ${target.item_name} di ${division}; alasan: ${reason}.`);
-        invalidateHppMap();
         wasteForm.reset();
         await loadWasteData();
         await loadLowStockAlert();
@@ -4681,7 +4665,6 @@
         void logActivity('UNIT_CONVERSION_UPDATE', `Konversi ${item?.item_name || itemId} diperbarui: ${purchaseQuantity} ${$('#conversionPurchaseUnit').value.trim()} menjadi ${formatQuantity(purchaseQuantity * purchaseToStorage * storageToUsage * yieldPercentage / 100)} ${$('#conversionUsageUnit').value.trim()}.`);
         clearUnitConversionForm();
         showUnitConversionMessage('Konversi satuan dan yield berhasil disimpan.', 'success');
-        invalidateHppMap();
         await loadUnitConversionData();
       } catch (error) {
         console.error(error);
@@ -4716,10 +4699,11 @@
         const value = `inventory:${item.id}`;
         const warehouse = isWarehouseInventoryItem(item);
         const selected = value === selectedValue ? ' selected' : '';
+        const disabled = warehouse ? ' disabled' : '';
         const label = warehouse
-          ? `${item.item_name} — Gudang Utama (akan disiapkan di divisi produksi)`
+          ? `${item.item_name} — Gudang Utama (transfer dulu)`
           : `${item.item_name} — ${item.division || '-'} (${getRecipeUnitForItem(item.id)})`;
-        return `<option value="${escapeHtml(value)}"${selected}>${escapeHtml(label)}</option>`;
+        return `<option value="${escapeHtml(value)}"${selected}${disabled}>${escapeHtml(label)}</option>`;
       }).join('');
       const preparationOptions = state.preparations
         .filter((row) => String(row.id) !== String(currentId) && row.is_active !== false)
@@ -4820,70 +4804,6 @@
       tableWrap.innerHTML = `<table class="history-table"><thead><tr><th>Kode</th><th>Preparation</th><th>Output</th><th>Divisi</th><th>Yield</th><th>Komponen</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${tableRows}</tbody></table>`;
     }
 
-    async function ensureInventoryItemForDivision(sourceItem, targetDivision) {
-      if (!sourceItem || !targetDivision || String(sourceItem.division || 'Gudang Utama') === String(targetDivision)) return sourceItem;
-      const existing = state.inventory.find((item) =>
-        normalizeMenuName(item.item_name) === normalizeMenuName(sourceItem.item_name) &&
-        String(item.division || 'Gudang Utama') === String(targetDivision)
-      );
-      if (existing) return existing;
-      const { data: existingRows, error: lookupError } = await supabaseClient.from('inventory')
-        .select('id, item_name, stock_quantity, unit, min_stock, division, reference_unit_cost, reference_cost_updated_at, reference_cost_note')
-        .eq('item_name', sourceItem.item_name)
-        .eq('division', targetDivision)
-        .limit(1);
-      if (lookupError) throw lookupError;
-      if (existingRows?.[0]) {
-        state.inventory.push(existingRows[0]);
-        return existingRows[0];
-      }
-      const { data: created, error: createError } = await supabaseClient.from('inventory').insert([{
-        item_name: sourceItem.item_name,
-        division: targetDivision,
-        stock_quantity: 0,
-        unit: sourceItem.unit || '',
-        min_stock: Number(sourceItem.min_stock) || 0,
-        reference_unit_cost: Number.isFinite(Number(sourceItem.reference_unit_cost)) ? Number(sourceItem.reference_unit_cost) : null,
-        reference_cost_updated_at: sourceItem.reference_cost_updated_at || null,
-        reference_cost_note: sourceItem.reference_cost_note || null
-      }]).select('id, item_name, stock_quantity, unit, min_stock, division, reference_unit_cost, reference_cost_updated_at, reference_cost_note').single();
-      if (createError) throw createError;
-      state.inventory.push(created);
-      if (!state.unitConversions.length) await loadUnitConversionsForState();
-      const sourceConversion = getUnitConversionForItem(sourceItem.id);
-      if (sourceConversion) {
-        const { error: conversionError } = await supabaseClient.rpc('save_unit_conversion', {
-          p_inventory_item_id: created.id,
-          p_purchase_unit: sourceConversion.purchase_unit,
-          p_purchase_quantity: Number(sourceConversion.purchase_quantity) || 1,
-          p_storage_unit: created.unit || sourceConversion.storage_unit,
-          p_purchase_to_storage: Number(sourceConversion.purchase_to_storage) || 1,
-          p_usage_unit: sourceConversion.usage_unit,
-          p_storage_to_usage: Number(sourceConversion.storage_to_usage) || 1,
-          p_yield_percentage: Number(sourceConversion.yield_percentage) || 100,
-          p_notes: sourceConversion.notes || null,
-          p_is_active: sourceConversion.is_active !== false
-        });
-        if (conversionError) throw conversionError;
-      }
-      void logActivity('INVENTORY_DIVISION_PREPARE', `${sourceItem.item_name} otomatis disiapkan di ${targetDivision} dengan stok 0 untuk resep.`);
-      return created;
-    }
-
-    async function mapRecipeInventoryToDivision(rows, targetDivision) {
-      const mappedRows = [];
-      for (const row of rows) {
-        if (row.component_type !== 'inventory') {
-          mappedRows.push(row);
-          continue;
-        }
-        const sourceItem = state.inventory.find((item) => String(item.id) === String(row.inventory_item_id));
-        const targetItem = await ensureInventoryItemForDivision(sourceItem, targetDivision);
-        mappedRows.push({ ...row, inventory_item_id: targetItem?.id || row.inventory_item_id });
-      }
-      return mappedRows;
-    }
-
     async function handleBomTableClick(event) {
       const button = event.target.closest('[data-action="edit-bom"]');
       if (!button) return;
@@ -4927,7 +4847,6 @@
       button.disabled = true;
       button.textContent = 'Menyimpan...';
       try {
-        const rowsForSave = await mapRecipeInventoryToDivision(rows, $('#bomDivision').value || 'Kitchen');
         const { error } = await supabaseClient.rpc('save_preparation', {
           p_preparation_id: $('#bomId').value || null,
           p_prep_code: $('#bomCode').value.trim().toUpperCase(),
@@ -4936,13 +4855,12 @@
           p_output_unit: $('#bomOutputUnit').value.trim(),
           p_division: $('#bomDivision').value,
           p_yield_percentage: Number($('#bomYield').value) || 100,
-          p_lines: rowsForSave
+          p_lines: rows
         });
         if (error) throw error;
         void logActivity('BOM_UPDATE', `Preparation ${$('#bomName').value.trim()} berhasil disimpan.`);
         clearPreparationForm();
         showBomMessage('Preparation berhasil disimpan. Anda dapat memilihnya di resep menu.', 'success');
-        invalidateHppMap();
         await loadPreparations();
       } catch (error) {
         console.error(error);
@@ -4984,10 +4902,11 @@
         const value = `inventory:${item.id}`;
         const warehouse = isWarehouseInventoryItem(item);
         const selected = value === normalizedValue ? ' selected' : '';
+        const disabled = warehouse ? ' disabled' : '';
         const label = warehouse
-          ? `${item.item_name} — Gudang Utama (akan disiapkan di divisi menu)`
+          ? `${item.item_name} — Gudang Utama (transfer dulu ke Bar/Kitchen/Waiters)`
           : `${item.item_name} — ${item.division || '-'} (${getRecipeUnitForItem(item.id)})`;
-        return `<option value="${escapeHtml(value)}"${selected}>${escapeHtml(label)}</option>`;
+        return `<option value="${escapeHtml(value)}"${selected}${disabled}>${escapeHtml(label)}</option>`;
       }).join('');
       const prepOptions = state.preparations.filter((row) => row.is_active !== false).map((row) => {
         const value = `preparation:${row.id}`;
@@ -5255,7 +5174,6 @@
         void logActivity('MENU_MASTER_DELETE', `Master menu ${menuName} / ${variant} dihapus.`);
         if (state.menuMasterEdit?.variantId === deleteButton.dataset.variantId) clearMenuMasterForm();
         showMenuMasterMessage(`Menu ${menuName} / ${variant} berhasil dihapus.`, 'success');
-        invalidateHppMap();
         await loadMenuMaster();
       } catch (error) {
         console.error(error);
@@ -5302,10 +5220,19 @@
         showMenuMasterMessage('Lengkapi bahan dan jumlah resep, atau kosongkan seluruh baris resep.', 'error');
         return;
       }
-      let validRecipeRows = recipeRows.filter((row) => ((row.component_type === 'inventory' && row.inventory_item_id) || (row.component_type === 'preparation' && row.preparation_id)) && Number.isFinite(row.quantity_needed) && row.quantity_needed > 0);
+      const validRecipeRows = recipeRows.filter((row) => ((row.component_type === 'inventory' && row.inventory_item_id) || (row.component_type === 'preparation' && row.preparation_id)) && Number.isFinite(row.quantity_needed) && row.quantity_needed > 0);
+      const warehouseRecipeItem = validRecipeRows
+        .filter((row) => row.component_type === 'inventory')
+        .map((row) => state.inventory.find((item) => String(item.id) === String(row.inventory_item_id)))
+        .find((item) => item && isWarehouseInventoryItem(item));
+      if (warehouseRecipeItem) {
+        showMenuMasterMessage(`Resep tidak boleh memakai ${warehouseRecipeItem.item_name} dari Gudang Utama. Transfer bahan itu ke Bar, Kitchen, atau Waiters lalu pilih stok divisinya.`, 'error');
+        return;
+      }
       const mismatchedRecipeComponent = validRecipeRows.map((row) => {
         if (row.component_type === 'inventory') {
-          return null;
+          const item = state.inventory.find((inventoryItem) => String(inventoryItem.id) === String(row.inventory_item_id));
+          return item && String(item.division || '') !== stockDivision ? `${item.item_name} (${item.division || '-'})` : null;
         }
         const preparation = state.preparations.find((prep) => String(prep.id) === String(row.preparation_id));
         return preparation && String(preparation.division || '') !== stockDivision ? `${preparation.prep_name} (${preparation.division || '-'})` : null;
@@ -5322,9 +5249,6 @@
       button.disabled = true;
       button.textContent = 'Menyimpan...';
       try {
-        // Bahan dari Gudang Utama boleh dipakai untuk menyiapkan HPP.
-        // Jika baris divisi tujuan belum ada, sistem membuatnya dengan stok 0.
-        validRecipeRows = await mapRecipeInventoryToDivision(validRecipeRows, stockDivision);
         const editMenuId = state.menuMasterEdit?.menuId || $('#menuMasterId').value || null;
         const editVariantId = state.menuMasterEdit?.variantId || $('#menuMasterVariantId').value || null;
         const { data, error } = await supabaseClient.rpc('save_menu_master', {
@@ -5349,7 +5273,6 @@
         void logActivity('MENU_MASTER_UPDATE', `Master menu ${menuName} / ${variant} diperbarui dengan harga ${formatRupiah(price)}.`);
         clearMenuMasterForm();
         showMenuMasterMessage(`Master menu ${menuName} / ${variant} berhasil disimpan.`, 'success');
-        invalidateHppMap();
         await loadMenuMaster();
       } catch (error) {
         console.error(error);
@@ -5822,17 +5745,14 @@
 
     function renderStockReport(rows) {
       const filter = getUnifiedFilters();
-      const warehouseSearch = normalizeText($('#warehouseStockReportSearch')?.value || '');
-      const divisionSearch = normalizeText($('#divisionStockReportSearch')?.value || '');
       const baseRows = (rows || []).filter((row) => {
         const date = rowDateValue(row, 'date');
         return (!filter.start || !date || date >= filter.start)
-          && (!filter.end || !date || date <= filter.end);
+          && (!filter.end || !date || date <= filter.end)
+          && (!filter.menu || normalizeText(row.itemName).includes(filter.menu));
       });
-      const warehouseRows = baseRows.filter((row) => row.division === 'Gudang Utama' && (!warehouseSearch || normalizeText(row.itemName).includes(warehouseSearch)));
-      const divisionRows = baseRows.filter((row) => row.division !== 'Gudang Utama'
-        && (filter.division === 'all' || row.division === filter.division)
-        && (!divisionSearch || normalizeText(row.itemName).includes(divisionSearch)));
+      const warehouseRows = baseRows.filter((row) => row.division === 'Gudang Utama');
+      const divisionRows = baseRows.filter((row) => row.division !== 'Gudang Utama' && (filter.division === 'all' || row.division === filter.division));
       const allVisibleRows = [...warehouseRows, ...divisionRows];
       $('#stockReportItemCount').textContent = allVisibleRows.length.toLocaleString('id-ID');
       $('#stockReportLowCount').textContent = allVisibleRows.filter((row) => isLowStockQuantity(row.final, row.minStock)).length.toLocaleString('id-ID');
@@ -5860,16 +5780,7 @@
 
     function getVisibleStockReportRows() {
       const rows = state.stockReport || [];
-      const filter = getUnifiedFilters();
-      const warehouseSearch = normalizeText($('#warehouseStockReportSearch')?.value || '');
-      const divisionSearch = normalizeText($('#divisionStockReportSearch')?.value || '');
-      return rows.filter((row) => {
-        const date = rowDateValue(row, 'date');
-        const matchesDate = (!filter.start || !date || date >= filter.start) && (!filter.end || !date || date <= filter.end);
-        if (!matchesDate) return false;
-        if (row.division === 'Gudang Utama') return !warehouseSearch || normalizeText(row.itemName).includes(warehouseSearch);
-        return (filter.division === 'all' || row.division === filter.division) && (!divisionSearch || normalizeText(row.itemName).includes(divisionSearch));
-      });
+      return filterRowsByUnified(rows, { dateKey: 'date', menuKeys: ['itemName'], categoryKeys: ['division'] });
     }
 
     function exportStockReportToExcel() {
@@ -6373,37 +6284,31 @@
           status: hppStatus.key
         };
       });
-      state.hppHistoryRows = salesError ? [] : (sales || []).map((row) => {
-        const metrics = getSaleProfitMetrics(row, hppMap);
-        const liveInfo = hppMap.get(recipeLookupKey(row.product_name, row.variant || 'Default'));
-        const isLiveFallback = metrics.source === 'live_fallback';
-        return {
-          id: row.id,
-          receiptNumber: row.receipt_number || '-',
-          date: row.sale_date,
-          menuName: row.product_name,
-          variant: row.variant || 'Default',
-          categoryItem: row.category_item || '',
-          quantity: Number(row.quantity_sold) || 0,
-          revenue: Number(row.gross_amount) || 0,
-          hppUnit: metrics.hppKnown ? metrics.hpp / (metrics.quantity || 1) : null,
-          hppTotal: metrics.hppKnown ? metrics.hpp : null,
-          profit: metrics.hppKnown ? metrics.revenue - metrics.hpp : null,
-          method: isLiveFallback ? 'weighted_average_ledger_live (belum tersimpan)' : (row.hpp_method || 'Belum ada snapshot'),
-          hppStatus: getHppStatus({
-            recipeCount: String(row.hpp_method || '').toLowerCase() === 'incomplete_recipe' && !isLiveFallback ? 0 : 1,
-            info: isLiveFallback ? liveInfo : null,
-            method: isLiveFallback ? '' : row.hpp_method,
-            hpp: metrics.hppKnown ? metrics.hpp : 0,
-            rowStatus: row.status
-          }),
-          recordedAt: row.hpp_recorded_at,
-          snapshot: row.hpp_snapshot || [],
-          status: String(row.status || 'posted').toLowerCase(),
-          created_by: row.created_by,
-          voidReason: row.void_reason || ''
-        };
-      });
+      state.hppHistoryRows = salesError ? [] : (sales || []).map((row) => ({
+        id: row.id,
+        receiptNumber: row.receipt_number || '-',
+        date: row.sale_date,
+        menuName: row.product_name,
+        variant: row.variant || 'Default',
+        categoryItem: row.category_item || '',
+        quantity: Number(row.quantity_sold) || 0,
+        revenue: Number(row.gross_amount) || 0,
+        hppUnit: row.hpp_unit_cost === null || row.hpp_unit_cost === undefined ? null : Number(row.hpp_unit_cost),
+        hppTotal: row.hpp_total === null || row.hpp_total === undefined ? null : Number(row.hpp_total),
+        profit: row.hpp_total === null || row.hpp_total === undefined ? null : (Number(row.gross_amount) || 0) - (Number(row.hpp_total) || 0),
+        method: row.hpp_method || 'Belum ada snapshot',
+        hppStatus: getHppStatus({
+          recipeCount: String(row.hpp_method || '').toLowerCase() === 'incomplete_recipe' ? 0 : 1,
+          method: row.hpp_method,
+          hpp: row.hpp_total === null || row.hpp_total === undefined ? 0 : Number(row.hpp_total),
+          rowStatus: row.status
+        }),
+        recordedAt: row.hpp_recorded_at,
+        snapshot: row.hpp_snapshot || [],
+        status: String(row.status || 'posted').toLowerCase(),
+        created_by: row.created_by,
+        voidReason: row.void_reason || ''
+      }));
       renderHppCurrentTable();
       renderHppHistoryTable();
       message.textContent = salesError ? `HPP aktif berhasil dimuat. Riwayat snapshot belum dapat dibaca: ${salesError.message}` : `HPP aktif dan ${state.hppHistoryRows.length.toLocaleString('id-ID')} snapshot transaksi berhasil dimuat.`;
@@ -7323,7 +7228,7 @@
       tableWrap.innerHTML = '<div class="loading-row">Memuat data stok...</div>';
       const { data, error } = await supabaseClient
         .from('inventory')
-        .select('id, item_name, stock_quantity, unit, min_stock, division, reference_unit_cost, reference_cost_updated_at, reference_cost_note')
+        .select('id, item_name, stock_quantity, unit, min_stock, division')
         .order('item_name', { ascending: true });
 
       if (error) {
@@ -7352,10 +7257,11 @@
       return '<option value="">Pilih bahan dari stok divisi</option>' + items.map((item) => {
         const warehouse = isWarehouseInventoryItem(item);
         const selected = String(item.id) === String(selectedId) ? ' selected' : '';
+        const disabled = warehouse ? ' disabled' : '';
         const label = warehouse
-          ? `${item.item_name} — Gudang Utama (akan disiapkan di divisi resep)`
+          ? `${item.item_name} — Gudang Utama (transfer dulu ke Bar/Kitchen/Waiters)`
           : `${item.item_name} — ${item.division || '-'} (${item.unit || '-'})`;
-        return `<option value="${escapeHtml(item.id)}"${selected}>${escapeHtml(label)}</option>`;
+        return `<option value="${escapeHtml(item.id)}"${selected}${disabled}>${escapeHtml(label)}</option>`;
       }).join('');
     }
 
@@ -7401,9 +7307,13 @@
     function renderInventoryTable(items) {
       const tableWrap = $('#inventoryTableWrap');
       const filter = $('#inventoryDivisionFilter')?.value || 'all';
-      const visibleItems = filter === 'all' ? items : items.filter((item) => (item.division || 'Gudang Utama') === filter);
+      const search = normalizeText($('#inventorySearch')?.value || '');
+      const visibleItems = (filter === 'all' ? items : items.filter((item) => (item.division || 'Gudang Utama') === filter))
+        .filter((item) => !search || normalizeText(`${item.item_name || ''} ${item.unit || ''} ${item.division || 'Gudang Utama'}`).includes(search));
       if (!visibleItems.length) {
-        tableWrap.innerHTML = '<div class="loading-row">Belum ada bahan baku di inventory.</div>';
+        tableWrap.innerHTML = search
+          ? '<div class="loading-row">Bahan yang dicari tidak ditemukan.</div>'
+          : '<div class="loading-row">Belum ada bahan baku di inventory.</div>';
         return;
       }
 
@@ -7417,14 +7327,13 @@
           <td>${escapeHtml(item.division || 'Gudang Utama')}</td>
           <td class="${isMinus ? 'stock-minus' : (isLow ? 'stock-low' : 'stock-ok')}" title="${isMinus ? 'Stok minus: segera input stok masuk' : ''}">${formatStockDisplay(stock, item)}</td>
           <td>${escapeHtml(item.unit || '-')}</td>
-          <td class="amount">${item.reference_unit_cost === null || item.reference_unit_cost === undefined ? '-' : formatRupiah(item.reference_unit_cost)}</td>
           <td>${formatQuantity(minimum)}</td>
           <td class="${isMinus ? 'stock-minus' : (isLow ? 'stock-low' : 'stock-ok')}">${isMinus ? 'Minus' : (stock === 0 ? 'Habis' : (isLow ? 'Rendah' : 'Aman'))}</td>
           <td><div class="action-group">${hasFullAdminAccess() ? `<button class="reset-btn" type="button" data-action="edit-inventory" data-id="${escapeHtml(item.id)}">Edit</button><button class="delete-btn" type="button" data-action="delete-inventory" data-id="${escapeHtml(item.id)}" data-name="${escapeHtml(item.item_name || '')}">🗑 Hapus</button>` : '<span class="panel-subtitle">Gunakan Stok Masuk</span>'}</div></td>
         </tr>`;
       }).join('');
 
-      tableWrap.innerHTML = `<table class="inventory-table"><thead><tr><th>Nama Bahan</th><th>Divisi</th><th>Stok</th><th>Satuan</th><th>Harga Acuan / Satuan</th><th>Min. Stok</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`;
+      tableWrap.innerHTML = `<table class="inventory-table"><thead><tr><th>Nama Bahan</th><th>Divisi</th><th>Stok</th><th>Satuan</th><th>Min. Stok</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`;
     }
 
     async function saveInventoryItem(event) {
@@ -7440,15 +7349,6 @@
       const itemName = $('#inventoryItemName').value.trim();
       const division = $('#inventoryDivision').value;
       const unit = $('#inventoryUnit').value.trim();
-      const referenceUnitCostRaw = $('#inventoryReferenceUnitCost').value.trim();
-      const referenceUnitCost = referenceUnitCostRaw === '' ? null : Number(referenceUnitCostRaw);
-      const conversionPurchaseQuantity = Number($('#inventoryPurchaseQuantity').value);
-      const conversionPurchaseUnit = $('#inventoryPurchaseUnit').value.trim();
-      const conversionPurchaseToStorage = Number($('#inventoryPurchaseToStorage').value);
-      const conversionStorageToUsage = Number($('#inventoryStorageToUsage').value);
-      const conversionUsageUnit = $('#inventoryUsageUnit').value.trim();
-      const conversionYieldPercentage = Number($('#inventoryYieldPercentage').value);
-      const hasAnyConversionValue = Boolean(conversionPurchaseUnit || $('#inventoryUsageUnit').value.trim() || $('#inventoryConversionNotes').value.trim() || $('#inventoryPurchaseToStorage').value !== '1' || $('#inventoryStorageToUsage').value !== '1');
       if (!Number.isFinite(minStock) || minStock < 0) {
         showInventoryMessage('Batas minimum harus berupa angka nol atau lebih.', 'error');
         return;
@@ -7459,14 +7359,6 @@
       }
       if (!unit) {
         showInventoryMessage('Satuan stok wajib diisi.', 'error');
-        return;
-      }
-      if (referenceUnitCost !== null && (!Number.isFinite(referenceUnitCost) || referenceUnitCost < 0)) {
-        showInventoryMessage('Harga acuan harus berupa angka nol atau lebih.', 'error');
-        return;
-      }
-      if (hasAnyConversionValue && (!conversionPurchaseUnit || !conversionUsageUnit || ![conversionPurchaseQuantity, conversionPurchaseToStorage, conversionStorageToUsage].every((value) => Number.isFinite(value) && value > 0) || !Number.isFinite(conversionYieldPercentage) || conversionYieldPercentage <= 0 || conversionYieldPercentage > 100)) {
-        showInventoryMessage('Lengkapi satuan beli, satuan pakai, faktor konversi, dan yield, atau kosongkan seluruh bagian konversi.', 'error');
         return;
       }
 
@@ -7494,9 +7386,9 @@
       button.disabled = true;
       button.textContent = editId ? 'Menyimpan Perubahan...' : 'Menyimpan...';
       const query = editId
-        ? supabaseClient.from('inventory').update({ item_name: itemName, division, unit, min_stock: minStock, reference_unit_cost: referenceUnitCost, reference_cost_updated_at: referenceUnitCost === null ? null : new Date().toISOString() }).eq('id', editId).select('id').single()
-        : supabaseClient.from('inventory').insert([{ item_name: itemName, division, stock_quantity: 0, unit, min_stock: minStock, reference_unit_cost: referenceUnitCost, reference_cost_updated_at: referenceUnitCost === null ? null : new Date().toISOString() }]).select('id').single();
-      const { data: savedInventory, error } = await query;
+        ? supabaseClient.from('inventory').update({ item_name: itemName, division, unit, min_stock: minStock }).eq('id', editId)
+        : supabaseClient.from('inventory').insert([{ item_name: itemName, division, stock_quantity: 0, unit, min_stock: minStock }]);
+      const { error } = await query;
       button.disabled = false;
       button.textContent = editId ? 'Simpan Perubahan' : 'Simpan Bahan';
 
@@ -7505,30 +7397,9 @@
         showInventoryMessage(`Gagal menyimpan bahan: ${error.message}`, 'error');
         return;
       }
-      const savedItemId = editId || savedInventory?.id;
-      if (hasAnyConversionValue && savedItemId) {
-        const { error: conversionError } = await supabaseClient.rpc('save_unit_conversion', {
-          p_inventory_item_id: savedItemId,
-          p_purchase_unit: conversionPurchaseUnit,
-          p_purchase_quantity: conversionPurchaseQuantity,
-          p_storage_unit: unit,
-          p_purchase_to_storage: conversionPurchaseToStorage,
-          p_usage_unit: conversionUsageUnit,
-          p_storage_to_usage: conversionStorageToUsage,
-          p_yield_percentage: conversionYieldPercentage,
-          p_notes: $('#inventoryConversionNotes').value.trim() || null,
-          p_is_active: true
-        });
-        if (conversionError) {
-          showInventoryMessage(`Bahan tersimpan, tetapi konversi gagal: ${conversionError.message}`, 'error');
-          await loadInventory();
-          return;
-        }
-        await loadUnitConversionsForState();
-      }
       showInventoryMessage(editId
         ? `Bahan ${itemName} berhasil diperbarui. Saldo stok tetap dipertahankan.`
-        : 'Bahan baku berhasil disimpan. Konversi dan harga acuan ikut tersimpan tanpa menambah stok.', 'success');
+        : 'Bahan baku berhasil disimpan dengan stok 0. Gunakan Stok Masuk saat stok supplier diterima, atau Penyesuaian Stok untuk saldo fisik awal.', 'success');
       void logActivity(editId ? 'INVENTORY_UPDATE' : 'INVENTORY_CREATE', editId
         ? `Bahan ${itemName} diperbarui di ${division}. Saldo stok tidak diubah.`
         : `Bahan ${itemName} berhasil ditambahkan di ${division} sebagai master bahan dengan stok 0.`);
@@ -7769,6 +7640,47 @@
       updateManualSaleTotal();
     }
 
+    async function deductInventoryForManualSales(lines) {
+      throw new Error('Jalur pemotongan stok manual lama dinonaktifkan. Gunakan process_sale_transaction.');
+
+      /* Legacy implementation retained only for historical reference; it must never execute. */
+      const [{ data: recipes, error: recipeError }, { data: inventory, error: inventoryError }] = await Promise.all([
+        supabaseClient.from('recipes').select('id, menu_name, variant, inventory_item_id, quantity_needed'),
+        supabaseClient.from('inventory').select('id, item_name, stock_quantity, unit, division')
+      ]);
+      if (recipeError) throw recipeError;
+      if (inventoryError) throw inventoryError;
+      const inventoryById = new Map((inventory || []).filter((item) => !isVirtualPreparationItem(item)).map((item) => [String(item.id), item]));
+      const deductions = new Map();
+      const missingProducts = [];
+      for (const line of lines) {
+        const matchedRecipes = (recipes || []).filter((recipe) => recipeLookupKey(recipe.menu_name, recipe.variant) === recipeLookupKey(line.productName, line.variant));
+        if (!matchedRecipes.length) {
+          missingProducts.push(`${line.productName}${line.variant ? ` / ${line.variant}` : ''}`);
+          continue;
+        }
+        for (const recipe of matchedRecipes) {
+          const item = inventoryById.get(String(recipe.inventory_item_id));
+          const amount = (Number(recipe.quantity_needed) || 0) * line.quantity;
+          if (!item || !Number.isFinite(amount) || amount <= 0) continue;
+          const existing = deductions.get(String(item.id)) || { item, amount: 0 };
+          existing.amount += amount;
+          deductions.set(String(item.id), existing);
+        }
+      }
+      const details = [];
+      for (const deduction of deductions.values()) {
+        const item = deduction.item;
+        const amount = deduction.amount;
+        const newStock = (Number(item.stock_quantity) || 0) - amount;
+        const { error: updateError } = await supabaseClient.from('inventory').update({ stock_quantity: newStock }).eq('id', item.id);
+        if (updateError) throw updateError;
+        const movementError = await recordStockMovement({ inventory_item_id: item.id, division: item.division || 'Gudang Utama', movement_type: 'sale', quantity: -amount });
+        details.push({ item, amount, newStock, movementError });
+      }
+      return { matched: missingProducts.length < lines.length, missingProducts, details };
+    }
+
     manualSalesForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       clearManualSaleMessage();
@@ -7817,7 +7729,6 @@
           warnings.length ? 'error' : 'success'
         );
         void logActivity('SALE_CREATE', `Penjualan manual nota ${receiptNumber} dengan ${lines.length} produk tersimpan.`);
-        invalidateHppMap();
         resetManualSaleForm();
         await loadExpenses();
         await loadSalesAnalytics();
@@ -7926,12 +7837,12 @@
       return { rows, error: null };
     }
 
-    async function loadRecipeHppMapFresh() {
+    async function loadRecipeHppMap() {
       if (!supabaseConfigured) return { map: new Map(), error: new Error('Supabase belum dikonfigurasi.') };
       await loadUnitConversionsForState();
       const [recipesResult, inventoryResult, movementsResult, purchasesResult, preparationsResult] = await Promise.all([
         supabaseClient.from('recipes').select('menu_name, variant, component_type, preparation_id, inventory_item_id, quantity_needed, recipe_unit'),
-        supabaseClient.from('inventory').select('id, item_name, division, stock_quantity, reference_unit_cost'),
+        supabaseClient.from('inventory').select('id, item_name, division, stock_quantity'),
         fetchAllReportRows('stock_movements', 'inventory_item_id, quantity, unit_cost, movement_type, reference_type, reference_id, created_at', 'created_at'),
         fetchAllReportRows('stock_purchases', 'id, inventory_item_id, item_name, division, quantity_in, price_per_unit, created_at, status', 'created_at'),
         supabaseClient.rpc('list_preparations')
@@ -8008,10 +7919,6 @@
         if (latestPriceByItem.has(itemKey)) {
           return { value: latestPriceByItem.get(itemKey), source: 'latest_purchase_item' };
         }
-        const referencePrice = Number(inventoryItem?.reference_unit_cost);
-        if (Number.isFinite(referencePrice) && referencePrice >= 0) {
-          return { value: referencePrice, source: 'reference_unit_cost' };
-        }
         return null;
       };
 
@@ -8062,26 +7969,6 @@
         hppMap.set(key, current);
       });
       return { map: hppMap, error: null };
-    }
-
-    async function loadRecipeHppMap() {
-      if (state.hppMap && state.hppMap.size && !state.hppMapPromise) {
-        return { map: state.hppMap, error: state.hppMapError };
-      }
-      if (state.hppMapPromise) return state.hppMapPromise;
-      state.hppMapPromise = loadRecipeHppMapFresh()
-        .then((result) => {
-          state.hppMap = result.map || new Map();
-          state.hppMapError = result.error || null;
-          return { map: state.hppMap, error: state.hppMapError };
-        })
-        .finally(() => { state.hppMapPromise = null; });
-      return state.hppMapPromise;
-    }
-
-    function invalidateHppMap() {
-      state.hppMap = new Map();
-      state.hppMapError = null;
     }
 
     function getHppStatus({ recipeCount = 0, info = null, hpp = 0, method = '', rowStatus = 'posted' } = {}) {
@@ -8230,9 +8117,6 @@
         return;
       }
       const rows = filterRowsByUnified(fetchedRows, { dateKey: 'sale_date', menuKeys: ['product_name'], categoryKeys: ['category_item'] });
-      const hppResult = await loadRecipeHppMap();
-      const hppMap = hppResult.map || new Map();
-      if (hppResult.error) console.warn('HPP live fallback tidak tersedia:', hppResult.error);
       state.salesReportRows = rows;
       const productMap = new Map();
       rows.forEach((row) => {
@@ -8241,7 +8125,7 @@
         const categoryItem = String(row.category_item || '').trim();
         const key = `${normalizeMenuName(productName)}::${normalizeMenuName(variant)}::${normalizeMenuName(categoryItem)}`;
         const quantity = Number(row.quantity_sold) || 0;
-        const metrics = getSaleProfitMetrics(row, hppMap);
+        const metrics = getSaleProfitMetrics(row);
         const current = productMap.get(key) || { productName, variant, categoryItem, quantity: 0, revenue: 0, hpp: 0, hppKnown: true, files: new Set() };
         current.quantity += quantity;
         current.revenue += Number(row.gross_amount) || 0;
@@ -8286,12 +8170,13 @@
         return;
       }
       await Promise.all([loadExpenses(), loadSalesAnalytics({ ignoreCategory: true })]);
-      const hppMap = state.hppMap || new Map();
+      const hppResult = await loadRecipeHppMap();
+      const hppMap = hppResult.map;
       const reportMessage = $('#profitLossMessage');
       reportMessage.textContent = '';
       reportMessage.className = 'form-message';
-      if (state.hppMapError) {
-        reportMessage.textContent = `HPP belum dapat dibaca dari Supabase: ${state.hppMapError.message}`;
+      if (hppResult.error) {
+        reportMessage.textContent = `HPP belum dapat dibaca dari Supabase: ${hppResult.error.message}`;
         reportMessage.className = 'form-message error';
       }
       const monthMap = new Map();
@@ -8844,29 +8729,17 @@
       const revenue = Number(row.gross_amount) || 0;
       const hasSnapshot = Boolean(row.hpp_recorded_at && row.hpp_total !== null && row.hpp_total !== undefined);
       const hppMethod = String(row.hpp_method || '').toLowerCase();
-      const snapshotComplete = hasSnapshot && Number(row.hpp_total) > 0 && !['incomplete_recipe', 'incomplete_price', 'incomplete'].includes(hppMethod);
-      const lookupKey = recipeLookupKey(productName, variant || 'Default');
-      const liveInfo = hppMap instanceof Map ? (hppMap.get(lookupKey) || (variant ? hppMap.get(recipeLookupKey(productName, 'Default')) : null)) : null;
-      const liveComplete = Boolean(liveInfo && !liveInfo.missingPrice && !liveInfo.zeroCost && Number(liveInfo.unitHpp) > 0);
-      const hppKnown = snapshotComplete || liveComplete;
-      const hpp = snapshotComplete
-        ? Number(row.hpp_total) || 0
-        : liveComplete
-          ? (Number(liveInfo.unitHpp) || 0) * quantity
-          : 0;
+      const hppKnown = hasSnapshot && Number(row.hpp_total) > 0 && !['incomplete_recipe', 'incomplete_price', 'incomplete'].includes(hppMethod);
       return {
         productName,
         variant,
         categoryItem,
         quantity,
         revenue,
-        // Prefer the immutable transaction snapshot. If it is still
-        // incomplete, use the same live HPP map shown by HPP Aktif so all
-        // reports remain consistent until the snapshot is synchronized.
-        hpp,
-        hppKnown,
-        source: snapshotComplete ? 'snapshot' : liveComplete ? 'live_fallback' : 'unknown',
-        liveInfo
+        // Never subtract a partial HPP. Previously the table showed '-'
+        // while a partial HPP was still silently deducted from net profit.
+        hpp: hppKnown ? Number(row.hpp_total) || 0 : 0,
+        hppKnown
       };
     }
 
@@ -9283,7 +9156,6 @@
             addUploadLog(Math.abs(difference) < 0.01 && (saved.data || []).length === upload.payload.length ? 'success' : 'warning', `Rekonsiliasi omzet: iSeller ${formatRupiah(upload.totalRevenue)} · aplikasi ${formatRupiah(appRevenue)} · selisih ${formatRupiah(difference)} · baris ${(saved.data || []).length}/${upload.payload.length}.`);
           }
           void logActivity('ISSELLER_UPLOAD', `File ${upload.file.name} tersimpan; mapping, stok, HPP, dan rekonsiliasi diproses atomik.`);
-          invalidateHppMap();
         }
         await loadSalesAnalytics(); await loadExpenses(); state.pendingSalesUpload = null; $('#salesValidationPanel').classList.add('hidden');
       } catch (error) {
@@ -9396,7 +9268,173 @@
       tableContainer.innerHTML = `<table><thead><tr>${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`;
     }
 
-   function findHeaderIndex(headers, keywords) {
+    async function deductInventoryFromSales(file, rows) {
+      addUploadLog('warning', 'Jalur pemotongan stok lama dinonaktifkan. Upload penjualan diproses oleh process_sale_transaction.');
+      return { status: 'disabled', validSalesRows: 0, matchedRows: 0 };
+
+      /* Legacy implementation retained only for historical reference; it must never execute. */
+      const headerRow = (rows || []).find((row) => {
+        const normalizedRow = normalizeExcelRow(row);
+        return TEMPLATE_REQUIRED_HEADERS.every((header) => findTemplateColumn(normalizedRow, header));
+      });
+
+      if (!headerRow) {
+        const foundHeaders = Object.keys(normalizeExcelRow(rows?.[0]) || {}).join(', ');
+        addUploadLog('error', `Kolom template penjualan tidak ditemukan. Header terbaca: ${foundHeaders || '(kosong)'}`);
+        $('#uploadActivity').textContent = `${file.name}: kolom template tidak lengkap`;
+        return { status: 'no-match', validSalesRows: 0, matchedRows: 0 };
+      }
+
+      addUploadLog('success', `Kolom template terbaca: ${TEMPLATE_REQUIRED_HEADERS.join(', ')}.`);
+
+      // Versi v4 memaksa file yang pernah diproses sebelum dukungan multi-bahan untuk diuji ulang.
+      const uploadKey = `fb-iseller-deduction:v5-sales-table:${file.name}:${file.size}:${file.lastModified}`;
+      if (getUploadMarker(uploadKey) === 'done') {
+        addUploadLog('warning', `File ${file.name} sudah diproses sebelumnya pada versi logika ini. Stok tidak dipotong ulang.`);
+        $('#uploadActivity').textContent = `${file.name}: sudah diproses sebelumnya`;
+        return { status: 'skipped', validSalesRows: 0, matchedRows: 0 };
+      }
+
+      const soldMenus = new Map();
+      let validSalesRows = 0;
+      (rows || []).forEach((row) => {
+        const fields = extractSalesFields(row);
+        if (!fields) return;
+        const menuName = String(fields.productName ?? '').trim();
+        const variant = String(fields.variant ?? '').trim();
+        const quantity = Number(String(fields.quantity ?? 0));
+        if (!menuName || !Number.isFinite(quantity) || quantity <= 0) return;
+        validSalesRows += 1;
+        const key = recipeLookupKey(menuName, variant);
+        const existing = soldMenus.get(key) || { menuName, variant, quantity: 0, rowCount: 0 };
+        existing.quantity += quantity;
+        existing.rowCount += 1;
+        soldMenus.set(key, existing);
+      });
+
+      if (!soldMenus.size) {
+        addUploadLog('warning', 'Tidak ada baris penjualan valid yang memiliki nama menu dan jumlah lebih dari 0.');
+        $('#uploadActivity').textContent = `${file.name}: tidak ada penjualan valid`;
+        return { status: 'no-match', validSalesRows: 0, matchedRows: 0 };
+      }
+
+      const [{ data: recipes, error: recipesError }, { data: inventory, error: inventoryError }] = await Promise.all([
+        supabaseClient.from('recipes').select('menu_name, variant, inventory_item_id, quantity_needed'),
+        supabaseClient.from('inventory').select('id, item_name, stock_quantity, unit, min_stock, division')
+      ]);
+
+      if (recipesError || inventoryError) {
+        const error = recipesError || inventoryError;
+        console.error(error);
+        addUploadLog('error', `Gagal membaca resep atau stok dari Supabase: ${error.message}`);
+        $('#uploadActivity').textContent = `Gagal membaca resep/stok: ${error.message}`;
+        alertAndThrowSupabaseUploadError(error);
+      }
+
+      const recipeMap = new Map();
+      (recipes || []).forEach((recipe) => {
+        const key = recipeLookupKey(recipe.menu_name, recipe.variant);
+        if (!recipeMap.has(key)) recipeMap.set(key, []);
+        recipeMap.get(key).push(recipe);
+      });
+      const inventoryMap = new Map((inventory || []).map((item) => [String(item.id), item]));
+      const deductions = new Map();
+      const menuDetails = [];
+      let matchedRows = 0;
+
+      soldMenus.forEach((sale) => {
+        const recipeRows = recipeMap.get(recipeLookupKey(sale.menuName, sale.variant));
+        if (!recipeRows?.length) {
+          menuDetails.push({ type: 'warning', menuName: sale.menuName, variant: sale.variant, text: `Menu ${sale.menuName}${sale.variant ? ` varian ${sale.variant}` : ''} terjual sebanyak ${formatQuantity(sale.quantity)} porsi tetapi resep belum di-setup.` });
+          return;
+        }
+        matchedRows += sale.rowCount;
+
+        const details = [];
+        recipeRows.forEach((recipe) => {
+          const inventoryItem = inventoryMap.get(String(recipe.inventory_item_id));
+          const quantityNeeded = Number(recipe.quantity_needed);
+          const totalNeeded = quantityNeeded * sale.quantity;
+          if (!inventoryItem || !Number.isFinite(quantityNeeded) || quantityNeeded <= 0) {
+            details.push({ missing: true, text: `bahan dengan ID ${recipe.inventory_item_id} tidak ditemukan` });
+            return;
+          }
+          const existing = deductions.get(String(inventoryItem.id)) || { item: inventoryItem, quantity: 0 };
+          existing.quantity += totalNeeded;
+          deductions.set(String(inventoryItem.id), existing);
+          details.push({ item: inventoryItem, quantity: totalNeeded, division: inventoryItem.division || 'Gudang Utama' });
+        });
+        menuDetails.push({ type: details.some((detail) => detail.missing) ? 'warning' : 'success', menuName: sale.menuName, variant: sale.variant, quantity: sale.quantity, details });
+      });
+
+      let updatedCount = 0;
+      let updateErrors = 0;
+      const updateResults = new Map();
+      for (const deduction of deductions.values()) {
+        const currentStock = Number(deduction.item.stock_quantity) || 0;
+        const requestedDeduction = Number(deduction.quantity) || 0;
+        // Stok boleh menjadi minus agar kekurangan stok terlihat jelas oleh Admin.
+        const newStock = currentStock - requestedDeduction;
+        const actualDeduction = currentStock - newStock;
+        const { data: updatedRows, error } = await supabaseClient
+          .from('inventory')
+          .update({ stock_quantity: newStock })
+          .eq('id', deduction.item.id)
+          .select('id, stock_quantity');
+        if (error || !updatedRows?.length) {
+          const updateError = error || new Error('Tidak ada baris inventory yang diperbarui. Periksa policy UPDATE/RLS Supabase.');
+          console.error(updateError);
+          updateErrors += 1;
+          updateResults.set(String(deduction.item.id), { ok: false, item: deduction.item, requestedDeduction, error: updateError.message });
+        } else {
+          updatedCount += 1;
+          const movementError = await recordStockMovement({
+            inventory_item_id: deduction.item.id,
+            division: deduction.item.division || 'Gudang Utama',
+            movement_type: 'sale',
+            quantity: -requestedDeduction
+          });
+          updateResults.set(String(deduction.item.id), { ok: true, item: deduction.item, requestedDeduction, actualDeduction, newStock, movementError });
+        }
+      }
+
+      menuDetails.forEach((detail) => {
+        if (detail.type === 'warning' && !detail.details) {
+          addUploadLog('warning', detail.text);
+          return;
+        }
+        if (!detail.menuName) return;
+        const hasMinusStock = detail.details.some((itemDetail) => {
+          const result = itemDetail.missing ? null : updateResults.get(String(itemDetail.item.id));
+          return result?.ok && result.newStock < 0;
+        });
+        const parts = detail.details.map((itemDetail) => {
+          if (itemDetail.missing) return itemDetail.text;
+          const result = updateResults.get(String(itemDetail.item.id));
+          const unit = itemDetail.item.unit || '';
+          if (!result?.ok) return `Stok ${itemDetail.item.item_name} gagal diperbarui (${result?.error || 'periksa policy UPDATE/RLS Supabase'})`;
+          const division = itemDetail.item.division || 'Gudang Utama';
+          if (result.movementError) return `Stok ${itemDetail.item.item_name} berkurang, tetapi log mutasi gagal (${result.movementError.message})`;
+          if (result.newStock < 0) return `Peringatan: Menu ${detail.menuName} terjual, tetapi stok ${itemDetail.item.item_name} di ${division} habis/minus! Stok menjadi ${formatQuantity(result.newStock)} ${unit}`;
+          return `Stok ${itemDetail.item.item_name} di ${division} ${formatQuantity(itemDetail.quantity)} ${unit} otomatis berkurang di Supabase`;
+        });
+        const menuLabel = `${detail.menuName}${detail.variant ? ` varian ${detail.variant}` : ''}`;
+        const sentence = hasMinusStock
+          ? `Peringatan: Menu ${menuLabel} terjual sebanyak ${formatQuantity(detail.quantity)} porsi, tetapi ada stok bahan yang habis/minus di gudang. ${parts.join('; ')}.`
+          : `Berhasil memproses Menu ${menuLabel} sebanyak ${formatQuantity(detail.quantity)} porsi. ${parts.join('; ')}.`;
+        addUploadLog(detail.type === 'warning' || hasMinusStock ? 'warning' : 'success', sentence);
+      });
+
+      if (updateErrors === 0 && deductions.size > 0) setUploadMarker(uploadKey, 'done');
+      if (document.getElementById('stockPage').classList.contains('active')) await loadInventory();
+      await loadLowStockAlert();
+
+      const summary = `${file.name}: ${updatedCount} bahan berhasil diperbarui dari ${soldMenus.size} menu`;
+      $('#uploadActivity').textContent = updateErrors ? `${summary}; ${updateErrors} pembaruan gagal` : `${summary}.`;
+      return { status: matchedRows > 0 ? 'success' : 'no-match', validSalesRows, matchedRows };
+    }
+
+    function findHeaderIndex(headers, keywords) {
       const candidates = headers.map((header, index) => {
         const normalizedHeader = normalizeText(header);
         const scores = keywords.map((keyword) => {
