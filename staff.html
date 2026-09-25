@@ -128,11 +128,11 @@
       <div class="brand" style="margin-bottom:24px"><div class="brand-mark">F&B</div><div><strong>F&B Control</strong><small>Aplikasi Staff</small></div></div>
       <h1>Masuk operasional</h1>
       <p class="subtitle">Gunakan aplikasi ini untuk pekerjaan harian. HPP, harga beli, dan laporan owner tidak ditampilkan.</p>
-      <div class="field"><label for="loginUser">Username</label><input id="loginUser" autocomplete="username" placeholder="Username staf" required></div>
+      <div class="field"><label for="loginUser">Email</label><input id="loginUser" type="email" autocomplete="username" placeholder="Email staf" required></div>
       <div class="field"><label for="loginPassword">Password</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Password" required></div>
       <button class="btn btn-primary full" type="submit">Masuk</button>
       <div id="loginMessage" class="message hidden"></div>
-      <p class="help" style="margin-top:16px">Versi awal memakai login staf lokal yang sama dengan aplikasi owner. Untuk penggunaan produksi, aktifkan Supabase Auth dan RLS per staf.</p>
+      <p class="help" style="margin-top:16px">Gunakan email dan password staf yang dibuat di Supabase Authentication. Akun ini hanya dapat mengakses divisinya.</p>
     </form>
   </div>
 
@@ -179,9 +179,8 @@
     const SUPABASE_URL = 'https://pxebtirrorootipsvinq.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_vXaNAraeF3dAfRIiQnLgPA_X-7BmWk7';
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const STAFF_USERS = { admin: { password: 'staf123', name: 'Admin Staf' } };
     const TRANSFER_DESTINATIONS = ['Bar', 'Kitchen', 'Waiters'];
-    const state = { user: null, division: localStorage.getItem('fnbStaffDivision') || 'Kitchen', warehouseItems: [], divisionItems: [], allInventory: [], transferHistory: [], movementHistory: [], expenseHistory: [], batchId: null, countRows: [], checks: JSON.parse(localStorage.getItem('fnbStaffChecks') || '{}'), realtimeChannel: null, refreshTimer: null };
+    const state = { user: null, division: null, warehouseItems: [], divisionItems: [], allInventory: [], transferHistory: [], movementHistory: [], expenseHistory: [], batchId: null, countRows: [], checks: JSON.parse(localStorage.getItem('fnbStaffChecks') || '{}'), realtimeChannel: null, refreshTimer: null };
     const $ = (id) => document.getElementById(id);
     const today = () => new Date().toISOString().slice(0, 10);
     const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[char]));
@@ -205,7 +204,7 @@
       $('saleDate').value ||= today(); $('expenseDate').value ||= today(); $('dailyUsageDate').value ||= today();
       $('staffGreeting').textContent = `${state.user?.name || 'Staf'} · ${state.division}`;
     }
-    function saveDivision() { state.division = $('divisionSelect').value; localStorage.setItem('fnbStaffDivision', state.division); refreshDateLabels(); void loadStockData(); void loadHomeData(); }
+    function saveDivision() { if (state.user?.division) { $('divisionSelect').value = state.user.division; return; } state.division = $('divisionSelect').value; refreshDateLabels(); void loadStockData(); void loadHomeData(); }
     function transferStatusLabel(row) { const status = String(row.approval_status || row.status || '').toLowerCase(); if (status === 'pending') return 'Menunggu persetujuan'; if (status === 'cancelled' || status === 'rejected') return 'Dibatalkan'; if (status === 'posted' || status === 'approved') return 'Selesai'; return row.status || 'Tercatat'; }
     function updateLowStockNotice(rows) {
       const low = rows.filter((item) => Number(item.stock_quantity || 0) <= Number(item.min_stock || 0));
@@ -348,13 +347,29 @@
     function renderChecklist() { $('checklist').innerHTML = CHECK_ITEMS.map((item) => `<label class="check-row"><input type="checkbox" data-check="${item.id}" ${state.checks[item.id] ? 'checked' : ''}><span><strong>${item.title}</strong><small>${item.desc}</small></span></label>`).join(''); document.querySelectorAll('[data-check]').forEach((input) => input.addEventListener('change', () => { state.checks[input.dataset.check] = input.checked; localStorage.setItem('fnbStaffChecks', JSON.stringify(state.checks)); updateChecklistStat(); })); updateChecklistStat(); }
     function updateChecklistStat() { const done = CHECK_ITEMS.filter((item) => state.checks[item.id]).length; const percent = Math.round(done / CHECK_ITEMS.length * 100); $('checkPercent').textContent = `${percent}%`; $('checkStat').textContent = `${percent}%`; }
     function restoreLocalData() { $('handoverNote').value = localStorage.getItem('fnbStaffHandover') || ''; renderChecklist(); }
-    function initLogin() { const session = JSON.parse(localStorage.getItem('fnbStaffSession') || 'null'); if (session?.name) { state.user = session; showApp(); } }
-    function showApp() { $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden'); $('divisionSelect').value = state.division; refreshDateLabels(); restoreLocalData(); addSaleRow(); void loadHomeData(); void loadStockData(); startRealtimeSync(); }
+    async function establishStaffSession(authUser) {
+      const { data, error } = await supabaseClient.rpc('fb_get_my_profile_v2');
+      if (error) throw error;
+      const profile = Array.isArray(data) ? data[0] : data;
+      if (!profile?.is_active) throw new Error('Profil pengguna belum aktif.');
+      if (profile.app_role !== 'Admin Staf') throw new Error('Akun ini bukan akun staff operasional.');
+      if (!profile.division) throw new Error('Divisi akun belum ditentukan oleh owner.');
+      state.user = { id: authUser.id, email: authUser.email, name: profile.display_name || authUser.email, role: profile.app_role, division: profile.division };
+      state.division = profile.division;
+      showApp();
+    }
+    async function initLogin() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session?.user) {
+        try { await establishStaffSession(session.user); } catch (error) { await supabaseClient.auth.signOut(); showMessage('loginMessage', error.message, 'error'); }
+      }
+    }
+    function showApp() { $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden'); $('divisionSelect').value = state.division; $('divisionSelect').disabled = true; refreshDateLabels(); restoreLocalData(); addSaleRow(); void loadHomeData(); void loadStockData(); startRealtimeSync(); }
 
     $('dailyUsageForm').addEventListener('submit', submitDailyUsage);
     $('stockAction').addEventListener('change', () => { const action = $('stockAction').value; $('transferPanel').classList.toggle('hidden', action !== 'transfer'); $('dailyUsagePanel').classList.toggle('hidden', action !== 'daily_usage'); $('wastePanel').classList.toggle('hidden', action !== 'waste'); });
-    $('loginForm').addEventListener('submit', (event) => { event.preventDefault(); const username = $('loginUser').value.trim().toLowerCase(); const password = $('loginPassword').value; if (!STAFF_USERS[username] || STAFF_USERS[username].password !== password) { showMessage('loginMessage', 'Username atau password staf tidak sesuai.', 'error'); return; } state.user = { username, name: STAFF_USERS[username].name }; localStorage.setItem('fnbStaffSession', JSON.stringify(state.user)); showApp(); });
-    $('logoutBtn').addEventListener('click', () => { localStorage.removeItem('fnbStaffSession'); state.user = null; $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden'); $('loginForm').reset(); });
+    $('loginForm').addEventListener('submit', async (event) => { event.preventDefault(); clearMessage('loginMessage'); const button = event.submitter || $('loginForm').querySelector('button[type="submit"]'); setBusy(button, true, 'Memeriksa...'); try { const email = $('loginUser').value.trim().toLowerCase(); const password = $('loginPassword').value; const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password }); if (error) throw error; await establishStaffSession(data.user); } catch (error) { await supabaseClient.auth.signOut(); showMessage('loginMessage', error.message === 'Invalid login credentials' ? 'Email atau password staf tidak sesuai.' : error.message, 'error'); } finally { setBusy(button, false, 'Memeriksa...'); } });
+    $('logoutBtn').addEventListener('click', async () => { await supabaseClient.auth.signOut(); state.user = null; state.division = null; if (state.realtimeChannel) { await supabaseClient.removeChannel(state.realtimeChannel); state.realtimeChannel = null; } $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden'); $('loginForm').reset(); $('divisionSelect').disabled = false; });
     $('divisionSelect').addEventListener('change', saveDivision); document.querySelectorAll('.nav-btn').forEach((btn) => btn.addEventListener('click', () => showPage(btn.dataset.page))); document.querySelectorAll('[data-go]').forEach((btn) => btn.addEventListener('click', () => showPage(btn.dataset.go)));
     $('refreshHomeBtn').addEventListener('click', () => { void loadHomeData(); }); $('refreshStockBtn').addEventListener('click', () => { void loadStockData(); }); $('enableNotificationsBtn').addEventListener('click', async () => { if (!('Notification' in window)) { showMessage('historyMessage', 'Browser ini belum mendukung notifikasi.', 'info'); return; } const permission = await Notification.requestPermission(); $('enableNotificationsBtn').textContent = permission === 'granted' ? 'Notifikasi aktif' : 'Aktifkan notifikasi'; if (permission === 'granted') new Notification('Notifikasi stok aktif', { body: 'Anda akan diberi tahu saat aplikasi dibuka dan stok perlu diperiksa.' }); }); $('stockLocationFilter').addEventListener('change', renderAllStock); $('stockSearch').addEventListener('input', renderAllStock); $('refreshHistoryBtn').addEventListener('click', () => { void loadStockData().then(loadHistory); }); document.querySelectorAll('.history-tab').forEach((button) => button.addEventListener('click', () => { const movements = button.dataset.historyTab === 'movements'; document.querySelectorAll('.history-tab').forEach((tab) => { tab.className = `btn history-tab ${tab === button ? 'btn-primary' : 'btn-secondary'}`; }); $('movementHistoryPanel').classList.toggle('hidden', !movements); $('expenseHistoryPanel').classList.toggle('hidden', movements); })); $('movementLocationFilter').addEventListener('change', () => renderMovementHistory(state.movementHistory || [])); $('movementSearch').addEventListener('input', () => renderMovementHistory(state.movementHistory || [])); $('expenseHistorySearch').addEventListener('input', () => renderExpenseHistory(state.expenseHistory || [])); $('addSaleRow').addEventListener('click', addSaleRow); $('saleForm').addEventListener('submit', submitSale); $('resetSaleBtn').addEventListener('click', () => { $('saleForm').reset(); $('saleDate').value = today(); $('saleRows').innerHTML = ''; addSaleRow(); clearMessage('saleMessage'); }); $('expenseForm').addEventListener('submit', submitExpense); $('transferForm').addEventListener('submit', submitTransfer); $('wasteForm').addEventListener('submit', submitWaste); $('stockAction').addEventListener('change', () => { const transfer = $('stockAction').value === 'transfer'; $('transferPanel').classList.toggle('hidden', !transfer); $('wastePanel').classList.toggle('hidden', transfer); }); $('countStartForm').addEventListener('submit', startCount); $('submitCountBtn').addEventListener('click', submitCount); $('resetCheckBtn').addEventListener('click', () => { state.checks = {}; localStorage.setItem('fnbStaffChecks', '{}'); renderChecklist(); }); $('saveHandoverBtn').addEventListener('click', () => { localStorage.setItem('fnbStaffHandover', $('handoverNote').value.trim()); showMessage('handoverMessage', 'Catatan serah terima disimpan di perangkat ini.', 'success'); }); $('clearHandoverBtn').addEventListener('click', () => { $('handoverNote').value = ''; localStorage.removeItem('fnbStaffHandover'); clearMessage('handoverMessage'); });
     if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('staff-sw.js').catch(() => {});
