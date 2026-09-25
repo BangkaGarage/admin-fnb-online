@@ -1271,9 +1271,9 @@
             </form>
           </div>
           <div class="finance-stats-grid" style="margin-top:20px;">
-            <div class="finance-card"><span>Omzet Periode</span><strong id="salesReportRevenue">Rp0</strong><small>Dari gross_amount tabel sales</small></div>
+            <div class="finance-card"><span>Omzet Periode</span><strong id="salesReportRevenue">Rp0</strong><small>Penjualan bersih setelah diskon</small></div>
             <div class="finance-card"><span>HPP Periode</span><strong id="salesReportHpp">Rp0</strong><small>Dari resep menu-varian</small></div>
-            <div class="finance-card"><span>Profit Setelah HPP</span><strong id="salesReportGrossProfit">Rp0</strong><small>Omzet gross dikurangi HPP</small></div>
+            <div class="finance-card"><span>Profit Setelah HPP</span><strong id="salesReportGrossProfit">Rp0</strong><small>Omzet bersih dikurangi HPP</small></div>
             <div class="finance-card"><span>Margin Rata-rata</span><strong id="salesReportMargin">-</strong><small>Profit setelah HPP ÷ omzet</small></div>
             <div class="finance-card"><span>Total Produk Terjual</span><strong id="salesReportQuantity">0</strong><small>Akumulasi quantity_sold</small></div>
             <div class="finance-card"><span>Jumlah Baris Penjualan</span><strong id="salesReportRows">0</strong><small>Data permanen Supabase</small></div>
@@ -1345,15 +1345,15 @@
         </section>
 
         <section id="reportPage" class="page">
-          <div class="section-title"><h1>Laporan Keuangan</h1><p>Ringkasan omzet gross dari sales, pengeluaran, dan laba rugi bersih.</p></div>
+          <div class="section-title"><h1>Laporan Keuangan</h1><p>Ringkasan omzet bersih setelah diskon, pengeluaran, dan laba rugi bersih.</p></div>
           <div id="reportPlaceholder" class="placeholder hidden"><div><div class="big-icon">▥</div><h3>Modul laporan keuangan siap dikembangkan</h3><p>Perhitungan laba rugi membaca data penjualan permanen dari tabel sales dan pengeluaran dari tabel expenses.</p></div></div>
           <div class="panel">
-            <div class="panel-head"><div><h3>Laporan Laba Rugi Bulanan</h3><p class="panel-subtitle">Omzet gross dikurangi HPP dan seluruh pengeluaran operasional. Cadangan maintenance hanya angka referensi dari laba bersih.</p></div><div class="panel-actions"><input id="financeReportStart" class="compact-select" type="date" title="Tanggal mulai" /><input id="financeReportEnd" class="compact-select" type="date" title="Tanggal akhir" /><select id="financeExpenseCategory" class="compact-select"><option value="all">Semua Kategori</option></select><button id="refreshProfitLossBtn" class="reset-btn" type="button">↻ Refresh</button></div></div>
+            <div class="panel-head"><div><h3>Laporan Laba Rugi Bulanan</h3><p class="panel-subtitle">Omzet bersih setelah diskon dikurangi HPP dan seluruh pengeluaran operasional. Cadangan maintenance hanya angka referensi dari laba bersih.</p></div><div class="panel-actions"><input id="financeReportStart" class="compact-select" type="date" title="Tanggal mulai" /><input id="financeReportEnd" class="compact-select" type="date" title="Tanggal akhir" /><select id="financeExpenseCategory" class="compact-select"><option value="all">Semua Kategori</option></select><button id="refreshProfitLossBtn" class="reset-btn" type="button">↻ Refresh</button></div></div>
             <p id="profitLossMessage" class="form-message" role="status"></p>
             <div id="profitLossTableWrap" class="history-table-wrap"><div class="loading-row">Buka menu ini untuk memuat laporan laba rugi.</div></div>
           </div>
           <div class="panel history-panel">
-            <div class="panel-head"><div><h3>Profitabilitas per Varian</h3><p class="panel-subtitle">HPP resep, omzet gross, laba setelah HPP, dan margin dipisahkan untuk setiap menu-varian.</p></div></div>
+            <div class="panel-head"><div><h3>Profitabilitas per Varian</h3><p class="panel-subtitle">HPP resep, omzet bersih setelah diskon, laba setelah HPP, dan margin dipisahkan untuk setiap menu-varian.</p></div></div>
             <div id="profitVariantTableWrap" class="history-table-wrap"><div class="loading-row">Buka halaman ini untuk memuat profitabilitas per varian.</div></div>
           </div>
           <div id="reportExportCard" class="report-export-card">
@@ -3131,7 +3131,7 @@
       $('#settingGlobalMinStock').value = Number(settings.stock.global_min_stock) || 0;
       $('#settingBackgroundColor').value = settings.appearance.background_color || '#eef2f7';
       $('#settingTextColor').value = settings.appearance.text_color || '#111827';
-      $('#settingsAppVersion').textContent = 'Settings v1';
+      $('#settingsAppVersion').textContent = 'Sales import v6 · diskon';
       $('#settingsSupabaseStatus').textContent = supabaseConfigured ? 'Terhubung' : 'Belum dikonfigurasi';
       $('#settingsSupabaseStatus').style.color = supabaseConfigured ? 'var(--green)' : 'var(--red)';
       renderSettingsPermissions();
@@ -8433,7 +8433,7 @@
         <td>${escapeHtml([...row.files].join(', ') || '-')}</td>
       </tr>`).join('');
       tableWrap.innerHTML = summaryRows
-        ? `<table class="history-table"><thead><tr><th>Nama Item</th><th>Varian</th><th>Jenis</th><th>Unit Terjual</th><th>Omzet Gross</th><th>HPP</th><th>Profit</th><th>Margin</th><th>File Sumber</th></tr></thead><tbody>${summaryRows}</tbody></table>`
+        ? `<table class="history-table"><thead><tr><th>Nama Item</th><th>Varian</th><th>Jenis</th><th>Unit Terjual</th><th>Omzet Bersih</th><th>HPP</th><th>Profit</th><th>Margin</th><th>File Sumber</th></tr></thead><tbody>${summaryRows}</tbody></table>`
         : '<div class="loading-row">Tidak ada penjualan pada periode yang dipilih.</div>';
       message.textContent = `${rows.length.toLocaleString('id-ID')} baris penjualan permanen berhasil dimuat.`;
       message.className = 'form-message success';
@@ -8513,7 +8513,7 @@
         return `<tr><td>${escapeHtml(formatMonthLabel(row.month))}</td><td class="amount">${formatRupiah(row.revenue)}</td><td class="amount">${row.hppKnown ? formatRupiah(row.hpp) : '-'}</td><td class="amount">${row.hppKnown ? formatRupiah(Math.max(0, row.revenue - row.hpp)) : '-'}</td><td class="amount">${maintenanceReserve === null ? '-' : formatRupiah(maintenanceReserve)}</td><td class="amount">${formatRupiah(row.expenses)}</td><td class="amount ${net !== null && net < 0 ? 'profit-negative' : 'profit-positive'}">${net === null ? '-' : formatRupiah(net)}</td><td class="amount ${netAfterReserve !== null && netAfterReserve < 0 ? 'profit-negative' : 'profit-positive'}">${netAfterReserve === null ? '-' : formatRupiah(netAfterReserve)}</td><td>${net === null ? '-' : formatMargin(row.revenue, row.hpp + row.expenses, true)}</td></tr>`;
       }).join('');
       $('#profitLossTableWrap').innerHTML = rows
-        ? `<table class="history-table"><thead><tr><th>Periode</th><th>Omzet Gross</th><th>HPP</th><th>Margin Kotor</th><th>Cadangan Maintenance (dari Laba Bersih)</th><th>Pengeluaran</th><th>Laba / (Rugi) Bersih</th><th>Laba Setelah Cadangan</th><th>Margin Bersih</th></tr></thead><tbody>${rows}</tbody></table>`
+        ? `<table class="history-table"><thead><tr><th>Periode</th><th>Omzet Bersih</th><th>HPP</th><th>Margin</th><th>Cadangan Maintenance (dari Laba Bersih)</th><th>Pengeluaran</th><th>Laba / (Rugi) Bersih</th><th>Laba Setelah Cadangan</th><th>Margin Bersih</th></tr></thead><tbody>${rows}</tbody></table>`
         : '<div class="loading-row">Belum ada data penjualan atau pengeluaran.</div>';
 
       const variantRows = [...variantMap.values()].sort((a, b) => String(b.month).localeCompare(String(a.month)) || b.revenue - a.revenue).map((row) => {
@@ -8521,7 +8521,7 @@
         return `<tr><td>${escapeHtml(formatMonthLabel(row.month))}</td><td>${escapeHtml(row.productName || '-')}</td><td>${escapeHtml(row.variant || '-')}</td><td>${escapeHtml(row.categoryItem || '-')}</td><td>${formatQuantity(row.quantity)}</td><td class="amount">${formatRupiah(row.revenue)}</td><td class="amount">${row.hppKnown ? formatRupiah(row.hpp) : '-'}</td><td class="amount ${profit < 0 ? 'profit-negative' : 'profit-positive'}">${row.hppKnown ? formatRupiah(profit) : '-'}</td><td>${formatMargin(row.revenue, row.hpp, row.hppKnown)}</td></tr>`;
       }).join('');
       $('#profitVariantTableWrap').innerHTML = variantRows
-        ? `<table class="history-table"><thead><tr><th>Periode</th><th>Nama Item</th><th>Varian</th><th>Jenis</th><th>Unit</th><th>Omzet Gross</th><th>HPP</th><th>Profit Setelah HPP</th><th>Margin</th></tr></thead><tbody>${variantRows}</tbody></table>`
+        ? `<table class="history-table"><thead><tr><th>Periode</th><th>Nama Item</th><th>Varian</th><th>Jenis</th><th>Unit</th><th>Omzet Bersih</th><th>HPP</th><th>Profit Setelah HPP</th><th>Margin</th></tr></thead><tbody>${variantRows}</tbody></table>`
         : '<div class="loading-row">Belum ada data penjualan per varian.</div>';
     }
 
@@ -8571,7 +8571,10 @@
       category: ['Jenis', 'Tipe Produk', 'Kategori', 'Category'],
       sold: ['Unit Terjual', 'Unit terjual', 'Quantity', 'Quantity Sold', 'Qty'],
       unitPrice: ['Harga Satuan', 'Harga', 'Unit Price', 'Price'],
-      gross: ['Harga Total', 'Penjualan Kotor', 'Total Penjualan', 'Gross Sales', 'Gross Amount']
+      gross: ['Penjualan Kotor', 'Harga Total', 'Total Penjualan', 'Gross Sales', 'Gross Amount'],
+      discount: ['Diskon', 'Discount', 'Discount Amount', 'Jumlah Diskon'],
+      refund: ['Pengembalian Dana', 'Refund', 'Refund Amount', 'Jumlah Pengembalian'],
+      net: ['Penjualan Bersih', 'Net Sales', 'Net Amount', 'Harga Bersih']
     });
 
     function normalizeExcelRow(row) {
@@ -8652,6 +8655,9 @@
         const quantityKey = findSalesColumn(source, SALES_COLUMN_ALIASES.sold);
         const unitPriceKey = findSalesColumn(source, SALES_COLUMN_ALIASES.unitPrice);
         const grossKey = findSalesColumn(source, SALES_COLUMN_ALIASES.gross);
+        const discountKey = findSalesColumn(source, SALES_COLUMN_ALIASES.discount);
+        const refundKey = findSalesColumn(source, SALES_COLUMN_ALIASES.refund);
+        const netKey = findSalesColumn(source, SALES_COLUMN_ALIASES.net);
         const receiptKey = findSalesColumn(source, SALES_COLUMN_ALIASES.receipt);
         const explicitDateKey = findSalesColumn(source, SALES_COLUMN_ALIASES.date);
         const dayKey = findSalesColumn(source, SALES_COLUMN_ALIASES.day);
@@ -8660,6 +8666,14 @@
         const saleDate = explicitDate || recapDate;
         const sourceDay = dayKey ? String(source[dayKey] ?? '').trim() : '';
         const hari = explicitDate ? sourceDay : (saleDate ? weekdayFromSalesDate(saleDate) : sourceDay);
+        const grossValue = parseTemplateFloat(grossKey ? source[grossKey] : '');
+        const discountValue = parseTemplateFloat(discountKey ? source[discountKey] : '');
+        const refundValue = parseTemplateFloat(refundKey ? source[refundKey] : '');
+        const netValue = parseTemplateFloat(netKey ? source[netKey] : '');
+        const grossAmount = Number.isFinite(grossValue) ? grossValue : 0;
+        const discountAmount = Number.isFinite(discountValue) ? discountValue : 0;
+        const refundAmount = Number.isFinite(refundValue) ? refundValue : 0;
+        const netAmount = Number.isFinite(netValue) ? netValue : Math.max(0, grossAmount - discountAmount - refundAmount);
         return {
           'Nomor Nota': receiptKey ? String(source[receiptKey] ?? '').trim() : '',
           Hari: hari,
@@ -8669,7 +8683,15 @@
           Jenis: categoryKey ? source[categoryKey] : '',
           'Unit Terjual': quantityKey ? source[quantityKey] : '',
           'Harga Satuan': unitPriceKey ? source[unitPriceKey] : '',
-          'Harga Total': grossKey ? source[grossKey] : '',
+          'Harga Total': netAmount,
+          'Penjualan Kotor': grossAmount,
+          Diskon: discountAmount,
+          'Pengembalian Dana': refundAmount,
+          'Penjualan Bersih': netAmount,
+          __grossAmount: grossAmount,
+          __discountAmount: discountAmount,
+          __refundAmount: refundAmount,
+          __netAmount: netAmount,
           __sourceRowNumber: headerRowIndex + index + 2
         };
       });
@@ -8723,7 +8745,10 @@
         variant: normalizeMenuName(row.variant || ''),
         category_item: normalizeText(row.category_item || ''),
         quantity_sold: Number(row.quantity_sold || 0),
-        gross_amount: Number(row.gross_amount || 0)
+        gross_amount: Number(row.gross_amount || 0),
+        source_gross_amount: Number(row.source_gross_amount || 0),
+        discount_amount: Number(row.discount_amount || 0),
+        refund_amount: Number(row.refund_amount || 0)
       })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
       const bytes = new TextEncoder().encode(JSON.stringify(canonicalRows));
       const digest = await window.crypto.subtle.digest('SHA-256', bytes);
@@ -8741,7 +8766,10 @@
       const categoryKey = findTemplateColumn(safeRow, TEMPLATE_SALES_COLUMNS.category);
       const quantityKey = findTemplateColumn(safeRow, TEMPLATE_SALES_COLUMNS.sold);
       const unitPriceKey = findTemplateColumn(safeRow, TEMPLATE_SALES_COLUMNS.unitPrice);
-      const grossKey = findTemplateColumn(safeRow, TEMPLATE_SALES_COLUMNS.gross);
+      const grossKey = findSalesColumn(safeRow, SALES_COLUMN_ALIASES.gross);
+      const discountKey = findSalesColumn(safeRow, SALES_COLUMN_ALIASES.discount);
+      const refundKey = findSalesColumn(safeRow, SALES_COLUMN_ALIASES.refund);
+      const netKey = findSalesColumn(safeRow, SALES_COLUMN_ALIASES.net);
       if (!dayKey || !dateKey || !menuKey || !variantKey || !categoryKey || !quantityKey || !grossKey) return null;
 
       const productName = String(safeRow[menuKey] ?? '').trim();
@@ -8750,7 +8778,14 @@
       const categoryItem = String(safeRow[categoryKey] ?? '').trim();
       const quantitySold = parseTemplateInteger(safeRow[quantityKey]);
       const unitPrice = parseTemplateFloat(unitPriceKey ? safeRow[unitPriceKey] : '');
-      const grossAmount = parseTemplateFloat(safeRow[grossKey]);
+      const grossValue = parseTemplateFloat(safeRow[grossKey]);
+      const discountValue = parseTemplateFloat(discountKey ? safeRow[discountKey] : '');
+      const refundValue = parseTemplateFloat(refundKey ? safeRow[refundKey] : '');
+      const netValue = parseTemplateFloat(netKey ? safeRow[netKey] : '');
+      const grossAmount = Number.isFinite(grossValue) ? grossValue : 0;
+      const discountAmount = Number.isFinite(discountValue) ? discountValue : 0;
+      const refundAmount = Number.isFinite(refundValue) ? refundValue : 0;
+      const netAmount = Number.isFinite(netValue) ? netValue : Math.max(0, grossAmount - discountAmount - refundAmount);
       const saleDate = formatRequiredSalesDate(safeRow[dateKey]);
 
       return {
@@ -8773,6 +8808,9 @@
         productName,
         quantity: quantitySold,
         grossAmount,
+        discountAmount,
+        refundAmount,
+        netAmount,
         dateValue: safeRow[dateKey]
       };
     }
@@ -8787,8 +8825,8 @@
         if (index < 5) console.log(row);
         const fields = extractSalesFields(row);
         if (!fields || !fields.productName || !fields.saleDate || !Number.isFinite(fields.quantity)) return;
-        const grossAmount = Number.isFinite(fields.grossAmount)
-          ? parseFloat(fields.grossAmount)
+        const netAmount = Number.isFinite(fields.netAmount)
+          ? parseFloat(fields.netAmount)
           : (Number.isFinite(fields.unitPrice) ? parseFloat(fields.unitPrice * fields.quantity) : 0);
         payload.push({
           file_name: file.name,
@@ -8799,7 +8837,10 @@
           variant: fields.variant ? fields.variant : null,
           category_item: fields.categoryItem || 'Other',
           quantity_sold: Number(fields.quantity || 0),
-          gross_amount: grossAmount
+          gross_amount: netAmount,
+          source_gross_amount: Number(fields.grossAmount) || 0,
+          discount_amount: Number(fields.discountAmount) || 0,
+          refund_amount: Number(fields.refundAmount) || 0
         });
       });
       if (!payload.length) return { status: 'no-match', insertedRows: 0 };
@@ -9365,10 +9406,13 @@
         // Menu iSeller baru tanpa mapping tidak diblokir karena database akan
         // membuat Master Menu/varian secara otomatis saat upload disimpan.
         if (mapping && !masterRow) problems.push({ row: fields.rowNumber || (headerRowIndex + index + 2), menu: fields.productName, variant: fields.variant || '-', reason: 'Mapping mengarah ke menu/varian yang belum ada di Master Menu' });
-        prepared.push({ file_name: file.name, receipt_number: fields.receiptNumber || null, hari: fields.hari, sale_date: fields.saleDate, product_name: productName, variant: variant === 'Default' ? null : variant, category_item: fields.categoryItem || masterRow?.category || 'Other', quantity_sold: fields.quantity, gross_amount: Number.isFinite(fields.grossAmount) ? fields.grossAmount : (Number.isFinite(fields.unitPrice) ? fields.unitPrice * fields.quantity : 0) });
+        prepared.push({ file_name: file.name, receipt_number: fields.receiptNumber || null, hari: fields.hari, sale_date: fields.saleDate, product_name: productName, variant: variant === 'Default' ? null : variant, category_item: fields.categoryItem || masterRow?.category || 'Other', quantity_sold: fields.quantity, gross_amount: Number.isFinite(fields.netAmount) ? fields.netAmount : (Number.isFinite(fields.unitPrice) ? fields.unitPrice * fields.quantity : 0), source_gross_amount: Number(fields.grossAmount) || 0, discount_amount: Number(fields.discountAmount) || 0, refund_amount: Number(fields.refundAmount) || 0 });
       });
       const dates = [...new Set(prepared.map((row) => row.sale_date).filter(Boolean))];
       if (dates.length > 1) throw new Error(`File berisi lebih dari satu tanggal transaksi (${dates.join(', ')}). Upload satu rekap untuk satu tanggal.`);
+      const totalGross = prepared.reduce((sum, row) => sum + (Number(row.source_gross_amount) || 0), 0);
+      const totalDiscount = prepared.reduce((sum, row) => sum + (Number(row.discount_amount) || 0), 0);
+      const totalRefund = prepared.reduce((sum, row) => sum + (Number(row.refund_amount) || 0), 0);
       const totalRevenue = prepared.reduce((sum, row) => sum + row.gross_amount, 0);
       const contentHash = await hashSalesPayload(prepared);
       let dateConflict = null;
@@ -9380,7 +9424,7 @@
           addUploadLog('warning', `Tanggal import belum dapat diverifikasi: ${error?.message || 'kesalahan database'}`);
         }
       }
-      state.pendingSalesUpload = { file, payload: prepared, problems, contentHash, totalRevenue, dateConflict, sourceHeaderRowIndex: headerRowIndex };
+      state.pendingSalesUpload = { file, payload: prepared, problems, contentHash, totalGross, totalDiscount, totalRefund, totalRevenue, dateConflict, sourceHeaderRowIndex: headerRowIndex };
       renderSalesValidation();
       if (problems.length && prepared.length) {
         const reason = problems.slice(0, 20).map((item) => `Baris ${item.row}: ${item.menu}${item.variant !== '-' ? ` / ${item.variant}` : ''} — ${item.reason}`).join('; ');
@@ -9401,7 +9445,7 @@
 
     function renderSalesValidation() {
       const panel = $('#salesValidationPanel'); if (!panel || !state.pendingSalesUpload) return;
-      const { payload, problems, totalRevenue, dateConflict } = state.pendingSalesUpload;
+      const { payload, problems, totalGross, totalDiscount, totalRefund, totalRevenue, dateConflict } = state.pendingSalesUpload;
       const uniqueKeys = [...new Set(payload.map((row) => recipeLookupKey(row.product_name, row.variant || 'Default')))];
       const unconfigured = uniqueKeys.filter((key) => {
         const masterRow = state.menuMasterRows.find((row) => recipeLookupKey(row.menu_name, row.variant || '') === key);
@@ -9410,7 +9454,7 @@
       const newMenuCount = uniqueKeys.filter((key) => !state.menuMasterRows.some((row) => recipeLookupKey(row.menu_name, row.variant || '') === key)).length;
       panel.classList.remove('hidden');
       const dateBlocker = dateConflict ? `<div style="color:var(--red);margin-top:8px;">${dateConflict.error ? `Tanggal belum dapat diverifikasi: ${escapeHtml(dateConflict.error)}` : `Tanggal ${escapeHtml(payload[0]?.sale_date || '')} sudah memiliki penjualan hasil import (${escapeHtml(dateConflict.file_name || 'file sebelumnya')}). Upload diblokir agar penjualan tidak tercatat dua kali.`}</div>` : '';
-      $('#salesValidationSummary').innerHTML = `Baris valid: <strong>${payload.length.toLocaleString('id-ID')}</strong> · Omzet file: <strong>${formatRupiah(totalRevenue)}</strong> · Menu baru: <strong>${newMenuCount.toLocaleString('id-ID')}</strong> · Belum ada resep/HPP: <strong>${unconfigured.length.toLocaleString('id-ID')}</strong>${dateBlocker}`;
+      $('#salesValidationSummary').innerHTML = `Baris valid: <strong>${payload.length.toLocaleString('id-ID')}</strong> · Kotor: <strong>${formatRupiah(totalGross)}</strong> · Diskon: <strong>${formatRupiah(totalDiscount)}</strong> · Refund: <strong>${formatRupiah(totalRefund)}</strong> · Bersih: <strong>${formatRupiah(totalRevenue)}</strong> · Menu baru: <strong>${newMenuCount.toLocaleString('id-ID')}</strong> · Belum ada resep/HPP: <strong>${unconfigured.length.toLocaleString('id-ID')}</strong>${dateBlocker}`;
       const wrap = $('#salesValidationTableWrap');
       wrap.innerHTML = problems.length
         ? `<table class="history-table"><thead><tr><th>Baris</th><th>Menu iSeller</th><th>Varian</th><th>Masalah</th></tr></thead><tbody>${problems.map((row) => `<tr><td>${row.row}</td><td>${escapeHtml(row.menu)}</td><td>${escapeHtml(row.variant)}</td><td>${escapeHtml(row.reason)}</td></tr>`).join('')}</tbody></table>`
