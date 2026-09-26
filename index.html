@@ -827,7 +827,7 @@
                   <h3>Master bahan baku</h3>
                   <p class="panel-subtitle">Buat daftar bahan dan lokasi penyimpanannya. Bahan baru selalu dimulai dengan stok 0.</p>
                 </div>
-                <button id="refreshInventoryBtn" class="reset-btn" type="button">↻ Refresh</button>
+                <div class="panel-actions"><button id="exportInventoryMasterBtn" class="export-btn" type="button">Export Semua Bahan</button><button id="refreshInventoryBtn" class="reset-btn" type="button">↻ Refresh</button></div>
               </div>
               <form id="inventoryForm">
                 <input id="inventoryEditId" type="hidden" />
@@ -935,7 +935,7 @@
             </div>
           </div>
             <div class="deduction-note">Saat laporan iSeller diunggah, sistem mencocokkan nama menu dengan resep dan menghitung HPP berdasarkan jumlah terjual. Stok aktual dicatat melalui Pemakaian Bahan Harian pada divisi Bar, Kitchen, atau Waiters agar tidak terjadi pemotongan ganda.</div>
-          <div class="panel" style="margin-top:18px;"><div class="panel-head"><div><h3>Import Master Bahan Baku</h3><p class="panel-subtitle">Upload Excel sesuai template untuk membuat banyak bahan sekaligus.</p></div><div class="panel-actions"><button class="reset-btn" data-download-template="inventory" type="button">Download Template</button><label class="upload-btn" style="cursor:pointer">Pilih File<input type="file" accept=".xlsx,.xls,.csv" data-import-file="inventory" hidden /></label></div></div><p id="importInventoryMessage" class="form-message"></p></div>
+          <div class="panel" style="margin-top:18px;"><div class="panel-head"><div><h3>Import Master Bahan Baku</h3><p class="panel-subtitle">Upload Excel sesuai template untuk membuat banyak bahan sekaligus. Gunakan <strong>Export Semua Bahan</strong> di atas untuk menarik seluruh data bahan yang sudah ada ke Excel.</p></div><div class="panel-actions"><button class="reset-btn" data-download-template="inventory" type="button">Download Template</button><label class="upload-btn" style="cursor:pointer">Pilih File<input type="file" accept=".xlsx,.xls,.csv" data-import-file="inventory" hidden /></label></div></div><p id="importInventoryMessage" class="form-message"></p></div>
         </section>
 
         <section id="bomPage" class="page">
@@ -2412,6 +2412,7 @@
       renderRecipeTable(loadedRecipeRows);
     });
     $('#exportRecipeDetailBtn').addEventListener('click', exportRecipeDetail);
+    $('#exportInventoryMasterBtn').addEventListener('click', exportInventoryMaster);
     $('#resetInventoryBtn').addEventListener('click', resetInventoryForm);
     $('#cancelInventoryEditBtn').addEventListener('click', resetInventoryForm);
     $('#inventoryTableWrap').addEventListener('click', handleInventoryTableClick);
@@ -7498,6 +7499,73 @@
 
     function isVirtualPreparationItem(item) {
       return /^\[prep\]\s/i.test(String(item?.item_name || '').trim());
+    }
+
+    async function exportInventoryMaster() {
+      if (typeof XLSX === 'undefined') {
+        window.alert('Library Excel belum berhasil dimuat.');
+        return;
+      }
+      if (!supabaseConfigured) {
+        window.alert('Supabase belum dikonfigurasi.');
+        return;
+      }
+      if (!state.inventory?.length) {
+        await loadInventory();
+      }
+      if (!state.unitConversions?.length) {
+        await loadUnitConversionsForState();
+      }
+      const items = (state.inventory || []).filter((item) => !isVirtualPreparationItem(item));
+      if (!items.length) {
+        window.alert('Belum ada bahan baku untuk diekspor.');
+        return;
+      }
+
+      const exportRows = items.map((item) => {
+        const conversion = getUnitConversionForItem(item.id) || {};
+        return {
+          item_name: item.item_name || '',
+          division: item.division || 'Gudang Utama',
+          unit: item.unit || '',
+          reference_unit_cost: item.reference_unit_cost === null || item.reference_unit_cost === undefined ? '' : Number(item.reference_unit_cost),
+          stock_quantity: Number(item.stock_quantity) || 0,
+          min_stock: Number(item.min_stock) || 0,
+          purchase_unit: conversion.purchase_unit || '',
+          purchase_quantity: conversion.purchase_quantity === undefined ? '' : Number(conversion.purchase_quantity),
+          purchase_to_storage: conversion.purchase_to_storage === undefined ? '' : Number(conversion.purchase_to_storage),
+          storage_unit: conversion.storage_unit || item.unit || '',
+          storage_to_usage: conversion.storage_to_usage === undefined ? '' : Number(conversion.storage_to_usage),
+          usage_unit: conversion.usage_unit || item.unit || '',
+          yield_percentage: conversion.yield_percentage === undefined ? '' : Number(conversion.yield_percentage),
+          conversion_notes: conversion.notes || '',
+          inventory_id: item.id || ''
+        };
+      });
+
+      const recipeRows = items.map((item) => {
+        const conversion = getUnitConversionForItem(item.id) || {};
+        return {
+          'Nama Bahan': item.item_name || '',
+          'Satuan Dasar': item.unit || '',
+          'Harga Acuan / Satuan': item.reference_unit_cost === null || item.reference_unit_cost === undefined ? '' : Number(item.reference_unit_cost),
+          Divisi: item.division || 'Gudang Utama',
+          'Stok Saat Ini': Number(item.stock_quantity) || 0,
+          'Batas Minimum': Number(item.min_stock) || 0,
+          'Satuan Beli': conversion.purchase_unit || '',
+          'Isi Satuan Dasar per 1 Satuan Beli': conversion.purchase_to_storage === undefined ? '' : Number(conversion.purchase_to_storage),
+          'Satuan Resep': conversion.usage_unit || item.unit || '',
+          'Faktor Stok ke Resep': conversion.storage_to_usage === undefined ? '' : Number(conversion.storage_to_usage),
+          'Yield (%)': conversion.yield_percentage === undefined ? '' : Number(conversion.yield_percentage),
+          'Catatan Konversi': conversion.notes || '',
+          'ID Bahan': item.id || ''
+        };
+      });
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(recipeRows), 'Master Bahan');
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(exportRows), 'Data Aplikasi');
+      XLSX.writeFile(workbook, `master-bahan-aplikasi-${new Date().toISOString().slice(0, 10)}.xlsx`);
     }
 
     function recipeInventoryOptions(items = state.inventory, selectedId = '') {
