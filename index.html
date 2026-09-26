@@ -6380,7 +6380,10 @@
         const minStock = importNumber(importRowValue(row, 'min_stock', 0), 0);
         if (!itemName) { importValidationError(errors, row, 'item_name wajib diisi.'); return; }
         if (!DIVISIONS.includes(division)) importValidationError(errors, row, `${itemName}: division tidak dikenali.`);
-        if (!['ml', 'gr', 'pcs'].includes(unit)) importValidationError(errors, row, `${itemName}: unit harus ml, gr, atau pcs.`);
+        // Master bahan dapat memakai satuan operasional apa pun selama tidak kosong.
+        // Contoh yang sudah dipakai di data: ml, gr, pcs, botol, scht, ekor, butir, porsi.
+        // Resep tetap dapat memakai satuan dasar/konversi yang diatur pada bahan tersebut.
+        if (!unit) importValidationError(errors, row, `${itemName}: unit wajib diisi.`);
         if (!Number.isFinite(minStock) || minStock < 0) importValidationError(errors, row, `${itemName}: min_stock harus 0 atau lebih.`);
         const key = `${normalizeText(itemName)}::${normalizeText(division)}`;
         if (seen.has(key)) importValidationError(errors, row, `${itemName}: duplikat nama bahan dan divisi di dalam file.`);
