@@ -140,7 +140,9 @@
       overflow-y: auto;
       scrollbar-width: thin;
       scrollbar-color: #475569 transparent;
+      transition: transform .22s ease, visibility .22s ease;
     }
+    #appShell.sidebar-hidden .sidebar { transform: translateX(-100%); visibility: hidden; }
     .sidebar::-webkit-scrollbar { width: 7px; }
     .sidebar::-webkit-scrollbar-track { background: transparent; }
     .sidebar::-webkit-scrollbar-thumb { border-radius: 99px; background: #475569; }
@@ -181,7 +183,11 @@
     .logout-btn { width: 100%; padding: 10px 12px; border: 1px solid #4b5563; border-radius: 9px; color: #e5e7eb; background: transparent; font-size: 12px; font-weight: 700; }
     .logout-btn:hover { border-color: #f87171; color: #fecaca; background: rgba(185,28,28,.15); }
 
-    .main { position: relative; width: calc(100% - 272px); min-height: 100vh; margin-left: 272px; }
+    .main { position: relative; width: calc(100% - 272px); min-height: 100vh; margin-left: 272px; transition: margin-left .22s ease, width .22s ease; }
+    #appShell.sidebar-hidden .main { width: 100%; margin-left: 0; }
+    .topbar-leading { display: flex; align-items: center; gap: 13px; min-width: 0; }
+    .sidebar-toggle-btn { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0; border: 1px solid var(--line); border-radius: 9px; color: var(--navy); background: #fff; font-size: 18px; cursor: pointer; }
+    .sidebar-toggle-btn:hover { color: var(--orange-dark); border-color: #fdba74; background: #fff7ed; }
     .topbar { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 18px 34px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.88); backdrop-filter: blur(10px); }
     .topbar-actions { display: flex; align-items: center; gap: 10px; }
     .topbar h2 { margin: 0; font-size: 20px; letter-spacing: -.4px; }
@@ -393,6 +399,24 @@
     .history-panel { min-width: 0; }
     .history-table-wrap { max-height: 490px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
     .history-table { min-width: 720px; }
+    #menuMasterTableWrap { max-height: 490px; overflow-x: hidden; overflow-y: auto; }
+    #menuMasterTableWrap .history-table { width: 100%; min-width: 0; table-layout: fixed; font-size: 10px; }
+    #menuMasterTableWrap .history-table th, #menuMasterTableWrap .history-table td { padding: 7px 5px; white-space: normal; overflow-wrap: anywhere; }
+    #menuMasterTableWrap .history-table th:nth-child(1), #menuMasterTableWrap .history-table td:nth-child(1) { width: 6%; }
+    #menuMasterTableWrap .history-table th:nth-child(2), #menuMasterTableWrap .history-table td:nth-child(2) { width: 13%; }
+    #menuMasterTableWrap .history-table th:nth-child(3), #menuMasterTableWrap .history-table td:nth-child(3) { width: 6%; }
+    #menuMasterTableWrap .history-table th:nth-child(4), #menuMasterTableWrap .history-table td:nth-child(4) { width: 7%; }
+    #menuMasterTableWrap .history-table th:nth-child(5), #menuMasterTableWrap .history-table td:nth-child(5) { width: 7%; }
+    #menuMasterTableWrap .history-table th:nth-child(6), #menuMasterTableWrap .history-table td:nth-child(6) { width: 7%; }
+    #menuMasterTableWrap .history-table th:nth-child(7), #menuMasterTableWrap .history-table td:nth-child(7) { width: 8%; }
+    #menuMasterTableWrap .history-table th:nth-child(8), #menuMasterTableWrap .history-table td:nth-child(8) { width: 8%; }
+    #menuMasterTableWrap .history-table th:nth-child(9), #menuMasterTableWrap .history-table td:nth-child(9) { width: 9%; }
+    #menuMasterTableWrap .history-table th:nth-child(10), #menuMasterTableWrap .history-table td:nth-child(10) { width: 6%; }
+    #menuMasterTableWrap .history-table th:nth-child(11), #menuMasterTableWrap .history-table td:nth-child(11) { width: 7%; }
+    #menuMasterTableWrap .history-table th:nth-child(12), #menuMasterTableWrap .history-table td:nth-child(12) { width: 6%; }
+    #menuMasterTableWrap .history-table th:nth-child(13), #menuMasterTableWrap .history-table td:nth-child(13) { width: 10%; }
+    #menuMasterTableWrap .action-group { gap: 4px; }
+    #menuMasterTableWrap .action-group button { padding: 5px 6px; font-size: 10px; }
     .history-table td.amount { color: var(--orange-dark); font-weight: 800; }
     .loading-row { padding: 25px; color: var(--muted); text-align: center; font-size: 12px; }
     .supabase-note { margin-top: 15px; padding: 11px 12px; border-radius: 9px; color: #475569; background: #f8fafc; font-size: 11px; line-height: 1.55; }
@@ -488,9 +512,16 @@
       .warehouse-summary { grid-template-columns: 1fr; }
       .manual-sale-row-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .module-search { width: min(250px, 38vw); }
+      #menuMasterTableWrap .history-table th:nth-child(1), #menuMasterTableWrap .history-table td:nth-child(1),
+      #menuMasterTableWrap .history-table th:nth-child(3), #menuMasterTableWrap .history-table td:nth-child(3),
+      #menuMasterTableWrap .history-table th:nth-child(5), #menuMasterTableWrap .history-table td:nth-child(5),
+      #menuMasterTableWrap .history-table th:nth-child(6), #menuMasterTableWrap .history-table td:nth-child(6),
+      #menuMasterTableWrap .history-table th:nth-child(10), #menuMasterTableWrap .history-table td:nth-child(10),
+      #menuMasterTableWrap .history-table th:nth-child(11), #menuMasterTableWrap .history-table td:nth-child(11) { display: none; }
     }
     @media (max-width: 720px) {
       .sidebar { position: static; width: 100%; height: auto; max-height: none; min-height: auto; overflow: visible; }
+      #appShell.sidebar-hidden .sidebar { display: none; }
       .app-shell { display: block; }
       .side-brand { padding-bottom: 16px; }
       .nav { grid-template-columns: repeat(2, minmax(0,1fr)); }
@@ -498,6 +529,7 @@
       .user-box { display: none; }
       .main { width: 100%; margin-left: 0; }
       .topbar { padding: 16px 20px; }
+      .topbar-leading { width: 100%; }
       .content { padding: 24px 20px 40px; }
       .module-search { min-width: 0; width: 100%; }
       .topbar { align-items: flex-start; flex-direction: column; }
@@ -508,6 +540,8 @@
       .assistant-panel { top: 126px; right: 12px; }
       .panel-head:has(.compact-select) .panel-actions { justify-content: stretch; }
       .panel-head:has(.compact-select) .compact-select { flex: 1 1 140px; }
+      #menuMasterTableWrap .history-table th:nth-child(4), #menuMasterTableWrap .history-table td:nth-child(4),
+      #menuMasterTableWrap .history-table th:nth-child(9), #menuMasterTableWrap .history-table td:nth-child(9) { display: none; }
     }
     @media (max-width: 470px) {
       .stats-grid, .finance-stats-grid { grid-template-columns: 1fr; }
@@ -565,7 +599,7 @@
   </section>
 
   <div id="appShell" class="app-shell hidden">
-    <aside class="sidebar">
+    <aside id="mainSidebar" class="sidebar">
       <div class="side-brand">
         <div class="brand-mark"><span id="brandMarkText">F&amp;B</span><img id="brandLogoImage" class="hidden" alt="Logo usaha" /></div>
         <div>
@@ -640,9 +674,12 @@
 
     <main class="main">
       <header class="topbar">
-        <div>
+        <div class="topbar-leading">
+          <button id="sidebarToggleBtn" class="sidebar-toggle-btn" type="button" aria-label="Sembunyikan menu samping" aria-controls="mainSidebar" aria-expanded="true" title="Sembunyikan menu samping">☰</button>
+          <div>
           <h2 id="pageTitle">Dashboard</h2>
           <p id="dateText"></p>
+          </div>
         </div>
         <div class="topbar-actions">
           <label class="module-search" for="moduleSearch">
@@ -2056,6 +2093,15 @@
       if (window.location.hash.includes('type=recovery')) showPasswordRecovery();
       restoreOwnerSession().catch((error) => { loginError.textContent = error.message || 'Sesi tidak dapat dipulihkan.'; });
     }
+
+    $('#sidebarToggleBtn')?.addEventListener('click', () => {
+      const showSidebar = appShell.classList.contains('sidebar-hidden');
+      appShell.classList.toggle('sidebar-hidden', !showSidebar);
+      const label = showSidebar ? 'Sembunyikan menu samping' : 'Tampilkan menu samping';
+      $('#sidebarToggleBtn').setAttribute('aria-label', label);
+      $('#sidebarToggleBtn').setAttribute('title', label);
+      $('#sidebarToggleBtn').setAttribute('aria-expanded', String(showSidebar));
+    });
 
     document.querySelectorAll('.nav-group-toggle').forEach((toggle) => {
       toggle.addEventListener('click', () => {
