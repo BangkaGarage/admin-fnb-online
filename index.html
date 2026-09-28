@@ -9241,12 +9241,18 @@
           expandedRecipes.push({ ...recipe, quantity_needed: Number(recipe.quantity_needed || 0) * factor });
           return;
         }
-        const preparationId = String(recipe.preparation_id || '');
+        // A preparation-line row contains both its parent preparation_id and
+        // the referenced child_preparation_id. Prefer the child ID; otherwise
+        // the parent is mistaken for its own component and falsely marked as
+        // a recipe cycle (for example ayam ungkep -> bumbu kering).
+        const preparationId = String(recipe.child_preparation_id || recipe.preparation_ref_id || recipe.preparation_id || '');
         const preparation = preparationById.get(preparationId);
         const lines = preparationLinesById.get(preparationId) || [];
         const output = Number(preparation?.output_quantity || 0) * Number(preparation?.yield_percentage || 100) / 100;
         if (!preparation || !lines.length || output <= 0 || stack.includes(preparationId)) {
-          expandedRecipes.push({ ...recipe, inventory_item_id: null, quantity_needed: 0, missing_label: preparation?.prep_name || `Preparation ${preparationId || '-'}` });
+          const prepLabel = preparation?.prep_name || recipe.preparation_name || recipe.prep_name || `Preparation ${preparationId || '-'}`;
+          const reason = !preparation ? 'tidak ditemukan' : !lines.length ? 'belum memiliki bahan' : output <= 0 ? 'hasil batch tidak valid' : 'terdeteksi siklus resep';
+          expandedRecipes.push({ ...recipe, inventory_item_id: null, quantity_needed: 0, missing_label: `${prepLabel} (${reason})` });
           return;
         }
         lines.forEach((line) => expandRecipe({ ...line, menu_name: recipe.menu_name, variant: recipe.variant }, Number(recipe.quantity_needed || 0) * factor / output, [...stack, preparationId]));
