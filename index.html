@@ -865,7 +865,7 @@
                   <h3>Master bahan baku</h3>
                   <p class="panel-subtitle">Buat daftar bahan dan lokasi penyimpanannya. Bahan baru selalu dimulai dengan stok 0.</p>
                 </div>
-                <button id="refreshInventoryBtn" class="reset-btn" type="button">↻ Refresh</button>
+                <div class="panel-actions"><button id="exportInventoryMasterBtn" class="save-btn" type="button">Export Semua Bahan</button><button id="refreshInventoryBtn" class="reset-btn" type="button">↻ Refresh</button></div>
               </div>
               <form id="inventoryForm">
                 <input id="inventoryEditId" type="hidden" />
@@ -973,7 +973,7 @@
             </div>
           </div>
             <div class="deduction-note">Saat laporan iSeller diunggah, sistem mencocokkan nama menu dengan resep dan menghitung HPP berdasarkan jumlah terjual. Stok aktual dicatat melalui Pemakaian Bahan Harian pada divisi Bar, Kitchen, atau Waiters agar tidak terjadi pemotongan ganda.</div>
-          <div class="panel" style="margin-top:18px;"><div class="panel-head"><div><h3>Import Master Bahan Baku</h3><p class="panel-subtitle">Upload Excel sesuai template untuk membuat banyak bahan sekaligus.</p></div><div class="panel-actions"><button class="reset-btn" data-download-template="inventory" type="button">Download Template</button><label class="upload-btn" style="cursor:pointer">Pilih File<input type="file" accept=".xlsx,.xls,.csv" data-import-file="inventory" hidden /></label></div></div><p id="importInventoryMessage" class="form-message"></p></div>
+          <div class="panel" style="margin-top:18px;"><div class="panel-head"><div><h3>Import Master Bahan Baku</h3><p class="panel-subtitle">Untuk edit massal, export data saat ini, edit sheet Master_Bahan, lalu upload kembali. Baris diperbarui berdasarkan ID; stok, resep, dan riwayat belanja tidak berubah. Baris tanpa ID memakai template untuk membuat bahan baru.</p></div><div class="panel-actions"><button class="reset-btn" data-download-template="inventory" type="button">Template Bahan Baru</button><label class="upload-btn" style="cursor:pointer">Pilih File<input type="file" accept=".xlsx,.xls,.csv" data-import-file="inventory" hidden /></label></div></div><p id="importInventoryMessage" class="form-message"></p></div>
         </section>
 
         <section id="bomPage" class="page">
@@ -4273,6 +4273,7 @@
     systemResetForm?.addEventListener('submit', resetSelectedSystemData);
     assetForm?.addEventListener('submit', saveAssetInventory);
     assetEventForm?.addEventListener('submit', saveAssetEvent);
+    $('#exportInventoryMasterBtn')?.addEventListener('click', exportInventoryMaster);
     document.querySelectorAll('[data-download-template]').forEach((button) => button.addEventListener('click', () => downloadImportTemplate(button.dataset.downloadTemplate)));
     document.querySelectorAll('[data-import-file]').forEach((input) => input.addEventListener('change', () => importMassal(input.dataset.importFile, input.files?.[0])));
     $('#resetAssetBtn')?.addEventListener('click', () => window.setTimeout(clearAssetMessage, 0));
@@ -6403,6 +6404,65 @@
       template.sheets.forEach((definition) => XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(definition.rows), definition.name));
       XLSX.writeFile(book, `template-${kind}.xlsx`);
     }
+
+    async function exportInventoryMaster() {
+      const button = $('#exportInventoryMasterBtn');
+      if (typeof XLSX === 'undefined') return window.alert('Library Excel belum siap.');
+      if (!supabaseConfigured) return window.alert('Supabase belum dikonfigurasi.');
+      if (button) { button.disabled = true; button.textContent = 'Menyiapkan Excel...'; }
+      try {
+        const { data: inventoryRows, error: inventoryError } = await supabaseClient.from('inventory')
+          .select('id, item_name, stock_quantity, unit, reference_unit_cost, min_stock, division')
+          .order('item_name', { ascending: true });
+        if (inventoryError) throw inventoryError;
+        const { data: conversionRows, error: conversionError } = await supabaseClient.rpc('list_unit_conversions');
+        if (conversionError) throw conversionError;
+        state.inventory = (inventoryRows || []).filter((item) => !isVirtualPreparationItem(item));
+        state.unitConversions = conversionRows || [];
+        const conversions = new Map(state.unitConversions.map((row) => [String(row.inventory_item_id), row]));
+        const rows = state.inventory.map((item) => {
+          const conversion = conversions.get(String(item.id));
+          const purchaseToStorage = Number(conversion?.purchase_to_storage) > 0 ? Number(conversion.purchase_to_storage) : 1;
+          const baseReferencePrice = Number(item.reference_unit_cost);
+          return {
+            inventory_id: item.id,
+            item_name: item.item_name || '',
+            division: item.division || 'Gudang Utama',
+            unit: item.unit || '',
+            current_stock_read_only: Number(item.stock_quantity) || 0,
+            reference_purchase_price: item.reference_unit_cost === null || item.reference_unit_cost === undefined || item.reference_unit_cost === '' ? '' : baseReferencePrice * purchaseToStorage,
+            min_stock: Number(item.min_stock) || 0,
+            purchase_unit: conversion?.purchase_unit || '',
+            purchase_quantity: conversion ? Number(conversion.purchase_quantity) || 1 : '',
+            purchase_to_storage: conversion ? Number(conversion.purchase_to_storage) || 1 : '',
+            usage_unit: conversion?.usage_unit || '',
+            storage_to_usage: conversion ? Number(conversion.storage_to_usage) || 1 : '',
+            yield_percentage: conversion ? Number(conversion.yield_percentage) || 100 : '',
+            conversion_notes: conversion?.notes || '',
+            conversion_active: conversion ? conversion.is_active !== false : ''
+          };
+        });
+        const book = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'Master_Bahan');
+        XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet([
+          { Kolom: 'inventory_id', Aturan: 'ID tetap bahan. Jangan ubah atau kosongkan; dipakai untuk memperbarui baris yang sama.' },
+          { Kolom: 'current_stock_read_only', Aturan: 'Hanya informasi. Perubahan kolom ini diabaikan saat import.' },
+          { Kolom: 'reference_purchase_price', Aturan: 'Harga untuk 1 satuan beli, misalnya harga 1 karung. Kosong berarti harga acuan lama dipertahankan.' },
+          { Kolom: 'purchase_to_storage', Aturan: 'Jumlah satuan stok dasar dalam 1 satuan beli, misalnya 10000 gr per karung.' },
+          { Kolom: 'storage_to_usage', Aturan: 'Jumlah satuan resep dalam 1 satuan stok dasar. Contoh 1 jika sama-sama gr.' },
+          { Kolom: 'conversion_active', Aturan: 'TRUE atau FALSE. Baris yang tidak memiliki konversi dibiarkan kosong.' },
+          { Kolom: 'import', Aturan: 'Upload kembali melalui tab Import Bahan. Baris tanpa ID ditolak; bahan yang tidak ada di file tidak dihapus.' },
+          { Kolom: 'safety', Aturan: 'Import hanya memperbarui nama, lokasi, satuan, harga acuan, batas minimum, dan konversi. Stok, resep, dan riwayat belanja tidak ditulis.' }
+        ]), 'Petunjuk');
+        XLSX.writeFile(book, `master-bahan-konversi-${new Date().toISOString().slice(0, 10)}.xlsx`);
+        importMessage('inventory', `${rows.length} bahan diekspor. Edit sheet Master_Bahan, jangan ubah inventory_id atau current_stock_read_only.`, 'success');
+      } catch (error) {
+        console.error(error);
+        importMessage('inventory', `Export bahan gagal: ${error.message}`, 'error');
+      } finally {
+        if (button) { button.disabled = false; button.textContent = 'Export Semua Bahan'; }
+      }
+    }
     function importRowValue(row, key, fallback = '') { const found = Object.keys(row).find((name) => normalizeText(name).replace(/[^a-z0-9]/g, '') === normalizeText(key).replace(/[^a-z0-9]/g, '')); return found ? row[found] : fallback; }
     function importNumber(value, fallback = NaN) { if (typeof value === 'number') return value; const parsed = Number(String(value ?? '').trim().replace(/\.(?=\d{3}(?:\D|$))/g, '').replace(',', '.')); return Number.isFinite(parsed) ? parsed : fallback; }
     function importBoolean(value, fallback = true) { if (value === '' || value === null || value === undefined) return fallback; return !['false', '0', 'no', 'tidak', 'nonaktif'].includes(normalizeText(value)); }
@@ -6661,6 +6721,63 @@
       finishImportValidation(errors, 'menu');
       return operations;
     }
+    function buildInventoryUpdateImportOperations(rawRows) {
+      const errors = [];
+      const operations = [];
+      const seenIds = new Set();
+      const sourceRows = rawRows || [];
+      sourceRows.forEach((rawRow, index) => {
+        const row = { ...rawRow, __rowNumber: rawRow.__rowNumber || index + 2 };
+        const id = String(importRowValue(row, 'inventory_id', importRowValue(row, 'id', '')) ?? '').trim();
+        if (!id) { importValidationError(errors, row, 'inventory_id kosong. Gunakan file hasil Export Semua Bahan untuk edit massal.'); return; }
+        if (seenIds.has(id)) { importValidationError(errors, row, `inventory_id ${id} muncul lebih dari sekali.`); return; }
+        seenIds.add(id);
+        const existing = state.inventory.find((item) => String(item.id) === id);
+        if (!existing) { importValidationError(errors, row, `inventory_id ${id} tidak ditemukan. Baris ini tidak akan dibuat sebagai bahan baru.`); return; }
+        const itemName = String(importRowValue(row, 'item_name', '') ?? '').trim();
+        const division = String(importRowValue(row, 'division', existing.division || 'Gudang Utama') || 'Gudang Utama').trim();
+        const unit = String(importRowValue(row, 'unit', existing.unit || '') ?? '').trim().toLowerCase();
+        const minRaw = importRowValue(row, 'min_stock', '');
+        const minStock = String(minRaw ?? '').trim() === '' ? Number(existing.min_stock) || 0 : importNumber(minRaw);
+        const referenceRaw = importRowValue(row, 'reference_purchase_price', '');
+        const hasReferencePrice = String(referenceRaw ?? '').trim() !== '';
+        const referencePurchasePrice = hasReferencePrice ? importNumber(referenceRaw) : null;
+        const purchaseUnit = String(importRowValue(row, 'purchase_unit', '') ?? '').trim();
+        const conversionFields = ['purchase_quantity', 'purchase_to_storage', 'usage_unit', 'storage_to_usage', 'yield_percentage', 'conversion_notes', 'conversion_active'];
+        const hasConversionFields = Boolean(purchaseUnit) || conversionFields.some((key) => String(importRowValue(row, key, '') ?? '').trim() !== '');
+        const purchaseQuantity = importNumber(importRowValue(row, 'purchase_quantity', 1), 1);
+        const purchaseToStorage = importNumber(importRowValue(row, 'purchase_to_storage', 1), 1);
+        const usageUnit = String(importRowValue(row, 'usage_unit', unit) || unit).trim();
+        const storageToUsage = importNumber(importRowValue(row, 'storage_to_usage', 1), 1);
+        const yieldPercentage = importNumber(importRowValue(row, 'yield_percentage', 100), 100);
+        const conversionNotes = String(importRowValue(row, 'conversion_notes', '') ?? '').trim();
+        const conversionActive = importBoolean(importRowValue(row, 'conversion_active', true), true);
+        if (!itemName) importValidationError(errors, row, 'item_name wajib diisi.');
+        if (!DIVISIONS.includes(division)) importValidationError(errors, row, `${itemName || id}: division tidak dikenali.`);
+        if (!['ml', 'gr', 'pcs'].includes(unit)) importValidationError(errors, row, `${itemName || id}: unit harus ml, gr, atau pcs.`);
+        if (!Number.isFinite(minStock) || minStock < 0) importValidationError(errors, row, `${itemName || id}: min_stock harus 0 atau lebih.`);
+        if (hasReferencePrice && (!Number.isFinite(referencePurchasePrice) || referencePurchasePrice < 0)) importValidationError(errors, row, `${itemName || id}: reference_purchase_price harus 0 atau lebih.`);
+        if ((unit.toLowerCase() !== String(existing.unit || '').toLowerCase() || division !== String(existing.division || 'Gudang Utama')) && (Number(existing.stock_quantity) || 0) !== 0) {
+          importValidationError(errors, row, `${itemName || id}: satuan/divisi tidak dapat diubah karena stok saat ini ${formatQuantity(existing.stock_quantity)} ${existing.unit || ''}.`);
+        }
+        const duplicate = state.inventory.find((item) => String(item.id) !== id
+          && normalizeMenuName(item.item_name) === normalizeMenuName(itemName)
+          && String(item.division || 'Gudang Utama') === division);
+        if (duplicate) importValidationError(errors, row, `${itemName}: sudah ada di ${division} dengan ID berbeda.`);
+        if (hasConversionFields) {
+          if (!purchaseUnit) importValidationError(errors, row, `${itemName || id}: purchase_unit wajib diisi untuk menyimpan konversi.`);
+          if (![purchaseQuantity, purchaseToStorage, storageToUsage].every((value) => Number.isFinite(value) && value > 0)) importValidationError(errors, row, `${itemName || id}: faktor konversi harus lebih besar dari 0.`);
+          if (!Number.isFinite(yieldPercentage) || yieldPercentage <= 0 || yieldPercentage > 100) importValidationError(errors, row, `${itemName || id}: yield_percentage harus lebih dari 0 sampai 100.`);
+          if (!usageUnit) importValidationError(errors, row, `${itemName || id}: usage_unit wajib diisi.`);
+        }
+        operations.push({ id, existing, itemName, division, unit, minStock, hasReferencePrice, referencePurchasePrice, hasConversionFields,
+          conversion: { purchaseUnit, purchaseQuantity, purchaseToStorage, usageUnit, storageToUsage, yieldPercentage, conversionNotes, conversionActive } });
+      });
+      if (!sourceRows.length) errors.push('File tidak memiliki baris bahan untuk diperbarui.');
+      finishImportValidation(errors, 'pembaruan master bahan');
+      return operations;
+    }
+
     function buildInventoryImportOperations(rawRows) {
       const errors = [];
       const operations = [];
@@ -6725,7 +6842,53 @@
         const rows = (sheetName) => importSheetRows(workbook, sheetName) || [];
         let success = 0;
         if (kind === 'inventory') {
+          await loadInventory();
+          await loadUnitConversionsForState();
           const rawRows = rows('Master_Bahan').length ? rows('Master_Bahan') : XLSX.utils.sheet_to_json(workbook.Sheets[firstDataSheet], { defval: '' });
+          const hasInventoryIds = rawRows.some((row) => String(importRowValue(row, 'inventory_id', importRowValue(row, 'id', '')) ?? '').trim());
+          if (hasInventoryIds) {
+            const operations = buildInventoryUpdateImportOperations(rawRows);
+            if (!window.confirm(`Akan memperbarui ${operations.length} bahan berdasarkan ID. Stok fisik, resep, dan riwayat belanja tidak diubah. Lanjutkan?`)) {
+              importMessage('inventory', 'Import dibatalkan. Tidak ada perubahan yang disimpan.', 'warning');
+              return;
+            }
+            const failures = [];
+            for (const operation of operations) {
+              const currentConversion = state.unitConversions.find((row) => String(row.inventory_item_id) === operation.id && row.is_active !== false)
+                || state.unitConversions.find((row) => String(row.inventory_item_id) === operation.id);
+              const priceFactor = operation.hasConversionFields
+                ? operation.conversion.purchaseToStorage
+                : (Number(currentConversion?.purchase_to_storage) || 1);
+              const update = { item_name: operation.itemName, division: operation.division, unit: operation.unit, min_stock: operation.minStock };
+              if (operation.hasReferencePrice) update.reference_unit_cost = operation.referencePurchasePrice / priceFactor;
+              const { error: updateError } = await supabaseClient.from('inventory').update(update).eq('id', operation.id);
+              if (updateError) { failures.push(`ID ${operation.id}: ${updateError.message}`); continue; }
+              if (operation.hasConversionFields) {
+                const { conversion } = operation;
+                const { error: conversionError } = await supabaseClient.rpc('save_unit_conversion', {
+                  p_inventory_item_id: operation.id,
+                  p_purchase_unit: conversion.purchaseUnit,
+                  p_purchase_quantity: conversion.purchaseQuantity,
+                  p_storage_unit: operation.unit,
+                  p_purchase_to_storage: conversion.purchaseToStorage,
+                  p_usage_unit: conversion.usageUnit || operation.unit,
+                  p_storage_to_usage: conversion.storageToUsage,
+                  p_yield_percentage: conversion.yieldPercentage,
+                  p_notes: conversion.conversionNotes || null,
+                  p_is_active: conversion.conversionActive
+                });
+                if (conversionError) { failures.push(`ID ${operation.id} (${operation.itemName}): data bahan tersimpan, tetapi konversi gagal: ${conversionError.message}`); continue; }
+              }
+              success++;
+            }
+            await loadInventory();
+            await loadUnitConversionsForState();
+            if (state.menuMasterRows.length > 0) await loadMenuMaster();
+            await loadLowStockAlert();
+            const summary = `${success} bahan berhasil diperbarui. Stok, resep, dan riwayat belanja tetap. Bahan yang tidak ada di file tidak dihapus.`;
+            importMessage('inventory', failures.length ? `${summary} Perlu diperiksa: ${failures.slice(0, 5).join(' | ')}${failures.length > 5 ? ` | dan ${failures.length - 5} lainnya` : ''}` : summary, failures.length ? 'warning' : 'success');
+            return;
+          }
           const operations = buildInventoryImportOperations(rawRows);
           for (const operation of operations) {
             const { error } = await supabaseClient.from('inventory').insert({ item_name: operation.itemName, division: operation.division, unit: operation.unit, min_stock: operation.minStock, stock_quantity: 0 });
