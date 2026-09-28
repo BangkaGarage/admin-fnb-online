@@ -3712,15 +3712,51 @@
     async function getLatestPurchasePrice(inventoryItemId, itemName = '') {
       if (!supabaseConfigured) return 0;
       const lookupName = itemName || String(inventoryItemId || '');
-      const { data, error } = await supabaseClient.from('stock_purchases')
-        .select('price_per_unit, created_at')
-        .eq('item_name', lookupName)
+      let query = supabaseClient.from('stock_purchases')
+        .select('inventory_item_id, item_name, price_per_unit, purchase_price, purchase_quantity, storage_quantity, quantity_in, created_at, status')
         .or('status.is.null,status.neq.void')
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
+      if (inventoryItemId !== null && inventoryItemId !== undefined && String(inventoryItemId) !== '') {
+        query = query.eq('inventory_item_id', inventoryItemId);
+      } else {
+        query = query.eq('item_name', lookupName);
+      }
+      let { data, error } = await query.maybeSingle();
+      if (error) return 0;
+      // Older purchase rows may not have been linked to an inventory ID.
+      if (!data && inventoryItemId !== null && inventoryItemId !== undefined && lookupName) {
+        const fallback = await supabaseClient.from('stock_purchases')
+          .select('inventory_item_id, item_name, price_per_unit, purchase_price, purchase_quantity, storage_quantity, quantity_in, created_at, status')
+          .eq('item_name', lookupName)
+          .or('status.is.null,status.neq.void')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        data = fallback.data;
+        error = fallback.error;
+      }
       if (error || !data) return 0;
-      return Number(data.price_per_unit) || 0;
+      const purchasePrice = Number(data.purchase_price);
+      const purchaseQuantity = Number(data.purchase_quantity ?? data.quantity_in);
+      const storageQuantity = Number(data.storage_quantity);
+      // purchase_price is the amount per entered purchase unit; normalize it
+      // to the stock unit using the quantity actually added to inventory.
+      if (Number.isFinite(purchasePrice) && purchasePrice > 0 && Number.isFinite(storageQuantity) && storageQuantity > 0) {
+        const purchasedUnits = Number.isFinite(purchaseQuantity) && purchaseQuantity > 0 ? purchaseQuantity : 1;
+        return purchasePrice * purchasedUnits / storageQuantity;
+      }
+      const storedPrice = Number(data.price_per_unit) || 0;
+      const conversion = getUnitConversionForItem(inventoryItemId);
+      const purchaseToStorage = Number(conversion?.purchase_to_storage);
+      const purchaseUnit = String(conversion?.purchase_unit || '').trim().toLowerCase();
+      const storageUnit = String(conversion?.storage_unit || '').trim().toLowerCase();
+      // Compatibility for older purchase rows that only kept the entered
+      // package price in price_per_unit and predate purchase_price/storage_quantity.
+      if (storedPrice > 0 && purchaseToStorage > 1 && purchaseUnit && storageUnit && purchaseUnit !== storageUnit) {
+        return storedPrice / purchaseToStorage;
+      }
+      return storedPrice;
     }
 
     function populateWarehouseItemSelect(selectId, items, placeholder = 'Pilih bahan baku') {
