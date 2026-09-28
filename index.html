@@ -1036,7 +1036,7 @@
                 <p id="menuMasterMessage" class="form-message" role="status"></p>
               </form>
           <div class="supabase-note">Harga yang disimpan akan memiliki riwayat tanggal berlaku. Perubahan harga tidak mengubah harga transaksi lama.</div>
-          <div class="panel" style="margin-top:18px;"><div class="panel-head"><div><h3>Edit massal menu aktif + preparation</h3><p class="panel-subtitle">Ekspor satu file berisi Master_Menu, Menu_Bahan, Preparation, dan Preparation_Bahan. Edit isi baris tanpa mengubah kolom ID/kode, lalu impor file yang sama untuk memperbarui data.</p></div><div class="panel-actions"><button id="exportMenuPreparationWorkbookBtn" class="reset-btn" type="button">Export Menu + Preparation</button><label class="upload-btn" style="cursor:pointer">Import hasil edit<input id="importMenuPreparationWorkbookFile" type="file" accept=".xlsx,.xls" hidden /></label></div></div><p id="menuPreparationWorkbookMessage" class="form-message"></p></div>
+          <div class="panel" style="margin-top:18px;"><div class="panel-head"><div><h3>Edit massal menu aktif + preparation</h3><p class="panel-subtitle">Satu baris untuk setiap bahan resep. Isi dan kolom dibuat sederhana: menu, preparation, komponen, jumlah, dan satuan. File yang sama bisa diimpor kembali.</p></div><div class="panel-actions"><button id="exportMenuPreparationWorkbookBtn" class="reset-btn" type="button">Export Menu + Preparation</button><label class="upload-btn" style="cursor:pointer">Import hasil edit<input id="importMenuPreparationWorkbookFile" type="file" accept=".xlsx,.xls" hidden /></label></div></div><p id="menuPreparationWorkbookMessage" class="form-message"></p></div>
           <div class="panel" style="margin-top:18px;"><div class="panel-head"><div><h3>Import Master Menu &amp; Harga Jual</h3><p class="panel-subtitle">Bisa memakai template resep aplikasi atau file produk iSeller. File produk iSeller otomatis mengambil nama, varian, kategori, dan harga tanpa menghapus resep yang sudah ada.</p></div><div class="panel-actions"><button class="reset-btn" data-download-template="menu" type="button">Download Template</button><label class="upload-btn" style="cursor:pointer">Pilih File<input type="file" accept=".xlsx,.xls,.csv" data-import-file="menu" hidden /></label></div></div><p id="importMenuMessage" class="form-message"></p></div>
             </div>
             <div class="panel history-panel">
@@ -6463,31 +6463,15 @@
         const inventoryById = new Map((inventoryResult.data || []).map((row) => [String(row.id), row]));
         const preparationById = new Map(preparations.map((row) => [String(row.id), row]));
         const menuByKey = new Map(activeMenus.map((row) => [recipeLookupKey(row.menu_name, row.variant || 'Default'), row]));
-        const masterMenuRows = activeMenus.map((row) => ({
-          menu_id: row.menu_id, variant_id: row.variant_id, menu_code: row.menu_code || '', menu_name: row.menu_name || '', category: row.category || 'Other',
-          outlet: row.outlet || 'Rebel House', unit: row.unit || 'porsi', variant: row.variant || 'Default', price: Number(row.selling_price) || 0,
-          effective_date: row.effective_from || new Date().toISOString().slice(0, 10), hpp_standard: Number(row.hpp_standard) || 0,
-          buffer_hpp_pct: Number(row.buffer_hpp_pct) || 10, target_hpp_pct: Number(row.target_hpp_pct) || 0,
-          stock_division: row.stock_division || 'Kitchen', is_active: true, recipe_count: Number(row.recipe_count) || 0
-        }));
         const menuLines = (recipeResult.data || []).flatMap((recipe) => {
           const menu = menuByKey.get(recipeLookupKey(recipe.menu_name, recipe.variant || 'Default'));
           if (!menu) return [];
           const isPreparation = String(recipe.component_type || 'inventory') === 'preparation';
           const inventoryItem = inventoryById.get(String(recipe.inventory_item_id || ''));
           const childPreparation = preparationById.get(String(recipe.preparation_id || ''));
-          return [{
-            menu_code: menu.menu_code || '', menu_name: menu.menu_name || '', variant: menu.variant || 'Default', menu_id: menu.menu_id, variant_id: menu.variant_id,
-            component_type: isPreparation ? 'preparation' : 'inventory', inventory_id: isPreparation ? '' : (recipe.inventory_item_id || ''),
-            item_name: isPreparation ? '' : (inventoryItem?.item_name || ''), preparation_id: isPreparation ? (recipe.preparation_id || '') : '',
-            preparation_code: isPreparation ? (childPreparation?.prep_code || '') : '', preparation_name: isPreparation ? (childPreparation?.prep_name || '') : '',
-            quantity_needed: Number(recipe.quantity_needed) || 0, recipe_unit: recipe.recipe_unit || inventoryItem?.unit || childPreparation?.output_unit || ''
-          }];
+          return [{ menu, componentType: isPreparation ? 'Preparation' : 'Bahan', componentName: isPreparation ? (childPreparation?.prep_name || '') : (inventoryItem?.item_name || ''),
+            quantity: Number(recipe.quantity_needed) || 0, recipeUnit: recipe.recipe_unit || inventoryItem?.unit || childPreparation?.output_unit || '' }];
         });
-        const preparationRows = preparations.map((row) => ({
-          preparation_id: row.id, prep_code: row.prep_code || '', prep_name: row.prep_name || '', output_quantity: Number(row.output_quantity) || 0,
-          output_unit: row.output_unit || '', division: row.division || 'Kitchen', yield_percentage: Number(row.yield_percentage) || 100, is_active: row.is_active !== false
-        }));
         const preparationLines = [];
         for (const prep of preparations) {
           const { data: lines, error } = await supabaseClient.rpc('list_preparation_lines', { p_preparation_id: prep.id });
@@ -6496,30 +6480,46 @@
             const isPreparation = String(line.component_type || 'inventory') === 'preparation';
             const item = inventoryById.get(String(line.inventory_item_id || ''));
             const childPrep = preparationById.get(String(line.child_preparation_id || ''));
-            preparationLines.push({
-              prep_code: prep.prep_code || '', prep_name: prep.prep_name || '', preparation_id: prep.id,
-              component_type: isPreparation ? 'preparation' : 'inventory', inventory_id: isPreparation ? '' : (line.inventory_item_id || ''),
-              item_name: isPreparation ? '' : (item?.item_name || ''), child_preparation_id: isPreparation ? (line.child_preparation_id || '') : '',
-              preparation_code: isPreparation ? (childPrep?.prep_code || '') : '', preparation_name: isPreparation ? (childPrep?.prep_name || '') : '',
-              quantity_needed: Number(line.quantity_needed) || 0, recipe_unit: line.recipe_unit || item?.unit || childPrep?.output_unit || ''
-            });
+            preparationLines.push({ prep, componentType: isPreparation ? 'Preparation' : 'Bahan', componentName: isPreparation ? (childPrep?.prep_name || '') : (item?.item_name || ''),
+              quantity: Number(line.quantity_needed) || 0, recipeUnit: line.recipe_unit || item?.unit || childPrep?.output_unit || '' });
           });
         }
         const instructions = [
-          { Sheet: 'Master_Menu', Keterangan: 'Menu aktif. Edit data menu di sini. Jangan mengubah menu_id/variant_id/menu_code kecuali memang mengganti identitas menu.' },
-          { Sheet: 'Menu_Bahan', Keterangan: 'Satu baris per komponen resep. Untuk komponen preparation, isi component_type=preparation dan pertahankan preparation_id/preparation_code.' },
-          { Sheet: 'Preparation', Keterangan: 'Semua preparation. Edit hasil, satuan, divisi, dan yield. Pertahankan preparation_id/prep_code.' },
-          { Sheet: 'Preparation_Bahan', Keterangan: 'Satu baris per komponen preparation. Pertahankan preparation_id/prep_code dan ID bahan/preparation.' },
-          { Sheet: 'Semua', Keterangan: 'Jangan menghapus kolom ID/kode. Baris yang dihapus dari file tidak menghapus data aplikasi. Untuk mengganti resep, edit baris pada sheet komponen.' }
+          { Bagian: 'Menu & Resep', Cara: 'Satu baris untuk satu menu/varian dan satu bahan resep. Jika menu belum punya resep, tetap ada satu baris dengan kolom komponen kosong.' },
+          { Bagian: 'Preparation', Cara: 'Satu baris untuk satu preparation dan satu bahan resepnya.' },
+          { Bagian: 'Edit nama', Cara: 'Nama bahan atau preparation harus sama dengan daftar yang sudah ada di aplikasi. Kode menu dan kode preparation dipakai untuk mencocokkan data; jangan mengubahnya.' },
+          { Bagian: 'Jenis komponen', Cara: 'Pilih Bahan untuk bahan baku, atau Preparation untuk preparation lain yang dipakai sebagai komponen.' },
+          { Bagian: 'Menghapus komponen', Cara: 'Jika Anda menghapus satu baris komponen, komponen itu akan terhapus dari resep setelah import. Pastikan baris lain untuk menu/preparation tersebut tetap ada.' },
+          { Bagian: 'Data aplikasi', Cara: 'Import memperbarui menu, preparation, dan resep. Stok, belanja, penjualan, dan transaksi lama tidak berubah.' }
         ];
+        const menuRows = activeMenus.flatMap((menu) => {
+          const components = menuLines.filter((line) => String(line.menu.menu_id) === String(menu.menu_id) && String(line.menu.variant_id) === String(menu.variant_id));
+          const lines = components.length ? components : [{ componentType: '', componentName: '', quantity: '', recipeUnit: '' }];
+          return lines.map((line) => ({
+            'Kode Menu': menu.menu_code || '', 'Nama Menu': menu.menu_name || '', 'Kategori': menu.category || 'Other', 'Varian': menu.variant || 'Default',
+            'Harga Jual': Number(menu.selling_price) || 0, 'Berlaku Mulai': menu.effective_from || new Date().toISOString().slice(0, 10),
+            'Divisi Stok': menu.stock_division || 'Kitchen', 'Jenis Komponen': line.componentType, 'Nama Komponen': line.componentName,
+            'Jumlah per Porsi': line.quantity, 'Satuan Pakai': line.recipeUnit, 'Outlet': menu.outlet || 'Rebel House', 'Satuan Menu': menu.unit || 'porsi',
+            'HPP Standar': Number(menu.hpp_standard) || 0, 'Cadangan HPP (%)': Number(menu.buffer_hpp_pct) || 10,
+            'Target HPP (%)': Number(menu.target_hpp_pct) || 0, 'Aktif': true
+          }));
+        });
+        const prepRows = preparations.flatMap((prep) => {
+          const components = preparationLines.filter((line) => String(line.prep.id) === String(prep.id));
+          const lines = components.length ? components : [{ componentType: '', componentName: '', quantity: '', recipeUnit: '' }];
+          return lines.map((line) => ({
+            'Kode Preparation': prep.prep_code || '', 'Nama Preparation': prep.prep_name || '', 'Hasil per Batch': Number(prep.output_quantity) || 0,
+            'Satuan Hasil': prep.output_unit || '', 'Divisi': prep.division || 'Kitchen', 'Yield (%)': Number(prep.yield_percentage) || 100,
+            'Jenis Komponen': line.componentType, 'Nama Komponen': line.componentName, 'Jumlah': line.quantity, 'Satuan Pakai': line.recipeUnit,
+            'Aktif': prep.is_active !== false
+          }));
+        });
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(instructions), 'Petunjuk');
-        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(masterMenuRows), 'Master_Menu');
-        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(menuLines), 'Menu_Bahan');
-        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(preparationRows), 'Preparation');
-        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(preparationLines), 'Preparation_Bahan');
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(menuRows), 'Menu & Resep');
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(prepRows), 'Preparation');
         XLSX.writeFile(workbook, `menu-preparation-${new Date().toISOString().slice(0, 10)}.xlsx`);
-        message.textContent = `Export selesai: ${masterMenuRows.length} menu aktif, ${menuLines.length} komponen menu, ${preparationRows.length} preparation, dan ${preparationLines.length} komponen preparation.`;
+        message.textContent = `Export selesai: ${activeMenus.length} menu aktif, ${menuLines.length} komponen resep menu, ${preparations.length} preparation, dan ${preparationLines.length} komponen resep preparation.`;
         message.className = 'form-message success';
       } catch (error) {
         console.error(error);
@@ -6752,7 +6752,8 @@
       if (flatRows.length) {
         importRowsWithFillDown(flatRows, ['prep_code', 'prep_name', 'output_quantity', 'output_unit', 'division', 'yield_percentage']).forEach((row) => {
           const key = String(importRowValue(row, 'prep_code', '')).trim().toUpperCase();
-          addGroupRow(key, row, [row]);
+          const hasComponent = ['component_type', 'item_name', 'preparation_name', 'quantity_needed'].some((field) => String(importRowValue(row, field, '') ?? '').trim() !== '');
+          addGroupRow(key, row, hasComponent ? [row] : []);
         });
       } else {
         parentRows.forEach((rawRow, index) => {
@@ -6820,7 +6821,8 @@
         importRowsWithFillDown(flatRows, ['menu_code', 'menu_name', 'category', 'outlet', 'unit', 'variant', 'price', 'effective_date', 'hpp_standard', 'buffer_hpp_pct', 'target_hpp_pct', 'stock_division', 'is_active']).forEach((row) => {
           const code = String(importRowValue(row, 'menu_code', '')).trim().toUpperCase();
           const variant = String(importRowValue(row, 'variant', 'Default') || 'Default').trim() || 'Default';
-          addGroupRow(`${code}::${normalizeText(variant)}`, row, [row]);
+          const hasComponent = ['component_type', 'item_name', 'preparation_name', 'quantity_needed'].some((field) => String(importRowValue(row, field, '') ?? '').trim() !== '');
+          addGroupRow(`${code}::${normalizeText(variant)}`, row, hasComponent ? [row] : []);
         });
       } else {
         parentRows.forEach((rawRow, index) => {
@@ -7125,18 +7127,51 @@
         await loadMenuMaster();
         const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
         const sheetRows = (name) => importSheetRows(workbook, name);
-        const menuRows = sheetRows('Master_Menu');
-        const menuLines = sheetRows('Menu_Bahan');
-        const preparationRows = sheetRows('Preparation');
-        const preparationLines = sheetRows('Preparation_Bahan');
-        if (!menuRows.length || !preparationRows.length) throw new Error('File harus berasal dari Export Menu + Preparation dan berisi sheet Master_Menu serta Preparation.');
-        const preparationOperations = buildPreparationImportOperations([], preparationRows, preparationLines);
-        const menuOperations = buildMenuImportOperations([], menuRows, menuLines);
+        const friendlyMenuRows = sheetRows('Menu & Resep');
+        const friendlyPreparationRows = sheetRows('Preparation').filter((row) => Object.prototype.hasOwnProperty.call(row, 'Kode Preparation'));
+        const friendlyFormat = friendlyMenuRows.length > 0 && friendlyPreparationRows.length > 0;
+        const toCanonicalRows = (rows, fieldMap) => (rows || []).map((row, index) => {
+          const next = { __rowNumber: index + 2 };
+          Object.entries(fieldMap).forEach(([friendly, canonical]) => { next[canonical] = row[friendly] ?? ''; });
+          const kind = normalizeText(next.component_type);
+          if (kind === 'bahan') next.component_type = 'inventory';
+          else if (kind === 'preparation') next.component_type = 'preparation';
+          if (normalizeText(next.component_type) === 'preparation') {
+            next.preparation_name = next.item_name || '';
+            next.item_name = '';
+          }
+          return next;
+        });
+        let preparationOperations;
+        let menuOperations;
+        if (friendlyFormat) {
+          const friendlyMenuMap = {
+            'Kode Menu': 'menu_code', 'Nama Menu': 'menu_name', 'Kategori': 'category', 'Varian': 'variant', 'Harga Jual': 'price',
+            'Berlaku Mulai': 'effective_date', 'Divisi Stok': 'stock_division', 'Jenis Komponen': 'component_type', 'Nama Komponen': 'item_name',
+            'Jumlah per Porsi': 'quantity_needed', 'Satuan Pakai': 'recipe_unit', 'Outlet': 'outlet', 'Satuan Menu': 'unit',
+            'HPP Standar': 'hpp_standard', 'Cadangan HPP (%)': 'buffer_hpp_pct', 'Target HPP (%)': 'target_hpp_pct', 'Aktif': 'is_active'
+          };
+          const friendlyPreparationMap = {
+            'Kode Preparation': 'prep_code', 'Nama Preparation': 'prep_name', 'Hasil per Batch': 'output_quantity', 'Satuan Hasil': 'output_unit',
+            'Divisi': 'division', 'Yield (%)': 'yield_percentage', 'Jenis Komponen': 'component_type', 'Nama Komponen': 'item_name',
+            'Jumlah': 'quantity_needed', 'Satuan Pakai': 'recipe_unit', 'Aktif': 'is_active'
+          };
+          preparationOperations = buildPreparationImportOperations(toCanonicalRows(friendlyPreparationRows, friendlyPreparationMap), [], []);
+          menuOperations = buildMenuImportOperations(toCanonicalRows(friendlyMenuRows, friendlyMenuMap), [], []);
+        } else {
+          const menuRows = sheetRows('Master_Menu');
+          const menuLines = sheetRows('Menu_Bahan');
+          const preparationRows = sheetRows('Preparation');
+          const preparationLines = sheetRows('Preparation_Bahan');
+          if (!menuRows.length || !preparationRows.length) throw new Error('File harus berisi sheet Menu & Resep dan Preparation, atau file ekspor lama dengan sheet Master_Menu dan Preparation.');
+          preparationOperations = buildPreparationImportOperations([], preparationRows, preparationLines);
+          menuOperations = buildMenuImportOperations([], menuRows, menuLines);
+        }
         const missingPreparationIds = preparationOperations.filter((operation) => !operation.preparationId || !state.preparations.some((row) => String(row.id) === String(operation.preparationId)));
-        if (missingPreparationIds.length) throw new Error(`ID preparation tidak cocok untuk: ${missingPreparationIds.map((row) => row.prepCode).join(', ')}. Gunakan file export asli dan jangan mengubah kolom preparation_id.`);
+        if (missingPreparationIds.length) throw new Error(`Kode preparation tidak cocok untuk: ${missingPreparationIds.map((row) => row.prepCode).join(', ')}. Pastikan kode tetap sama seperti di aplikasi.`);
         const missingMenuIds = menuOperations.filter((operation) => !operation.menuId || !operation.variantId || !state.menuMasterRows.some((row) => String(row.menu_id) === String(operation.menuId) && String(row.variant_id) === String(operation.variantId)));
-        if (missingMenuIds.length) throw new Error(`ID menu/varian tidak cocok untuk: ${missingMenuIds.map((row) => `${row.menuCode}/${row.variant}`).join(', ')}. Gunakan file export asli dan jangan mengubah kolom menu_id/variant_id.`);
-        const confirmText = `Akan memperbarui ${preparationOperations.length} preparation dan ${menuOperations.length} menu/varian dari file Excel. Data stok, belanja, penjualan, dan transaksi lama tidak diubah. Baris yang dihapus dari Excel tidak menghapus data aplikasi. Lanjutkan?`;
+        if (missingMenuIds.length) throw new Error(`Kode menu/varian tidak cocok untuk: ${missingMenuIds.map((row) => `${row.menuCode}/${row.variant}`).join(', ')}. Pastikan kode dan varian tetap sama seperti di aplikasi.`);
+        const confirmText = `Akan memperbarui ${preparationOperations.length} preparation dan ${menuOperations.length} menu/varian dari file Excel. Resep akan mengikuti komponen yang tercantum di file; komponen yang dihapus dari baris resep akan dihapus dari resep aplikasi. Data stok, belanja, penjualan, dan transaksi lama tidak diubah. Lanjutkan?`;
         if (!window.confirm(confirmText)) {
           message.textContent = 'Import dibatalkan. Tidak ada perubahan yang disimpan.';
           message.className = 'form-message warning';
