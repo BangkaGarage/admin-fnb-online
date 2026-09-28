@@ -889,9 +889,9 @@
                     <small class="field-help">Gunakan satuan operasional terkecil yang dipakai resep, misalnya gr atau ml.</small>
                   </div>
                   <div class="form-field">
-                    <label for="inventoryReferencePrice">Harga Acuan per Satuan Stok</label>
-                    <input id="inventoryReferencePrice" type="number" min="0" step="0.01" placeholder="Contoh: 85 (per gr)" />
-                    <small class="field-help">Opsional. Dipakai sebagai acuan HPP per satuan stok dasar bila belum ada harga belanja. Tidak menambah stok.</small>
+                    <label for="inventoryReferencePrice">Harga Acuan per 1 Satuan Beli</label>
+                    <input id="inventoryReferencePrice" type="number" min="0" step="0.01" placeholder="Contoh: 157000 (per karung)" />
+                    <small id="inventoryReferencePriceHint" class="field-help">Opsional. Isi harga 1 kemasan. Contoh beras: Rp157.000 per karung ÷ 10.000 gr = Rp15,70 per gr. Jika sudah ada riwayat belanja, HPP memakai harga belanja aktual.</small>
                   </div>
                   <div class="form-field full">
                     <label for="inventoryMinStock">Batas Minimum Stok *</label>
@@ -2469,7 +2469,10 @@
     const assetEventForm = $('#assetEventForm');
 
     inventoryForm.addEventListener('submit', saveInventoryItem);
-    $('#inventoryUnit')?.addEventListener('input', () => { const el = $('#conversionStorageUnit'); if (el) el.value = $('#inventoryUnit').value.trim(); updateUnitConversionPreview(); });
+    $('#inventoryUnit')?.addEventListener('input', () => { const el = $('#conversionStorageUnit'); if (el) el.value = $('#inventoryUnit').value.trim(); updateUnitConversionPreview(); updateInventoryReferencePricePreview(); });
+    $('#inventoryReferencePrice')?.addEventListener('input', updateInventoryReferencePricePreview);
+    $('#conversionPurchaseUnit')?.addEventListener('input', updateInventoryReferencePricePreview);
+    $('#conversionPurchaseToStorage')?.addEventListener('input', updateInventoryReferencePricePreview);
     transferForm.addEventListener('submit', saveStockTransfer);
     purchaseForm.addEventListener('submit', savePurchase);
     $('#purchaseDestination')?.addEventListener('change', syncPurchaseDestinationFields);
@@ -3466,7 +3469,6 @@
         $('#inventoryItemName').value = item.item_name || '';
         $('#inventoryDivision').value = item.division || 'Gudang Utama';
         $('#inventoryUnit').value = item.unit || '';
-        $('#inventoryReferencePrice').value = item.reference_unit_cost === null || item.reference_unit_cost === undefined ? '' : Number(item.reference_unit_cost);
         $('#inventoryMinStock').value = Number(item.min_stock) || 0;
         const existingConversion = getUnitConversionForItem(item.id);
         $('#conversionInventoryItem').value = item.id;
@@ -3479,7 +3481,10 @@
         $('#conversionYieldPercentage').value = Number(existingConversion?.yield_percentage) || 100;
         $('#conversionNotes').value = existingConversion?.notes || '';
         $('#conversionActive').checked = existingConversion?.is_active !== false;
+        const purchaseToStorage = Number(existingConversion?.purchase_to_storage) || 1;
+        $('#inventoryReferencePrice').value = item.reference_unit_cost === null || item.reference_unit_cost === undefined ? '' : Number(item.reference_unit_cost) * purchaseToStorage;
         updateUnitConversionPreview();
+        updateInventoryReferencePricePreview();
         $('#saveInventoryBtn').textContent = 'Simpan Perubahan';
         $('#cancelInventoryEditBtn').classList.remove('hidden');
         showInventoryMessage(`Mode edit: ${item.item_name}. Stok saat ini ${formatQuantity(item.stock_quantity)} ${item.unit || ''} tidak diubah.`, 'warning');
@@ -4895,6 +4900,32 @@
       $('#conversionTheoreticalStorage').textContent = `${formatQuantity(storageQuantity)} ${storageUnit}`;
       $('#conversionTheoreticalUsage').textContent = `${formatQuantity(theoreticalUsage)} ${usageUnit}`;
       $('#conversionUsableUsage').textContent = `${formatQuantity(usableUsage)} ${usageUnit}`;
+    }
+
+    function getReferencePriceStorageFactor() {
+      const value = Number($('#conversionPurchaseToStorage')?.value);
+      return Number.isFinite(value) && value > 0 ? value : 1;
+    }
+
+    function updateInventoryReferencePricePreview() {
+      const hint = $('#inventoryReferencePriceHint');
+      if (!hint) return;
+      const priceText = $('#inventoryReferencePrice')?.value.trim() || '';
+      const factor = getReferencePriceStorageFactor();
+      const purchaseUnit = $('#conversionPurchaseUnit')?.value.trim() || 'satuan beli';
+      const storageUnit = $('#inventoryUnit')?.value.trim() || 'satuan stok';
+      if (!priceText) {
+        hint.textContent = `Opsional. Isi harga 1 ${purchaseUnit}; aplikasi membagi dengan ${formatQuantity(factor)} ${storageUnit} untuk mendapat harga per ${storageUnit}.`;
+        return;
+      }
+      const packagePrice = Number(priceText);
+      if (!Number.isFinite(packagePrice) || packagePrice < 0) {
+        hint.textContent = 'Masukkan harga kemasan berupa angka nol atau lebih.';
+        return;
+      }
+      const basePrice = packagePrice / factor;
+      const formattedBasePrice = basePrice.toLocaleString('id-ID', { maximumFractionDigits: 4 });
+      hint.textContent = `${formatRupiah(packagePrice)} per ${purchaseUnit} ÷ ${formatQuantity(factor)} ${storageUnit} = Rp${formattedBasePrice} per ${storageUnit}. Nilai per ${storageUnit} inilah yang dipakai untuk HPP jika belum ada riwayat belanja.`;
     }
 
     function renderUnitConversions(rows) {
@@ -7845,9 +7876,12 @@
       const division = $('#inventoryDivision').value;
       const unit = $('#inventoryUnit').value.trim();
       const referencePriceInput = $('#inventoryReferencePrice').value.trim();
-      const referencePrice = referencePriceInput === ''
+      const packageReferencePrice = referencePriceInput === ''
         ? (existingItem?.reference_unit_cost ?? null)
         : Number(referencePriceInput);
+      const purchaseToStorageText = $('#conversionPurchaseToStorage')?.value.trim() || '';
+      const purchaseToStorage = purchaseToStorageText === '' ? 1 : Number(purchaseToStorageText);
+      const referencePrice = packageReferencePrice === null ? null : packageReferencePrice / (referencePriceInput === '' ? 1 : purchaseToStorage);
       if (!Number.isFinite(minStock) || minStock < 0) {
         showInventoryMessage('Batas minimum harus berupa angka nol atau lebih.', 'error');
         return;
@@ -7860,8 +7894,8 @@
         showInventoryMessage('Satuan stok wajib diisi.', 'error');
         return;
       }
-      if (referencePrice !== null && (!Number.isFinite(referencePrice) || referencePrice < 0)) {
-        showInventoryMessage('Harga acuan harus berupa angka nol atau lebih.', 'error');
+      if (packageReferencePrice !== null && (!Number.isFinite(packageReferencePrice) || packageReferencePrice < 0 || !Number.isFinite(purchaseToStorage) || purchaseToStorage <= 0)) {
+        showInventoryMessage('Harga acuan kemasan dan isi satuan beli harus berupa angka valid.', 'error');
         return;
       }
 
@@ -7915,7 +7949,7 @@
         conversionSaveError
           ? `Bahan tersimpan, tetapi konversi belum tersimpan: ${conversionSaveError.message}`
           : (editId
-            ? `Bahan ${itemName} dan konversinya berhasil diperbarui. Saldo stok tetap dipertahankan.`
+            ? `Bahan ${itemName} dan konversinya berhasil diperbarui. Harga acuan disimpan sebesar ${referencePrice === null ? 'belum diisi' : `Rp${referencePrice.toLocaleString('id-ID', { maximumFractionDigits: 4 })} per ${unit}`}. Saldo stok tetap dipertahankan.`
             : 'Bahan baku dan konversinya berhasil disimpan dengan stok 0. Gunakan Stok Masuk saat stok supplier diterima, atau Penyesuaian Stok untuk saldo fisik awal.'),
         conversionSaveError ? 'warning' : 'success'
       );
@@ -7925,6 +7959,7 @@
       resetInventoryForm();
       await loadInventory();
       await loadLowStockAlert();
+      if (state.menuMasterRows.length > 0) await loadMenuMaster();
     }
 
     function resetInventoryForm() {
@@ -7933,6 +7968,7 @@
       $('#saveInventoryBtn').textContent = 'Simpan Bahan';
       $('#cancelInventoryEditBtn').classList.add('hidden');
       clearUnitConversionForm();
+      updateInventoryReferencePricePreview();
       clearInventoryMessage();
     }
 
