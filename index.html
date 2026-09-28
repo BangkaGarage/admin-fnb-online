@@ -7108,7 +7108,7 @@
       }
       const rows = filterRowsByUnified(state.hppCurrentRows, { dateKey: 'effective_date', menuKeys: ['menuName'], variantKeys: ['variant'], categoryKeys: ['category'], statusKeys: ['hppStatus'] }).map((row) => `<tr>
         <td>${escapeHtml(row.menuCode || '-')}</td><td>${escapeHtml(row.menuName || '-')}</td><td>${escapeHtml(row.variant)}</td><td>${escapeHtml(row.category || '-')}</td>
-        <td><span class="status-badge ${row.hppStatus.className}">${escapeHtml(row.hppStatus.label)}</span></td>
+        <td><span class="status-badge ${row.hppStatus.className}">${escapeHtml(row.hppStatus.label)}</span>${row.hppStatus.key === 'incomplete_price' && row.missingItems?.length ? `<small class="field-help" style="display:block;max-width:240px;white-space:normal;">Harga belum ditemukan: ${row.missingItems.map((item) => escapeHtml(item)).join(', ')}</small>` : ''}</td>
         <td class="numeric">${formatRupiah(row.sellingPrice)}</td><td class="numeric">${row.hppStatus.key === 'complete' ? formatRupiah(row.hpp) : '-'}</td><td class="numeric">${row.hppStatus.key === 'complete' ? formatRupiah(row.referenceHpp) : '-'}</td><td class="numeric">${row.hppStatus.key === 'complete' && row.referenceMarginPct !== null ? `${row.referenceMarginPct.toFixed(1).replace('.', ',')}%` : '-'}</td>
         <td class="numeric ${row.referenceProfit < 0 ? 'profit-negative' : 'profit-positive'}">${row.hppStatus.key === 'complete' ? formatRupiah(row.referenceProfit) : '-'}</td><td>${escapeHtml(row.source)} · buffer ${formatQuantity(row.bufferHppPct)}%</td>
       </tr>`).join('');
