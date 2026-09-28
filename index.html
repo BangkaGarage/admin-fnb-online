@@ -6754,7 +6754,7 @@
         const conversionActive = importBoolean(importRowValue(row, 'conversion_active', true), true);
         if (!itemName) importValidationError(errors, row, 'item_name wajib diisi.');
         if (!DIVISIONS.includes(division)) importValidationError(errors, row, `${itemName || id}: division tidak dikenali.`);
-        if (!['ml', 'gr', 'pcs'].includes(unit)) importValidationError(errors, row, `${itemName || id}: unit harus ml, gr, atau pcs.`);
+        if (!unit) importValidationError(errors, row, `${itemName || id}: unit wajib diisi.`);
         if (!Number.isFinite(minStock) || minStock < 0) importValidationError(errors, row, `${itemName || id}: min_stock harus 0 atau lebih.`);
         if (hasReferencePrice && (!Number.isFinite(referencePurchasePrice) || referencePurchasePrice < 0)) importValidationError(errors, row, `${itemName || id}: reference_purchase_price harus 0 atau lebih.`);
         if ((unit.toLowerCase() !== String(existing.unit || '').toLowerCase() || division !== String(existing.division || 'Gudang Utama')) && (Number(existing.stock_quantity) || 0) !== 0) {
