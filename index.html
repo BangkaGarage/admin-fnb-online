@@ -1036,6 +1036,7 @@
                 <p id="menuMasterMessage" class="form-message" role="status"></p>
               </form>
           <div class="supabase-note">Harga yang disimpan akan memiliki riwayat tanggal berlaku. Perubahan harga tidak mengubah harga transaksi lama.</div>
+          <div class="panel" style="margin-top:18px;"><div class="panel-head"><div><h3>Edit massal menu aktif + preparation</h3><p class="panel-subtitle">Ekspor satu file berisi Master_Menu, Menu_Bahan, Preparation, dan Preparation_Bahan. Edit isi baris tanpa mengubah kolom ID/kode, lalu impor file yang sama untuk memperbarui data.</p></div><div class="panel-actions"><button id="exportMenuPreparationWorkbookBtn" class="reset-btn" type="button">Export Menu + Preparation</button><label class="upload-btn" style="cursor:pointer">Import hasil edit<input id="importMenuPreparationWorkbookFile" type="file" accept=".xlsx,.xls" hidden /></label></div></div><p id="menuPreparationWorkbookMessage" class="form-message"></p></div>
           <div class="panel" style="margin-top:18px;"><div class="panel-head"><div><h3>Import Master Menu &amp; Harga Jual</h3><p class="panel-subtitle">Bisa memakai template resep aplikasi atau file produk iSeller. File produk iSeller otomatis mengambil nama, varian, kategori, dan harga tanpa menghapus resep yang sudah ada.</p></div><div class="panel-actions"><button class="reset-btn" data-download-template="menu" type="button">Download Template</button><label class="upload-btn" style="cursor:pointer">Pilih File<input type="file" accept=".xlsx,.xls,.csv" data-import-file="menu" hidden /></label></div></div><p id="importMenuMessage" class="form-message"></p></div>
             </div>
             <div class="panel history-panel">
@@ -2551,6 +2552,12 @@
     $('#refreshMenuMasterBtn').addEventListener('click', loadMenuMaster);
     $('#syncMenuCatalogBtn').addEventListener('click', synchronizeMenuCatalogAndReports);
     $('#resetMenuMasterBtn').addEventListener('click', () => window.setTimeout(clearMenuMasterForm, 0));
+    $('#exportMenuPreparationWorkbookBtn')?.addEventListener('click', exportMenuPreparationWorkbook);
+    $('#importMenuPreparationWorkbookFile')?.addEventListener('change', async (event) => {
+      const file = event.target.files?.[0];
+      if (file) await importMenuPreparationWorkbook(file);
+      event.target.value = '';
+    });
     $('#menuMasterCategory').addEventListener('change', syncServiceChargeForm);
     $('#menuMasterTableWrap').addEventListener('click', handleMenuMasterTableClick);
     $('#riceAuditUncountedWrap')?.addEventListener('click', handleRiceAuditFixClick);
@@ -6434,6 +6441,96 @@
       XLSX.writeFile(book, `template-${kind}.xlsx`);
     }
 
+    async function exportMenuPreparationWorkbook() {
+      const message = $('#menuPreparationWorkbookMessage');
+      const button = $('#exportMenuPreparationWorkbookBtn');
+      if (!supabaseConfigured) { message.textContent = 'Supabase belum dikonfigurasi.'; message.className = 'form-message error'; return; }
+      if (typeof XLSX === 'undefined') { message.textContent = 'Library Excel belum siap.'; message.className = 'form-message error'; return; }
+      button.disabled = true;
+      button.textContent = 'Mengambil data...';
+      message.textContent = 'Membaca menu aktif, resep, dan preparation...';
+      message.className = 'form-message warning';
+      try {
+        const [menuResult, prepResult, inventoryResult, recipeResult] = await Promise.all([
+          supabaseClient.rpc('list_menu_master'),
+          supabaseClient.rpc('list_preparations'),
+          supabaseClient.from('inventory').select('id, item_name, division, unit'),
+          supabaseClient.from('recipes').select('menu_name, variant, component_type, inventory_item_id, preparation_id, quantity_needed, recipe_unit')
+        ]);
+        for (const result of [menuResult, prepResult, inventoryResult, recipeResult]) if (result.error) throw result.error;
+        const activeMenus = (menuResult.data || []).filter((row) => row.is_active);
+        const preparations = prepResult.data || [];
+        const inventoryById = new Map((inventoryResult.data || []).map((row) => [String(row.id), row]));
+        const preparationById = new Map(preparations.map((row) => [String(row.id), row]));
+        const menuByKey = new Map(activeMenus.map((row) => [recipeLookupKey(row.menu_name, row.variant || 'Default'), row]));
+        const masterMenuRows = activeMenus.map((row) => ({
+          menu_id: row.menu_id, variant_id: row.variant_id, menu_code: row.menu_code || '', menu_name: row.menu_name || '', category: row.category || 'Other',
+          outlet: row.outlet || 'Rebel House', unit: row.unit || 'porsi', variant: row.variant || 'Default', price: Number(row.selling_price) || 0,
+          effective_date: row.effective_from || new Date().toISOString().slice(0, 10), hpp_standard: Number(row.hpp_standard) || 0,
+          buffer_hpp_pct: Number(row.buffer_hpp_pct) || 10, target_hpp_pct: Number(row.target_hpp_pct) || 0,
+          stock_division: row.stock_division || 'Kitchen', is_active: true, recipe_count: Number(row.recipe_count) || 0
+        }));
+        const menuLines = (recipeResult.data || []).flatMap((recipe) => {
+          const menu = menuByKey.get(recipeLookupKey(recipe.menu_name, recipe.variant || 'Default'));
+          if (!menu) return [];
+          const isPreparation = String(recipe.component_type || 'inventory') === 'preparation';
+          const inventoryItem = inventoryById.get(String(recipe.inventory_item_id || ''));
+          const childPreparation = preparationById.get(String(recipe.preparation_id || ''));
+          return [{
+            menu_code: menu.menu_code || '', menu_name: menu.menu_name || '', variant: menu.variant || 'Default', menu_id: menu.menu_id, variant_id: menu.variant_id,
+            component_type: isPreparation ? 'preparation' : 'inventory', inventory_id: isPreparation ? '' : (recipe.inventory_item_id || ''),
+            item_name: isPreparation ? '' : (inventoryItem?.item_name || ''), preparation_id: isPreparation ? (recipe.preparation_id || '') : '',
+            preparation_code: isPreparation ? (childPreparation?.prep_code || '') : '', preparation_name: isPreparation ? (childPreparation?.prep_name || '') : '',
+            quantity_needed: Number(recipe.quantity_needed) || 0, recipe_unit: recipe.recipe_unit || inventoryItem?.unit || childPreparation?.output_unit || ''
+          }];
+        });
+        const preparationRows = preparations.map((row) => ({
+          preparation_id: row.id, prep_code: row.prep_code || '', prep_name: row.prep_name || '', output_quantity: Number(row.output_quantity) || 0,
+          output_unit: row.output_unit || '', division: row.division || 'Kitchen', yield_percentage: Number(row.yield_percentage) || 100, is_active: row.is_active !== false
+        }));
+        const preparationLines = [];
+        for (const prep of preparations) {
+          const { data: lines, error } = await supabaseClient.rpc('list_preparation_lines', { p_preparation_id: prep.id });
+          if (error) throw error;
+          (lines || []).forEach((line) => {
+            const isPreparation = String(line.component_type || 'inventory') === 'preparation';
+            const item = inventoryById.get(String(line.inventory_item_id || ''));
+            const childPrep = preparationById.get(String(line.child_preparation_id || ''));
+            preparationLines.push({
+              prep_code: prep.prep_code || '', prep_name: prep.prep_name || '', preparation_id: prep.id,
+              component_type: isPreparation ? 'preparation' : 'inventory', inventory_id: isPreparation ? '' : (line.inventory_item_id || ''),
+              item_name: isPreparation ? '' : (item?.item_name || ''), child_preparation_id: isPreparation ? (line.child_preparation_id || '') : '',
+              preparation_code: isPreparation ? (childPrep?.prep_code || '') : '', preparation_name: isPreparation ? (childPrep?.prep_name || '') : '',
+              quantity_needed: Number(line.quantity_needed) || 0, recipe_unit: line.recipe_unit || item?.unit || childPrep?.output_unit || ''
+            });
+          });
+        }
+        const instructions = [
+          { Sheet: 'Master_Menu', Keterangan: 'Menu aktif. Edit data menu di sini. Jangan mengubah menu_id/variant_id/menu_code kecuali memang mengganti identitas menu.' },
+          { Sheet: 'Menu_Bahan', Keterangan: 'Satu baris per komponen resep. Untuk komponen preparation, isi component_type=preparation dan pertahankan preparation_id/preparation_code.' },
+          { Sheet: 'Preparation', Keterangan: 'Semua preparation. Edit hasil, satuan, divisi, dan yield. Pertahankan preparation_id/prep_code.' },
+          { Sheet: 'Preparation_Bahan', Keterangan: 'Satu baris per komponen preparation. Pertahankan preparation_id/prep_code dan ID bahan/preparation.' },
+          { Sheet: 'Semua', Keterangan: 'Jangan menghapus kolom ID/kode. Baris yang dihapus dari file tidak menghapus data aplikasi. Untuk mengganti resep, edit baris pada sheet komponen.' }
+        ];
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(instructions), 'Petunjuk');
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(masterMenuRows), 'Master_Menu');
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(menuLines), 'Menu_Bahan');
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(preparationRows), 'Preparation');
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(preparationLines), 'Preparation_Bahan');
+        XLSX.writeFile(workbook, `menu-preparation-${new Date().toISOString().slice(0, 10)}.xlsx`);
+        message.textContent = `Export selesai: ${masterMenuRows.length} menu aktif, ${menuLines.length} komponen menu, ${preparationRows.length} preparation, dan ${preparationLines.length} komponen preparation.`;
+        message.className = 'form-message success';
+      } catch (error) {
+        console.error(error);
+        message.textContent = `Export gagal: ${error.message}`;
+        message.className = 'form-message error';
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Export Menu + Preparation';
+      }
+    }
+
     async function exportInventoryMaster() {
       const button = $('#exportInventoryMasterBtn');
       if (typeof XLSX === 'undefined') return window.alert('Library Excel belum siap.');
@@ -6611,6 +6708,18 @@
       const sameDivision = candidates.find((item) => normalizeText(item.division || 'Kitchen') === normalizeText(division));
       return sameDivision || (candidates.length === 1 ? candidates[0] : null);
     }
+    function findImportInventoryReference(id, itemName, division = '') {
+      const byId = id ? state.inventory.find((item) => String(item.id) === String(id)) : null;
+      return byId || findImportInventory(itemName, division);
+    }
+    function findImportPreparationReference(id, code, preparationName, division = '') {
+      const byId = id ? state.preparations.find((item) => String(item.id) === String(id)) : null;
+      if (byId) return byId;
+      const codeMatches = code ? state.preparations.filter((item) => normalizeText(item.prep_code) === normalizeText(code)) : [];
+      if (codeMatches.length === 1) return codeMatches[0];
+      if (codeMatches.length > 1) return codeMatches.find((item) => normalizeText(item.division || 'Kitchen') === normalizeText(division)) || null;
+      return findImportPreparation(preparationName, division);
+    }
     function importRowsWithFillDown(rows, fields) {
       let lastValues = {};
       return (rows || []).map((row, index) => {
@@ -6657,6 +6766,10 @@
       groups.forEach((group) => {
         const row = group.parent;
         const prepCode = String(importRowValue(row, 'prep_code', '')).trim().toUpperCase();
+        const currentPrepMatches = state.preparations.filter((item) => normalizeText(item.prep_code) === normalizeText(prepCode));
+        const preparationId = String(importRowValue(row, 'preparation_id', importRowValue(row, 'id', '')) || '').trim()
+          || (currentPrepMatches.length === 1 ? String(currentPrepMatches[0].id) : '');
+        if (currentPrepMatches.length > 1 && !preparationId) importValidationError(errors, row, `${prepCode}: kode preparation duplikat, ID preparation wajib dipertahankan.`);
         const prepName = String(importRowValue(row, 'prep_name', '')).trim();
         const outputQuantity = importNumber(importRowValue(row, 'output_quantity', ''));
         const outputUnit = String(importRowValue(row, 'output_unit', 'porsi') || 'porsi').trim();
@@ -6674,18 +6787,21 @@
           if (!Number.isFinite(quantity) || quantity <= 0) { importValidationError(errors, component, `${prepCode}: quantity_needed harus lebih besar dari 0.`); return; }
           if (type === 'inventory') {
             const itemName = String(importRowValue(component, 'item_name', '')).trim();
-            const item = findImportInventory(itemName, division);
+            const itemId = String(importRowValue(component, 'inventory_id', importRowValue(component, 'inventory_item_id', '')) || '').trim();
+            const item = findImportInventoryReference(itemId, itemName, division);
             if (!item) { importValidationError(errors, component, `${prepCode}: bahan "${itemName || '-'}" tidak ditemukan atau memiliki lebih dari satu divisi.`); return; }
             lines.push({ component_type: 'inventory', inventory_item_id: item.id, child_preparation_id: null, quantity_needed: quantity, recipe_unit: String(importRowValue(component, 'recipe_unit', item.unit || '') || item.unit || '').trim() });
           } else if (type === 'preparation') {
+            const childId = String(importRowValue(component, 'child_preparation_id', importRowValue(component, 'preparation_ref_id', '')) || '').trim();
+            const childCode = String(importRowValue(component, 'preparation_code', '') || '').trim();
             const preparationName = String(importRowValue(component, 'preparation_name', '')).trim();
-            const preparation = findImportPreparation(preparationName, division);
+            const preparation = findImportPreparationReference(childId, childCode, preparationName, division);
             if (!preparation) { importValidationError(errors, component, `${prepCode}: preparation "${preparationName || '-'}" tidak ditemukan atau memiliki lebih dari satu divisi.`); return; }
             lines.push({ component_type: 'preparation', inventory_item_id: null, child_preparation_id: preparation.id, quantity_needed: quantity, recipe_unit: String(importRowValue(component, 'recipe_unit', preparation.output_unit || '') || preparation.output_unit || '').trim() });
           }
         });
         if (!lines.length) importValidationError(errors, row, `${prepCode || 'Preparation'}: minimal harus memiliki satu bahan.`);
-        operations.push({ prepCode, prepName, outputQuantity, outputUnit, division, yieldPercentage, lines });
+        operations.push({ preparationId: preparationId || null, prepCode, prepName, outputQuantity, outputUnit, division, yieldPercentage, lines });
       });
       finishImportValidation(errors, 'preparation');
       return operations;
@@ -6722,6 +6838,9 @@
         const menuName = String(importRowValue(row, 'menu_name', '')).trim();
         const variant = String(importRowValue(row, 'variant', 'Default') || 'Default').trim() || 'Default';
         const stockDivision = String(importRowValue(row, 'stock_division', 'Kitchen') || 'Kitchen').trim();
+        const existingMenu = state.menuMasterRows.find((item) => normalizeText(item.menu_code) === normalizeText(menuCode) && normalizeText(item.variant || 'Default') === normalizeText(variant));
+        const menuId = String(importRowValue(row, 'menu_id', '') || '').trim() || String(existingMenu?.menu_id || '');
+        const variantId = String(importRowValue(row, 'variant_id', '') || '').trim() || String(existingMenu?.variant_id || '');
         const price = importNumber(importRowValue(row, 'price', ''));
         if (!menuName) importValidationError(errors, row, `${menuCode || 'Menu'}: menu_name wajib diisi.`);
         if (!Number.isFinite(price) || price < 0) importValidationError(errors, row, `${menuCode || 'Menu'}: price harus berupa angka 0 atau lebih.`);
@@ -6733,19 +6852,25 @@
           if (!Number.isFinite(quantity) || quantity <= 0) { importValidationError(errors, component, `${menuCode}/${variant}: quantity_needed harus lebih besar dari 0.`); return; }
           if (type === 'inventory') {
             const itemName = String(importRowValue(component, 'item_name', '')).trim();
-            const item = findImportInventory(itemName, stockDivision);
+            const itemId = String(importRowValue(component, 'inventory_id', importRowValue(component, 'inventory_item_id', '')) || '').trim();
+            const item = findImportInventoryReference(itemId, itemName, stockDivision);
             if (!item) { importValidationError(errors, component, `${menuCode}/${variant}: bahan "${itemName || '-'}" tidak ditemukan di ${stockDivision} atau memiliki duplikat.`); return; }
             if (isWarehouseInventoryItem(item)) { importValidationError(errors, component, `${menuCode}/${variant}: resep tidak boleh mengambil stok Gudang Utama (${itemName}).`); return; }
             recipeItems.push({ component_type: 'inventory', inventory_item_id: item.id, preparation_id: null, quantity_needed: quantity, recipe_unit: String(importRowValue(component, 'recipe_unit', item.unit || '') || item.unit || '').trim() });
           } else if (type === 'preparation') {
+            const childId = String(importRowValue(component, 'preparation_id', importRowValue(component, 'child_preparation_id', '')) || '').trim();
+            const childCode = String(importRowValue(component, 'preparation_code', '') || '').trim();
             const preparationName = String(importRowValue(component, 'preparation_name', '')).trim();
-            const preparation = findImportPreparation(preparationName, stockDivision);
+            const preparation = findImportPreparationReference(childId, childCode, preparationName, stockDivision);
             if (!preparation) { importValidationError(errors, component, `${menuCode}/${variant}: preparation "${preparationName || '-'}" tidak ditemukan atau memiliki duplikat.`); return; }
             recipeItems.push({ component_type: 'preparation', inventory_item_id: null, preparation_id: preparation.id, quantity_needed: quantity, recipe_unit: String(importRowValue(component, 'recipe_unit', preparation.output_unit || '') || preparation.output_unit || '').trim() });
           }
         });
-        if (!recipeItems.length) importValidationError(errors, row, `${menuCode}/${variant}: minimal harus memiliki satu bahan/resep.`);
-        operations.push({ menuCode, menuName, variant, category: importRowValue(row, 'category', 'Other') || 'Other', outlet: importRowValue(row, 'outlet', 'Rebel House') || 'Rebel House', unit: importRowValue(row, 'unit', 'porsi') || 'porsi', price, effectiveDate: importRowValue(row, 'effective_date', new Date().toISOString().slice(0, 10)) || new Date().toISOString().slice(0, 10), hppStandard: importNumber(importRowValue(row, 'hpp_standard', 0), 0), targetHppPct: importNumber(importRowValue(row, 'target_hpp_pct', 0), 0), stockDivision, isActive: importBoolean(importRowValue(row, 'is_active', true)), bufferHppPct: importNumber(importRowValue(row, 'buffer_hpp_pct', 10), 10), recipeItems });
+        const importedRecipeCount = Number(importRowValue(row, 'recipe_count', 0)) || 0;
+        const category = importRowValue(row, 'category', 'Other') || 'Other';
+        if (isServiceChargeCategory(category)) recipeItems.length = 0;
+        if (!recipeItems.length && importedRecipeCount > 0 && !isServiceChargeCategory(category)) importValidationError(errors, row, `${menuCode}/${variant}: recipe_count menyatakan ada resep, tetapi baris Menu_Bahan tidak ditemukan. File tidak lengkap.`);
+        operations.push({ menuId: menuId || null, variantId: variantId || null, menuCode, menuName, variant, category, outlet: importRowValue(row, 'outlet', 'Rebel House') || 'Rebel House', unit: importRowValue(row, 'unit', 'porsi') || 'porsi', price, effectiveDate: importRowValue(row, 'effective_date', new Date().toISOString().slice(0, 10)) || new Date().toISOString().slice(0, 10), hppStandard: importNumber(importRowValue(row, 'hpp_standard', 0), 0), targetHppPct: importNumber(importRowValue(row, 'target_hpp_pct', 0), 0), stockDivision, isActive: importBoolean(importRowValue(row, 'is_active', true)), bufferHppPct: importNumber(importRowValue(row, 'buffer_hpp_pct', 10), 10), recipeItems });
       });
       finishImportValidation(errors, 'menu');
       return operations;
@@ -6984,6 +7109,91 @@
         importMessage(kind, `${success} baris berhasil diimport. Template baru tidak membutuhkan JSON atau ID database.`, 'success');
         if (kind === 'inventory') await loadInventory(); else if (kind === 'preparation') await loadPreparations(); else if (kind === 'menu') await loadMenuMaster(); else await loadPurchaseData();
       } catch (error) { importMessage(kind, `Import gagal: ${error.message}`, 'error'); }
+    }
+
+    async function importMenuPreparationWorkbook(file) {
+      const message = $('#menuPreparationWorkbookMessage');
+      if (!file || !supabaseConfigured) return;
+      let savedPreparations = 0;
+      let savedMenus = 0;
+      try {
+        if (typeof XLSX === 'undefined') throw new Error('Library Excel belum siap.');
+        message.textContent = 'Memeriksa isi file dan mencocokkan ID...';
+        message.className = 'form-message warning';
+        await loadInventory();
+        await loadPreparations();
+        await loadMenuMaster();
+        const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+        const sheetRows = (name) => importSheetRows(workbook, name);
+        const menuRows = sheetRows('Master_Menu');
+        const menuLines = sheetRows('Menu_Bahan');
+        const preparationRows = sheetRows('Preparation');
+        const preparationLines = sheetRows('Preparation_Bahan');
+        if (!menuRows.length || !preparationRows.length) throw new Error('File harus berasal dari Export Menu + Preparation dan berisi sheet Master_Menu serta Preparation.');
+        const preparationOperations = buildPreparationImportOperations([], preparationRows, preparationLines);
+        const menuOperations = buildMenuImportOperations([], menuRows, menuLines);
+        const missingPreparationIds = preparationOperations.filter((operation) => !operation.preparationId || !state.preparations.some((row) => String(row.id) === String(operation.preparationId)));
+        if (missingPreparationIds.length) throw new Error(`ID preparation tidak cocok untuk: ${missingPreparationIds.map((row) => row.prepCode).join(', ')}. Gunakan file export asli dan jangan mengubah kolom preparation_id.`);
+        const missingMenuIds = menuOperations.filter((operation) => !operation.menuId || !operation.variantId || !state.menuMasterRows.some((row) => String(row.menu_id) === String(operation.menuId) && String(row.variant_id) === String(operation.variantId)));
+        if (missingMenuIds.length) throw new Error(`ID menu/varian tidak cocok untuk: ${missingMenuIds.map((row) => `${row.menuCode}/${row.variant}`).join(', ')}. Gunakan file export asli dan jangan mengubah kolom menu_id/variant_id.`);
+        const confirmText = `Akan memperbarui ${preparationOperations.length} preparation dan ${menuOperations.length} menu/varian dari file Excel. Data stok, belanja, penjualan, dan transaksi lama tidak diubah. Baris yang dihapus dari Excel tidak menghapus data aplikasi. Lanjutkan?`;
+        if (!window.confirm(confirmText)) {
+          message.textContent = 'Import dibatalkan. Tidak ada perubahan yang disimpan.';
+          message.className = 'form-message warning';
+          return;
+        }
+        for (const operation of preparationOperations) {
+          const { error } = await supabaseClient.rpc('save_preparation', {
+            p_preparation_id: operation.preparationId,
+            p_prep_code: operation.prepCode,
+            p_prep_name: operation.prepName,
+            p_output_quantity: operation.outputQuantity,
+            p_output_unit: operation.outputUnit,
+            p_division: operation.division,
+            p_yield_percentage: operation.yieldPercentage,
+            p_lines: operation.lines
+          });
+          if (error) throw new Error(`Preparation ${operation.prepCode} gagal disimpan: ${error.message}`);
+          savedPreparations++;
+        }
+        await loadPreparations();
+        // Reload active menu rows after preparation saves so menu recipe references
+        // are resolved against the current preparation IDs.
+        const refreshedMenuRows = await supabaseClient.rpc('list_menu_master');
+        if (refreshedMenuRows.error) throw refreshedMenuRows.error;
+        state.menuMasterRows = refreshedMenuRows.data || [];
+        for (const operation of menuOperations) {
+          const { error } = await supabaseClient.rpc('save_menu_master', {
+            p_menu_id: operation.menuId,
+            p_variant_id: operation.variantId,
+            p_menu_code: operation.menuCode,
+            p_menu_name: operation.menuName,
+            p_category: operation.category,
+            p_outlet: operation.outlet,
+            p_unit: operation.unit,
+            p_variant: operation.variant,
+            p_price: operation.price,
+            p_effective_date: operation.effectiveDate,
+            p_hpp_standard: operation.hppStandard,
+            p_target_hpp_pct: operation.targetHppPct,
+            p_stock_division: operation.stockDivision,
+            p_is_active: operation.isActive,
+            p_recipe_items: operation.recipeItems,
+            p_buffer_hpp_pct: operation.bufferHppPct
+          });
+          if (error) throw new Error(`Menu ${operation.menuCode}/${operation.variant} gagal disimpan: ${error.message}`);
+          savedMenus++;
+        }
+        await Promise.all([loadPreparations(), loadMenuMaster()]);
+        if (isReportTabActive('hpp')) await loadHppReportData();
+        message.textContent = `Import selesai: ${savedPreparations} preparation dan ${savedMenus} menu/varian diperbarui. Stok, belanja, penjualan, dan riwayat transaksi tidak berubah.`;
+        message.className = 'form-message success';
+      } catch (error) {
+        console.error(error);
+        const partial = savedPreparations || savedMenus ? ` Sebagian data sudah tersimpan (${savedPreparations} preparation, ${savedMenus} menu); periksa sebelum mengulang.` : '';
+        message.textContent = `Import gagal: ${error.message}.${partial}`;
+        message.className = 'form-message error';
+      }
     }
 
     async function loadHppReportData() {
