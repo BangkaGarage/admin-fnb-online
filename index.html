@@ -641,6 +641,7 @@
             <div class="nav-submenu">
               <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="sales" data-title="Penjualan &amp; Rekonsiliasi"><span class="nav-icon">◫</span><span>Penjualan &amp; Rekonsiliasi</span></button>
               <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="hpp" data-title="Food Cost &amp; HPP"><span class="nav-icon">▤</span><span>Food Cost &amp; HPP</span></button>
+              <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="rice" data-title="Audit Nasi &amp; Hasil Karung"><span class="nav-icon">◉</span><span>Audit Nasi &amp; Karung</span></button>
               <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="finance" data-title="Laporan Laba Rugi"><span class="nav-icon">▥</span><span>Laba Rugi</span></button>
               <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="backup" data-title="Backup &amp; Export"><span class="nav-icon">↓</span><span>Backup &amp; Export</span></button>
               <button type="button" class="nav-btn" data-page="closingPage" data-title="Closing Harian"><span class="nav-icon">✓</span><span>Closing Harian</span></button>
@@ -1045,20 +1046,21 @@
         </section>
 
         <section id="transferPage" class="page">
-          <div class="section-title"><h1>Transfer Stok</h1><p>Pindahkan stok dari Gudang Utama ke Bar, Kitchen, atau Waiters.</p></div>
+          <div class="section-title"><h1>Transfer Stok</h1><p>Pindahkan stok antar Gudang Utama, Bar, Kitchen, dan Waiters. Stok berpindah langsung saat disimpan.</p></div>
           <div class="expense-layout">
             <div class="panel">
               <div class="panel-head"><div><h3>Form transfer stok</h3><p class="panel-subtitle">Stok sumber berkurang, stok tujuan bertambah, dan transaksi dicatat ke <code>stock_transfers</code>.</p></div></div>
               <form id="transferForm">
                 <div class="form-grid">
-                  <div class="form-field full"><label for="transferItem">Bahan Baku dari Gudang Utama *</label><select id="transferItem" required><option value="">Memuat stok Gudang Utama...</option></select></div>
-                  <div class="form-field full"><label for="transferDestination">Divisi Tujuan *</label><select id="transferDestination" required><option value="Bar">Bar</option><option value="Kitchen">Kitchen</option><option value="Waiters">Waiters</option></select></div>
-                  <div class="form-field full"><label for="transferQuantity">Jumlah yang Ditransfer *</label><input id="transferQuantity" type="number" min="0.0001" step="0.0001" placeholder="Contoh: 5000" required /><small id="transferUnitHint" class="field-help">Transfer memakai satuan stok dasar.</small></div>
+                  <div class="form-field full"><label for="transferItem">Bahan Baku &amp; Lokasi Asal *</label><select id="transferItem" required><option value="">Memuat stok...</option></select></div>
+                  <div class="form-field"><label for="transferDestination">Lokasi Tujuan *</label><select id="transferDestination" required><option value="">Pilih bahan asal terlebih dahulu</option></select></div>
+                  <div class="form-field"><label for="transferQuantity">Jumlah yang Ditransfer *</label><input id="transferQuantity" type="number" min="0.0001" step="0.0001" placeholder="Contoh: 1" required /></div>
+                  <div class="form-field full"><label for="transferUnit">Satuan Input *</label><select id="transferUnit" required><option value="">Pilih bahan terlebih dahulu</option></select><small id="transferUnitHint" class="field-help">Stok berpindah dalam satuan stok dasar.</small></div>
                 </div>
                 <div class="form-actions"><button id="saveTransferBtn" class="save-btn" type="submit">Simpan Transfer</button><button id="resetTransferBtn" class="reset-btn" type="reset">Kosongkan</button></div>
                 <p id="transferMessage" class="form-message" role="status"></p>
               </form>
-              <div class="supabase-note">Bahan tujuan dicari berdasarkan nama bahan dan divisi. Jika belum ada, sistem membuat baris inventory baru di divisi tujuan.</div>
+              <div class="supabase-note">Transfer langsung dicatat tanpa approval. Jika stok bahan belum ada di lokasi tujuan, sistem membuat baris stok tujuan secara otomatis. Admin dan Super Admin dapat memilih semua lokasi asal; akun lain hanya dapat memilih divisi akunnya.</div>
             </div>
             <div class="panel history-panel">
               <div class="panel-head"><div><h3>Riwayat transfer</h3><p class="panel-subtitle">Audit perpindahan stok antar divisi. Transfer yang belum dipakai dapat dibatalkan.</p></div><button id="refreshTransfersBtn" class="reset-btn" type="button">↻ Refresh</button></div>
@@ -1102,7 +1104,7 @@
         </section>
 
         <section id="wastePage" class="page">
-          <div class="section-title"><h1>Pemakaian Harian, Waste &amp; Non-Penjualan</h1><p>Catat pemakaian bahan aktual per hari, bahan terbuang, dan pemakaian non-penjualan. Resep/preparation tetap menjadi acuan HPP.</p></div>
+          <div class="section-title"><h1>Pemakaian Bahan, Waste &amp; Non-Penjualan</h1><p>Catat bahan saat mulai dipakai, bahan terbuang, dan pemakaian non-penjualan. Resep/preparation tetap menjadi acuan HPP.</p></div>
           <div class="expense-layout">
             <div class="panel">
               <div class="panel-head"><div><h3>Input waste bahan</h3><p class="panel-subtitle">Stok divisi dikurangi dan nilai kerugiannya otomatis masuk ke expenses.</p></div></div>
@@ -1110,7 +1112,8 @@
                 <div class="form-grid">
                   <div class="form-field full"><label for="wasteItem">Pilih Bahan Baku *</label><select id="wasteItem" required><option value="">Memuat bahan baku...</option></select></div>
                   <div class="form-field full"><label for="wasteDivision">Lokasi Divisi *</label><select id="wasteDivision" required><option value="Gudang Utama">Gudang Utama</option><option value="Bar">Bar</option><option value="Kitchen">Kitchen</option><option value="Waiters">Waiters</option></select></div>
-                  <div class="form-field full"><label for="wasteQuantity">Jumlah Waste *</label><input id="wasteQuantity" type="number" min="0.0001" step="0.0001" placeholder="Contoh: 2" required /></div>
+                  <div class="form-field"><label for="wasteQuantity">Jumlah Waste *</label><input id="wasteQuantity" type="number" min="0.0001" step="0.0001" placeholder="Contoh: 1" required /></div>
+                  <div class="form-field"><label for="wasteUnit">Satuan Input *</label><select id="wasteUnit" required><option value="">Pilih bahan terlebih dahulu</option></select><small id="wasteUnitHint" class="field-help">Jumlah waste akan dikonversi ke satuan stok.</small></div>
                   <div class="form-field full"><label for="wasteReason">Alasan Waste *</label><textarea id="wasteReason" placeholder="Contoh: Susu kedaluwarsa, bahan jatuh, produk gagal produksi" required></textarea></div>
                 </div>
                 <div class="form-actions"><button id="saveWasteBtn" class="save-btn" type="submit">Simpan Waste</button><button id="resetWasteBtn" class="reset-btn" type="reset">Kosongkan</button></div>
@@ -1125,19 +1128,20 @@
           </div>
 
           <div id="dailyUsageSection" class="panel" style="margin-top:20px;">
-            <div class="panel-head"><div><h3>Pemakaian Bahan Harian</h3><p class="panel-subtitle">Catat jumlah bahan yang benar-benar dipakai pada hari tersebut. Tidak perlu menunggu stok tersedia saat membuat resep atau HPP.</p></div></div>
+            <div class="panel-head"><div><h3>Pemakaian Bahan Aktual</h3><p class="panel-subtitle">Catat bahan saat benar-benar mulai dipakai. Untuk beras, satu catatan 1 karung dibuat saat karung baru mulai dipakai; jangan catat ulang karung yang sama setiap hari.</p></div></div>
             <form id="dailyUsageForm">
               <div class="form-grid">
                 <div class="form-field"><label for="dailyUsageDate">Tanggal Pemakaian *</label><input id="dailyUsageDate" type="date" required /></div>
                 <div class="form-field"><label for="dailyUsageDivision">Divisi *</label><select id="dailyUsageDivision" required><option value="Gudang Utama">Gudang Utama</option><option value="Bar">Bar</option><option value="Kitchen">Kitchen</option><option value="Waiters">Waiters</option></select></div>
                 <div class="form-field full"><label for="dailyUsageItem">Bahan Baku *</label><select id="dailyUsageItem" required><option value="">Memuat bahan baku...</option></select><small class="field-help">Pilih baris bahan pada divisi tempat pemakaian aktual dilakukan.</small></div>
-                <div class="form-field"><label for="dailyUsageQuantity">Jumlah Dipakai *</label><input id="dailyUsageQuantity" type="number" min="0.0001" step="0.0001" placeholder="Contoh: 1" required /></div>
+                <div class="form-field"><label for="dailyUsageQuantity">Jumlah Dipakai *</label><input id="dailyUsageQuantity" type="number" min="0.0001" step="0.0001" placeholder="Contoh: 1" required /><small class="field-help">Contoh beras: isi 1 jika satuan inputnya karung.</small></div>
+                <div class="form-field"><label for="dailyUsageUnit">Satuan Input *</label><select id="dailyUsageUnit" required><option value="">Pilih bahan terlebih dahulu</option></select><small id="dailyUsageUnitHint" class="field-help">Jumlah akan dikonversi ke satuan stok dasar sebelum stok dikurangi.</small></div>
                 <div class="form-field full"><label for="dailyUsageReason">Keterangan *</label><textarea id="dailyUsageReason" placeholder="Contoh: Pemakaian dapur hari ini untuk seluruh preparation; cabai 1 kg." required></textarea></div>
               </div>
               <div class="form-actions"><button id="saveDailyUsageBtn" class="save-btn" type="submit">Simpan Pemakaian Harian</button><button id="resetDailyUsageBtn" class="reset-btn" type="reset">Kosongkan</button></div>
               <p id="dailyUsageMessage" class="form-message" role="status"></p>
             </form>
-            <div class="supabase-note">Satu catatan dibuat untuk pemakaian nyata pada hari itu. Jika besok tidak memakai bahan, tidak perlu membuat catatan. Bahan yang rusak atau dibuang dicatat melalui Input Waste.</div>
+            <div class="supabase-note">Laporan audit beras memakai setiap catatan karung baru sebagai awal siklus. Catat lagi hanya ketika karung berikutnya mulai dipakai. Bahan yang rusak atau dibuang dicatat melalui Input Waste agar waste terlihat terpisah.</div>
           </div>
 
         <div id="nonSaleUsageSection" class="panel" style="margin-top:20px;">
@@ -1166,7 +1170,8 @@
               <div class="form-field non-sale-source-field hidden" data-source="menu"><label for="nonSaleMenuName">Nama Menu *</label><input id="nonSaleMenuName" type="text" placeholder="Contoh: singkong" /></div>
               <div class="form-field non-sale-source-field hidden" data-source="menu"><label for="nonSaleVariant">Varian</label><input id="nonSaleVariant" type="text" placeholder="Contoh: ori" /></div>
               <div class="form-field non-sale-source-field hidden" data-source="preparation"><label for="nonSalePreparation">Preparation *</label><select id="nonSalePreparation"><option value="">Memuat preparation...</option></select></div>
-              <div class="form-field"><label for="nonSaleQuantity">Jumlah *</label><input id="nonSaleQuantity" type="number" min="0.0001" step="0.0001" placeholder="Jumlah bahan / porsi" required /></div>
+              <div class="form-field"><label id="nonSaleQuantityLabel" for="nonSaleQuantity">Jumlah *</label><input id="nonSaleQuantity" type="number" min="0.0001" step="0.0001" placeholder="Jumlah bahan / porsi" required /></div>
+              <div class="form-field non-sale-source-field" data-source="raw" id="nonSaleUnitField"><label for="nonSaleUnit">Satuan Input *</label><select id="nonSaleUnit"><option value="">Pilih bahan terlebih dahulu</option></select><small id="nonSaleUnitHint" class="field-help">Jumlah akan dikonversi ke satuan stok.</small></div>
               <div class="form-field full"><label for="nonSaleReason">Alasan / Keterangan *</label><textarea id="nonSaleReason" placeholder="Contoh: Kalibrasi espresso pagi, 2 shot dibuang; atau saus lemon thai basi setelah tidak terjual." required></textarea></div>
             </div>
             <div class="form-actions"><button id="saveNonSaleBtn" class="save-btn" type="submit">Simpan Pemakaian</button><button id="resetNonSaleBtn" class="reset-btn" type="reset">Kosongkan</button></div>
@@ -1324,6 +1329,29 @@
             <div id="salesReportTableWrap" class="history-table-wrap"><div class="loading-row">Pilih periode untuk memuat laporan.</div></div>
               <div class="supabase-note">Kolom yang digunakan pada tabel <code>sales</code>: <code>receipt_number</code>, <code>file_name</code>, <code>hari</code>, <code>sale_date</code>, <code>product_name</code>, <code>variant</code>, <code>category_item</code>, <code>quantity_sold</code>, dan <code>gross_amount</code>.</div>
           </div>
+        </section>
+
+
+        <section id="riceAuditPage" class="page">
+          <div class="section-title"><h1>Audit Pemakaian Beras &amp; Porsi Nasi</h1><p>Bandingkan nasi dari penjualan, pemakaian non-penjualan, dan waste untuk setiap siklus karung yang mulai dipakai.</p></div>
+          <div class="panel">
+            <div class="panel-head"><div><h3>Periode audit</h3><p class="panel-subtitle">Siklus dimulai pada tanggal catatan Pemakaian Harian untuk bahan beras di Kitchen.</p></div><button id="refreshRiceAuditBtn" class="reset-btn" type="button">↻ Refresh</button></div>
+            <form id="riceAuditFilterForm"><div class="form-grid">
+              <div class="form-field"><label for="riceAuditStart">Tanggal Mulai</label><input id="riceAuditStart" type="date" required /></div>
+              <div class="form-field"><label for="riceAuditEnd">Tanggal Akhir</label><input id="riceAuditEnd" type="date" required /></div>
+              <div class="form-field"><label for="ricePortionGrams">Acuan gram per porsi</label><input id="ricePortionGrams" type="number" min="1" step="1" value="100" required /></div>
+            </div><div class="form-actions"><button class="save-btn" type="submit">Tampilkan Audit</button></div><p id="riceAuditMessage" class="form-message" role="status"></p></form>
+            <div class="supabase-note">Indikator aktif jika selisih yang belum terjelaskan melebihi 15% dari berat siklus. Acuan saat ini 100 gr/porsi. Data penjualan hanya menyimpan tanggal, jadi batas siklus dihitung per tanggal, bukan jam.</div>
+          </div>
+          <div class="finance-stats-grid" style="margin-top:20px;">
+            <div class="finance-card"><span>Siklus Karung</span><strong id="riceAuditCycleCount">0</strong><small>Sesuai catatan mulai pemakaian</small></div>
+            <div class="finance-card"><span>Porsi Nasi Terjual</span><strong id="riceAuditSoldPortions">0</strong><small>Menu yang resepnya terhubung ke NASI-PUTIH</small></div>
+            <div class="finance-card"><span>Selisih Belum Terjelaskan</span><strong id="riceAuditUnexplained">0 gr</strong><small>Setelah penjualan, non-penjualan, dan waste</small></div>
+            <div class="finance-card"><span>Perlu Ditinjau</span><strong id="riceAuditReviewCount">0</strong><small>Siklus di atas ambang atau menu belum terhitung</small></div>
+          </div>
+          <div class="panel history-panel" style="margin-top:20px;"><div class="panel-head"><div><h3>Rincian siklus pemakaian</h3><p class="panel-subtitle">Konsumsi staf, komplimen, testing, kalibrasi, dan waste dilaporkan terpisah.</p></div></div><div id="riceAuditCyclesWrap" class="history-table-wrap"><div class="loading-row">Pilih periode untuk memuat audit beras.</div></div></div>
+          <div class="panel history-panel"><div class="panel-head"><div><h3>Menu belum terhitung / belum terhubung ke NASI-PUTIH</h3><p class="panel-subtitle">Menu makanan terjual yang resepnya belum lengkap atau belum mencantumkan preparation nasi. Periksa tiap baris; tidak semua menu makanan pasti memakai nasi.</p></div></div><div id="riceAuditUncountedWrap" class="history-table-wrap"><div class="loading-row">Pilih periode untuk memuat audit menu.</div></div></div>
+          <div class="panel history-panel"><div class="panel-head"><div><h3>Menu yang terhitung memakai nasi</h3><p class="panel-subtitle">Termasuk menu tambahan bila resep variannya terhubung ke preparation NASI-PUTIH.</p></div></div><div id="riceAuditMenuWrap" class="history-table-wrap"><div class="loading-row">Pilih periode untuk memuat penjualan nasi.</div></div></div>
         </section>
 
         <section id="hppReportPage" class="page">
@@ -1496,7 +1524,7 @@
               <div class="panel-head"><div><h3>Pengaturan Stok</h3><p class="panel-subtitle">Aturan stok yang berlaku untuk operasional.</p></div></div>
               <form id="settingsStockForm">
                 <div class="form-field full"><label><input id="settingAllowNegative" type="checkbox" /> Izinkan stok negatif</label></div>
-                <div class="form-field full"><label><input id="settingRequireTransferApproval" type="checkbox" checked /> Wajib approval transfer</label></div>
+                <div class="form-field full"><span class="status-badge status-success">Transfer langsung aktif</span><small class="field-help">Setelah disimpan, stok langsung berpindah ke lokasi tujuan. Tidak menunggu approval.</small></div>
                 <div class="form-field full"><label><input id="settingRequireOpnameNote" type="checkbox" checked /> Wajib alasan opname</label></div>
                 <div class="form-field full"><label for="settingDefaultOpnameTreatment">Perlakuan Default Opname</label><select id="settingDefaultOpnameTreatment"><option value="adjustment">Penyesuaian Percobaan</option><option value="correction">Koreksi Data Lama</option><option value="loss">Kerugian Operasional</option></select></div>
                 <div class="form-field full"><label for="settingGlobalMinStock">Batas Minimum Stok Default</label><input id="settingGlobalMinStock" type="number" min="0" step="0.01" value="0" /></div>
@@ -1594,7 +1622,7 @@
       ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
       : null;
     const DIVISIONS = ['Gudang Utama', 'Bar', 'Kitchen', 'Waiters'];
-    const TRANSFER_DESTINATIONS = ['Bar', 'Kitchen', 'Waiters'];
+    const TRANSFER_DESTINATIONS = DIVISIONS;
     // Admin boleh memakai seluruh modul operasional seperti Super Admin.
     // Reset Sistem tetap menjadi pengecualian dan hanya boleh dibuka Super Admin.
     const ADMIN_PAGES = ['reportsWorkspacePage', 'blindOpnamePage', 'stockPage', 'assetPage', 'menuMasterPage', 'bomPage', 'transferPage', 'wastePage', 'stockReportPage', 'opnamePage', 'activityLogsPage', 'settingsPage'];
@@ -1939,6 +1967,7 @@
         email: authUser.email || '',
         username: authUser.email || '',
         role: profile.app_role,
+        division: profile.division || '',
         displayName: profile.display_name || authUser.email || 'Pengguna'
       };
       const user = state.user;
@@ -2212,7 +2241,7 @@
       {
         keywords: ['transfer', 'stok', 'gudang', 'bar', 'kitchen', 'waiters', 'pindah'],
         title: 'Transfer Stok',
-        answer: 'Buka Master Data & Persediaan → Transfer Stok. Sumber selalu Gudang Utama, sedangkan tujuan dapat Bar, Kitchen, atau Waiters. Masukkan jumlah dalam satuan stok dasar, simpan, lalu periksa Laporan Stok Gudang & Divisi.\n\nJangan mengurangi stok secara manual di lokasi tujuan.'
+        answer: 'Buka Master Data & Persediaan → Transfer Stok. Pilih bahan beserta lokasi asal, lalu pilih lokasi tujuan. Transfer dapat dilakukan antar Gudang Utama, Bar, Kitchen, dan Waiters. Masukkan jumlah dalam satuan stok atau satuan beli seperti karung/dus; sistem menampilkan jumlah hasil konversi sebelum disimpan. Setelah disimpan, stok langsung berpindah. Periksa Laporan Stok Gudang & Divisi bila ingin memastikan saldo.'
       },
       {
         keywords: ['penjualan', 'iseller', 'import', 'upload', 'nota', 'menu', 'varian'],
@@ -2227,7 +2256,12 @@
       {
         keywords: ['waste', 'rusak', 'basi', 'tumpah', 'komplen', 'komplimen', 'kalibrasi', 'testing', 'non penjualan'],
         title: 'Waste dan Pemakaian Non-Penjualan',
-        answer: 'Buka Master Data & Persediaan → Waste & Non-Penjualan. Pilih bahan, lokasi, jumlah, dan alasan yang benar. Waste akan mengurangi stok lokasi tersebut dan tercatat sebagai pemakaian operasional. Gunakan jenis non-penjualan untuk komplimen, kalibrasi, testing, atau konsumsi staf.'
+        answer: 'Buka Master Data & Persediaan → Waste & Non-Penjualan. Pilih bahan dan lokasi, lalu masukkan jumlah dalam satuan stok atau satuan beli seperti karung/dus. Sistem menampilkan jumlah konversinya. Catat bahan rusak melalui Input Waste; catat komplimen, kalibrasi, testing, dan konsumsi staf melalui Pemakaian Non-Penjualan.'
+      },
+      {
+        keywords: ['beras', 'nasi', 'karung', 'audit nasi', 'porsi nasi'],
+        title: 'Audit Nasi dan Pemakaian Karung',
+        answer: 'Saat satu karung beras baru mulai dipakai di Kitchen, catat 1 karung pada Pemakaian Bahan Aktual. Jangan membuat catatan baru setiap hari untuk karung yang sama; catat lagi ketika karung berikutnya mulai dipakai. Audit Nasi membandingkan berat per siklus dengan porsi terjual dari menu yang resepnya terhubung ke preparation NASI-PUTIH. Konsumsi staf, komplimen, testing, dan waste ditampilkan terpisah. Siklus terakhir tetap berjalan sampai catatan karung berikutnya masuk.'
       },
       {
         keywords: ['opname', 'blind', 'fisik', 'selisih', 'variance', 'hitung'],
@@ -2466,7 +2500,20 @@
     $('#inventorySearch').addEventListener('input', () => renderInventoryTable(state.inventory));
     $('#refreshTransfersBtn').addEventListener('click', loadTransferData);
     $('#transferTableWrap').addEventListener('click', handleTransferTableClick);
-    $('#transferItem').addEventListener('change', updateTransferUnitHint);
+    $('#transferItem').addEventListener('change', updateTransferFormOptions);
+    $('#transferUnit')?.addEventListener('change', updateTransferUnitHint);
+    $('#transferQuantity')?.addEventListener('input', updateTransferUnitHint);
+    $('#dailyUsageItem')?.addEventListener('change', updateDailyUsageUnitOptions);
+    $('#dailyUsageUnit')?.addEventListener('change', updateDailyUsageUnitHint);
+    $('#dailyUsageQuantity')?.addEventListener('input', updateDailyUsageUnitHint);
+    $('#wasteItem')?.addEventListener('change', updateWasteUnitOptions);
+    $('#wasteDivision')?.addEventListener('change', syncWasteItemToDivision);
+    $('#wasteUnit')?.addEventListener('change', updateWasteUnitHint);
+    $('#wasteQuantity')?.addEventListener('input', updateWasteUnitHint);
+    $('#nonSaleItem')?.addEventListener('change', updateNonSaleUnitOptions);
+    $('#nonSaleUnit')?.addEventListener('change', updateNonSaleUnitHint);
+    $('#nonSaleQuantity')?.addEventListener('input', updateNonSaleUnitHint);
+    $('#nonSalePreparation')?.addEventListener('change', updateNonSaleUnitOptions);
     $('#resetTransferBtn').addEventListener('click', clearTransferMessage);
     $('#refreshPurchasesBtn').addEventListener('click', loadPurchaseData);
     $('#purchaseTableWrap').addEventListener('click', handlePurchaseTableClick);
@@ -2485,6 +2532,7 @@
       const division = $('#dailyUsageDivision').value;
       const items = state.inventory.filter((item) => String(item.division || 'Gudang Utama') === String(division));
       populateWarehouseItemSelect('dailyUsageItem', items, 'Pilih bahan yang dipakai');
+      updateDailyUsageUnitOptions();
     });
     $('#refreshStockReportBtn').addEventListener('click', loadStockReport);
     $('#divisionStockReportFilter').addEventListener('change', () => renderStockReport(state.stockReport));
@@ -2500,6 +2548,7 @@
     $('#syncMenuCatalogBtn').addEventListener('click', synchronizeMenuCatalogAndReports);
     $('#resetMenuMasterBtn').addEventListener('click', () => window.setTimeout(clearMenuMasterForm, 0));
     $('#menuMasterTableWrap').addEventListener('click', handleMenuMasterTableClick);
+    $('#riceAuditUncountedWrap')?.addEventListener('click', handleRiceAuditFixClick);
     $('#addMenuRecipeIngredientBtn').addEventListener('click', () => addMenuRecipeIngredientRow());
     $('#menuRecipeIngredientsList').addEventListener('click', handleMenuRecipeIngredientClick);
     $('#menuRecipeIngredientsList').addEventListener('input', updateMenuRecipeHpp);
@@ -2562,6 +2611,8 @@
     });
     ['salesReportCategory', 'salesReportMenu'].forEach((id) => document.getElementById(id)?.addEventListener('input', loadSalesReport));
     $('#refreshSalesReportBtn').addEventListener('click', loadSalesReport);
+    $('#riceAuditFilterForm')?.addEventListener('submit', (event) => { event.preventDefault(); loadRiceAuditData(); });
+    $('#refreshRiceAuditBtn')?.addEventListener('click', loadRiceAuditData);
     $('#refreshSalesReconciliationBtn')?.addEventListener('click', loadSalesReconciliation);
     $('#salesMappingForm')?.addEventListener('submit', saveSalesMapping);
     $('#refreshSalesMappingBtn')?.addEventListener('click', loadSalesMappingData);
@@ -2659,7 +2710,7 @@
         return;
       }
       const inventoryById = new Map(state.inventory.map((item) => [String(item.id), item]));
-      const labels = { purchase: 'Belanja', transfer_in: 'Transfer masuk', transfer_out: 'Transfer keluar', sale: 'Penjualan / HPP', waste: 'Waste', non_sale: 'Pemakaian non-penjualan', opname_adjustment: 'Opname', return: 'Retur', void: 'Void' };
+      const labels = { purchase: 'Belanja', transfer_in: 'Transfer masuk', transfer_out: 'Transfer keluar', sale: 'Penjualan / HPP', waste: 'Waste', non_sale: 'Pemakaian non-penjualan', daily_usage: 'Pemakaian bahan aktual', opname_adjustment: 'Opname', return: 'Retur', void: 'Void' };
       const visibleMovements = sortNewestFirst((data || []).map((movement) => {
         const item = inventoryById.get(String(movement.inventory_item_id));
         return { ...movement, item_name: item?.item_name || '', unit: item?.unit || '', division: movement.division || item?.division || '', category: movement.movement_type || '', status: movement.movement_type === 'void' ? 'void' : 'posted' };
@@ -2875,6 +2926,7 @@
       const loaders = {
         sales: async () => { await loadSalesReport(); await loadSalesReconciliation(); },
         hpp: loadHppReportData,
+        rice: loadRiceAuditData,
         finance: loadProfitLossReport,
         backup: loadBackupExportData
       };
@@ -2898,6 +2950,7 @@
       const specs = [
         ['sales', 'Penjualan & Rekonsiliasi', 'salesReportPage'],
         ['hpp', 'Food Cost & HPP', 'hppReportPage'],
+        ['rice', 'Audit Nasi & Karung', 'riceAuditPage'],
         ['finance', 'Laba Rugi', 'reportPage'],
         ['backup', 'Backup & Export', 'backupExportPage']
       ];
@@ -3170,7 +3223,6 @@
       $('#settingActivePeriod').value = settings.general.active_period || '';
       $('#settingMaintenanceReserve').value = Number.isFinite(Number(settings.finance.maintenance_reserve_pct)) ? Number(settings.finance.maintenance_reserve_pct) : 1;
       $('#settingAllowNegative').checked = Boolean(settings.stock.allow_negative);
-      $('#settingRequireTransferApproval').checked = Boolean(settings.stock.require_transfer_approval);
       $('#settingRequireOpnameNote').checked = Boolean(settings.stock.require_opname_note);
       $('#settingDefaultOpnameTreatment').value = settings.stock.default_opname_treatment || 'adjustment';
       $('#settingGlobalMinStock').value = Number(settings.stock.global_min_stock) || 0;
@@ -3216,7 +3268,7 @@
       };
       settings.stock = {
         allow_negative: $('#settingAllowNegative').checked,
-        require_transfer_approval: $('#settingRequireTransferApproval').checked,
+        require_transfer_approval: false,
         require_opname_note: $('#settingRequireOpnameNote').checked,
         default_opname_treatment: $('#settingDefaultOpnameTreatment').value,
         global_min_stock: Number($('#settingGlobalMinStock').value) || 0
@@ -3635,7 +3687,11 @@
       renderInventoryTable(state.inventory);
       populateWarehouseItemSelect('purchaseItem', state.inventory.filter((item) => (item.division || 'Gudang Utama') === 'Gudang Utama'), 'Pilih bahan baku Gudang Utama');
       populateWarehouseItemSelect('wasteItem', state.inventory, 'Pilih bahan baku yang diwaste');
+      updateWasteUnitOptions();
+      if (!hasFullAdminAccess() && state.user?.division) { $('#dailyUsageDivision').value = state.user.division; $('#dailyUsageDivision').disabled = true; }
+      else $('#dailyUsageDivision').disabled = false;
       populateWarehouseItemSelect('dailyUsageItem', state.inventory.filter((item) => String(item.division || 'Gudang Utama') === String($('#dailyUsageDivision')?.value || 'Gudang Utama')), 'Pilih bahan yang dipakai');
+      updateDailyUsageUnitOptions();
       populateWarehouseItemSelect('opnameItem', state.inventory, 'Pilih bahan dan lokasi');
       setDailyUsageDateIfEmpty();
       syncWasteDivisionOptions();
@@ -3683,7 +3739,11 @@
       await loadUnitConversionsForState();
       populateWarehouseItemSelect('purchaseItem', state.inventory.filter((item) => (item.division || 'Gudang Utama') === 'Gudang Utama'), 'Pilih bahan baku Gudang Utama');
       populateWarehouseItemSelect('wasteItem', state.inventory, 'Pilih bahan baku yang diwaste');
+      updateWasteUnitOptions();
+      if (!hasFullAdminAccess() && state.user?.division) { $('#dailyUsageDivision').value = state.user.division; $('#dailyUsageDivision').disabled = true; }
+      else $('#dailyUsageDivision').disabled = false;
       populateWarehouseItemSelect('dailyUsageItem', state.inventory.filter((item) => String(item.division || 'Gudang Utama') === String($('#dailyUsageDivision')?.value || 'Gudang Utama')), 'Pilih bahan yang dipakai');
+      updateDailyUsageUnitOptions();
       populateWarehouseItemSelect('opnameItem', state.inventory, 'Pilih bahan dan lokasi');
       setDailyUsageDateIfEmpty();
       syncWasteDivisionOptions();
@@ -4180,7 +4240,7 @@
     $('#assetSearch')?.addEventListener('input', renderAssetTable);
 
     const NON_SALE_TYPE_LABELS = {
-      daily_usage: 'Pemakaian Bahan Harian',
+      daily_usage: 'Pemakaian Bahan Aktual',
       calibration: 'Kalibrasi Bar / Mesin',
       complimentary: 'Komplimen',
       testing: 'Testing / R&D',
@@ -4215,10 +4275,11 @@
       const usageDate = $('#dailyUsageDate')?.value || '';
       const division = $('#dailyUsageDivision')?.value || 'Gudang Utama';
       const inventoryItemId = $('#dailyUsageItem')?.value || '';
-      const quantity = Number($('#dailyUsageQuantity')?.value);
+      const inputQuantity = Number($('#dailyUsageQuantity')?.value);
+      const inputUnit = $('#dailyUsageUnit')?.value || '';
       const reason = $('#dailyUsageReason')?.value.trim() || '';
       const selectedItem = state.inventory.find((item) => String(item.id) === String(inventoryItemId));
-      if (!usageDate || !selectedItem || !Number.isFinite(quantity) || quantity <= 0 || !reason) {
+      if (!usageDate || !selectedItem || !Number.isFinite(inputQuantity) || inputQuantity <= 0 || !reason || !inputUnit) {
         dailyUsageMessage.textContent = 'Tanggal, divisi, bahan, jumlah, dan keterangan wajib diisi.';
         dailyUsageMessage.className = 'form-message error';
         return;
@@ -4228,6 +4289,7 @@
         dailyUsageMessage.className = 'form-message error';
         return;
       }
+      const quantity = inputQuantity * getEntryUnitFactor(selectedItem, inputUnit);
       const button = $('#saveDailyUsageBtn');
       button.disabled = true;
       button.textContent = 'Menyimpan...';
@@ -4236,7 +4298,7 @@
           p_usage_type: 'daily_usage',
           p_division: division,
           p_quantity: quantity,
-          p_reason: reason,
+          p_reason: `${reason} [Input: ${formatQuantity(inputQuantity)} ${inputUnit}; dikonversi menjadi ${formatQuantity(quantity)} ${selectedItem.unit || ''}]`,
           p_usage_date: usageDate,
           p_inventory_item_id: selectedItem.id,
           p_preparation_id: null,
@@ -4245,9 +4307,9 @@
           p_created_by: state.user?.id || null
         });
         if (error) throw error;
-        dailyUsageMessage.textContent = `Pemakaian harian berhasil dicatat. ${data?.line_count || 0} bahan dipotong dari ${division}. Nilai ${formatRupiah(Number(data?.total_cost) || 0)}.`;
+        dailyUsageMessage.textContent = `Pemakaian harian berhasil dicatat: ${formatQuantity(inputQuantity)} ${inputUnit} (${formatQuantity(quantity)} ${selectedItem.unit || ''}) dikurangi dari ${division}. Nilai ${formatRupiah(Number(data?.total_cost) || 0)}.`;
         dailyUsageMessage.className = 'form-message success';
-        void logActivity('DAILY_USAGE', `${selectedItem.item_name} ${formatQuantity(quantity)} ${selectedItem.unit || ''} — ${reason}`);
+        void logActivity('DAILY_USAGE', `${selectedItem.item_name} ${formatQuantity(inputQuantity)} ${inputUnit} (= ${formatQuantity(quantity)} ${selectedItem.unit || ''}) — ${reason}`);
         dailyUsageForm.reset();
         $('#dailyUsageDate').value = usageDate;
         $('#dailyUsageDivision').value = division;
@@ -4290,8 +4352,41 @@
       const source = sourceSelect.value || 'raw';
       document.querySelectorAll('.non-sale-source-field').forEach((field) => field.classList.toggle('hidden', field.dataset.source !== source));
       $('#nonSaleItem')?.toggleAttribute('required', source === 'raw');
+      $('#nonSaleUnit')?.toggleAttribute('required', source === 'raw');
       $('#nonSaleMenuName')?.toggleAttribute('required', source === 'menu');
       $('#nonSalePreparation')?.toggleAttribute('required', source === 'preparation');
+      const quantityLabel = $('#nonSaleQuantityLabel');
+      if (quantityLabel) quantityLabel.textContent = source === 'menu' ? 'Jumlah Menu *' : source === 'preparation' ? 'Jumlah Preparation *' : 'Jumlah *';
+      updateNonSaleUnitOptions();
+    }
+
+    function updateNonSaleUnitOptions() {
+      const source = $('#nonSaleSource')?.value || 'raw';
+      const item = state.inventory.find((row) => String(row.id) === String($('#nonSaleItem')?.value));
+      if (source !== 'raw') {
+        const unit = source === 'preparation'
+          ? state.preparations.find((row) => String(row.id) === String($('#nonSalePreparation')?.value))?.output_unit || 'satuan preparation'
+          : 'porsi';
+        const hint = $('#nonSaleUnitHint');
+        if (hint) hint.textContent = `Jumlah diisi dalam ${unit}; tidak mengubah satuan bahan resep.`;
+        return;
+      }
+      fillEntryUnitSelect('nonSaleUnit', item, $('#nonSaleUnit')?.value || '');
+      updateNonSaleUnitHint();
+    }
+
+    function updateNonSaleUnitHint() {
+      const item = state.inventory.find((row) => String(row.id) === String($('#nonSaleItem')?.value));
+      const unit = $('#nonSaleUnit')?.value || item?.unit || '';
+      const factor = item ? getEntryUnitFactor(item, unit) : 1;
+      const quantity = Number($('#nonSaleQuantity')?.value);
+      const hint = $('#nonSaleUnitHint');
+      if (!hint) return;
+      hint.textContent = item
+        ? (unit.toLowerCase() === String(item.unit || '').toLowerCase()
+          ? `Stok ${item.division || 'Gudang Utama'} dikurangi dalam ${item.unit || 'satuan dasar'}.`
+          : `1 ${unit} = ${formatQuantity(factor)} ${item.unit || ''}. ${Number.isFinite(quantity) && quantity > 0 ? `${formatQuantity(quantity)} ${unit} akan mengurangi ${formatQuantity(quantity * factor)} ${item.unit || ''}.` : 'Jumlah otomatis dikonversi ke satuan stok.'}`)
+        : 'Pilih bahan mentah untuk melihat satuan input.';
     }
 
     async function loadNonSaleFormData() {
@@ -4370,20 +4465,26 @@
       }
       const usageType = $('#nonSaleType').value;
       const source = $('#nonSaleSource').value;
-      const quantity = Number($('#nonSaleQuantity').value);
+      const inputQuantity = Number($('#nonSaleQuantity').value);
+      const inputUnit = $('#nonSaleUnit')?.value || '';
       const reason = $('#nonSaleReason').value.trim();
       const usageDate = $('#nonSaleDate').value;
       const selectedItem = state.inventory.find((item) => String(item.id) === String($('#nonSaleItem').value));
       const selectedPrep = state.preparations.find((item) => String(item.id) === String($('#nonSalePreparation').value));
       const menuName = $('#nonSaleMenuName').value.trim();
       const variant = $('#nonSaleVariant').value.trim();
-      if (!Number.isFinite(quantity) || quantity <= 0 || !reason || !usageDate) {
+      if (!Number.isFinite(inputQuantity) || inputQuantity <= 0 || !reason || !usageDate) {
         nonSaleMessage.textContent = 'Tanggal, jumlah, dan alasan wajib diisi.';
         nonSaleMessage.className = 'form-message error';
         return;
       }
       if (source === 'raw' && !selectedItem) {
         nonSaleMessage.textContent = 'Pilih bahan mentah dan divisinya.';
+        nonSaleMessage.className = 'form-message error';
+        return;
+      }
+      if (source === 'raw' && !inputUnit) {
+        nonSaleMessage.textContent = 'Pilih satuan input bahan.';
         nonSaleMessage.className = 'form-message error';
         return;
       }
@@ -4397,6 +4498,10 @@
         nonSaleMessage.className = 'form-message error';
         return;
       }
+      const quantity = source === 'raw' ? inputQuantity * getEntryUnitFactor(selectedItem, inputUnit) : inputQuantity;
+      const auditReason = source === 'raw'
+        ? `${reason} [Input: ${formatQuantity(inputQuantity)} ${inputUnit}; dikonversi menjadi ${formatQuantity(quantity)} ${selectedItem.unit || ''}]`
+        : reason;
       const button = $('#saveNonSaleBtn');
       button.disabled = true;
       button.textContent = 'Menyimpan...';
@@ -4405,7 +4510,7 @@
           p_usage_type: usageType,
           p_division: source === 'raw' ? (selectedItem.division || 'Gudang Utama') : (selectedPrep?.division || null),
           p_quantity: quantity,
-          p_reason: reason,
+          p_reason: auditReason,
           p_usage_date: usageDate,
           p_inventory_item_id: source === 'raw' ? selectedItem.id : null,
           p_preparation_id: source === 'preparation' ? selectedPrep.id : null,
@@ -4415,7 +4520,7 @@
         });
         if (error) throw error;
         const totalCost = Number(data?.total_cost) || 0;
-        nonSaleMessage.textContent = `${NON_SALE_TYPE_LABELS[usageType] || usageType} berhasil dicatat. ${data?.line_count || 0} bahan dipotong. Nilai ${formatRupiah(totalCost)}.`;
+        nonSaleMessage.textContent = `${NON_SALE_TYPE_LABELS[usageType] || usageType} berhasil dicatat${source === 'raw' ? `: ${formatQuantity(inputQuantity)} ${inputUnit} (${formatQuantity(quantity)} ${selectedItem.unit || ''})` : ''}. ${data?.line_count || 0} bahan dipotong. Nilai ${formatRupiah(totalCost)}.`;
         nonSaleMessage.className = 'form-message success';
         void logActivity('NON_SALE_USAGE', `${NON_SALE_TYPE_LABELS[usageType] || usageType}: ${reason}`);
         nonSaleForm.reset();
@@ -4570,9 +4675,37 @@
       if (!select) return;
       const matching = item ? state.inventory.filter((row) => normalizeText(row.item_name) === normalizeText(item.item_name)) : [];
       const divisions = matching.length ? matching.map((row) => row.division || 'Gudang Utama') : DIVISIONS;
-      const current = select.value;
       select.innerHTML = divisions.map((division) => `<option value="${escapeHtml(division)}">${escapeHtml(division)}</option>`).join('');
-      select.value = divisions.includes(current) ? current : divisions[0];
+      select.value = item && divisions.includes(item.division || 'Gudang Utama') ? (item.division || 'Gudang Utama') : divisions[0];
+    }
+
+    function syncWasteItemToDivision() {
+      const current = state.inventory.find((row) => String(row.id) === String($('#wasteItem')?.value));
+      const division = $('#wasteDivision')?.value || '';
+      if (!current || !division) return;
+      const matching = state.inventory.find((row) => normalizeText(row.item_name) === normalizeText(current.item_name) && String(row.division || 'Gudang Utama') === String(division));
+      if (matching) $('#wasteItem').value = String(matching.id);
+      updateWasteUnitOptions();
+    }
+
+    function updateWasteUnitOptions() {
+      const item = state.inventory.find((row) => String(row.id) === String($('#wasteItem')?.value));
+      fillEntryUnitSelect('wasteUnit', item, $('#wasteUnit')?.value || '');
+      updateWasteUnitHint();
+    }
+
+    function updateWasteUnitHint() {
+      const item = state.inventory.find((row) => String(row.id) === String($('#wasteItem')?.value));
+      const unit = $('#wasteUnit')?.value || item?.unit || '';
+      const factor = item ? getEntryUnitFactor(item, unit) : 1;
+      const quantity = Number($('#wasteQuantity')?.value);
+      const hint = $('#wasteUnitHint');
+      if (!hint) return;
+      hint.textContent = item
+        ? (unit.toLowerCase() === String(item.unit || '').toLowerCase()
+          ? `Stok ${item.division || 'Gudang Utama'} dikurangi dalam ${item.unit || 'satuan dasar'}.`
+          : `1 ${unit} = ${formatQuantity(factor)} ${item.unit || ''}. ${Number.isFinite(quantity) && quantity > 0 ? `${formatQuantity(quantity)} ${unit} akan mengurangi ${formatQuantity(quantity * factor)} ${item.unit || ''}.` : 'Jumlah otomatis dikonversi ke satuan stok.'}`)
+        : 'Pilih bahan untuk melihat satuan input.';
     }
 
     async function saveWaste(event) {
@@ -4584,12 +4717,14 @@
       }
       const selected = state.inventory.find((item) => String(item.id) === String($('#wasteItem').value));
       const division = $('#wasteDivision').value;
-      const quantity = Number($('#wasteQuantity').value);
+      const inputQuantity = Number($('#wasteQuantity').value);
+      const inputUnit = $('#wasteUnit')?.value || '';
       const reason = $('#wasteReason').value.trim();
-      if (!selected || !division || !Number.isFinite(quantity) || quantity <= 0 || !reason) {
+      if (!selected || !division || !Number.isFinite(inputQuantity) || inputQuantity <= 0 || !inputUnit || !reason) {
         showWasteMessage('Bahan, lokasi, jumlah waste, dan alasan wajib diisi.', 'error');
         return;
       }
+      const quantity = inputQuantity * getEntryUnitFactor(selected, inputUnit);
       const button = $('#saveWasteBtn');
       button.disabled = true;
       button.textContent = 'Menyimpan...';
@@ -4609,8 +4744,8 @@
         if (rpcError) throw rpcError;
         const newStock = oldStock - quantity;
         const lossAmount = Number(result?.loss_amount) || 0;
-        showWasteMessage(`Waste tercatat secara atomik. Stok ${target.item_name} di ${division} sekarang ${formatQuantity(newStock)} ${target.unit || ''}. Nilai kerugian ${formatRupiah(lossAmount)}.`, 'success');
-        void logActivity('WASTE', `Waste ${formatQuantity(quantity)} ${target.unit || ''} ${target.item_name} di ${division}; alasan: ${reason}.`);
+        showWasteMessage(`Waste ${formatQuantity(inputQuantity)} ${inputUnit} (${formatQuantity(quantity)} ${target.unit || ''}) tercatat. Stok ${target.item_name} di ${division} sekarang ${formatQuantity(newStock)} ${target.unit || ''}. Nilai kerugian ${formatRupiah(lossAmount)}.`, 'success');
+        void logActivity('WASTE', `Waste ${formatQuantity(inputQuantity)} ${inputUnit} (= ${formatQuantity(quantity)} ${target.unit || ''}) ${target.item_name} di ${division}; alasan: ${reason}.`);
         wasteForm.reset();
         await loadWasteData();
         await loadLowStockAlert();
@@ -4678,6 +4813,53 @@
 
     function getUnitConversionForItem(itemId) {
       return state.unitConversions.find((row) => String(row.inventory_item_id) === String(itemId) && row.is_active !== false) || null;
+    }
+
+    function getEntryUnitOptions(item) {
+      if (!item) return [];
+      const options = [{ unit: item.unit || 'unit', factor: 1, kind: 'storage' }];
+      const conversion = getUnitConversionForItem(item.id);
+      const purchaseUnit = String(conversion?.purchase_unit || '').trim();
+      const factor = Number(conversion?.purchase_to_storage);
+      if (purchaseUnit && Number.isFinite(factor) && factor > 0 && purchaseUnit.toLowerCase() !== String(item.unit || '').trim().toLowerCase()) {
+        options.push({ unit: purchaseUnit, factor, kind: 'purchase' });
+      }
+      return options;
+    }
+
+    function getEntryUnitFactor(item, unit) {
+      return getEntryUnitOptions(item).find((option) => option.unit.toLowerCase() === String(unit || '').toLowerCase())?.factor || 1;
+    }
+
+    function fillEntryUnitSelect(selectId, item, preferredUnit = '') {
+      const select = $(`#${selectId}`);
+      if (!select) return;
+      const options = getEntryUnitOptions(item);
+      const selected = options.some((option) => option.unit === preferredUnit) ? preferredUnit : options[0]?.unit;
+      select.innerHTML = options.length
+        ? options.map((option) => `<option value="${escapeHtml(option.unit)}">${escapeHtml(option.unit)}${option.kind === 'purchase' ? ` (1 = ${formatQuantity(option.factor)} ${escapeHtml(item.unit || '')})` : ' (satuan stok)'}</option>`).join('')
+        : '<option value="">Satuan tidak tersedia</option>';
+      if (selected) select.value = selected;
+    }
+
+    function updateDailyUsageUnitOptions() {
+      const item = state.inventory.find((row) => String(row.id) === String($('#dailyUsageItem')?.value));
+      fillEntryUnitSelect('dailyUsageUnit', item, $('#dailyUsageUnit')?.value || '');
+      updateDailyUsageUnitHint();
+    }
+
+    function updateDailyUsageUnitHint() {
+      const item = state.inventory.find((row) => String(row.id) === String($('#dailyUsageItem')?.value));
+      const unit = $('#dailyUsageUnit')?.value || item?.unit || '';
+      const factor = item ? getEntryUnitFactor(item, unit) : 1;
+      const quantity = Number($('#dailyUsageQuantity')?.value);
+      const hint = $('#dailyUsageUnitHint');
+      if (!hint) return;
+      hint.textContent = item
+        ? (unit.toLowerCase() === String(item.unit || '').toLowerCase()
+          ? `Stok dikurangi dalam ${item.unit || 'satuan dasar'}.`
+          : `1 ${unit} = ${formatQuantity(factor)} ${item.unit || ''}. Input ${Number.isFinite(quantity) && quantity > 0 ? `${formatQuantity(quantity)} ${unit} akan mengurangi ${formatQuantity(quantity * factor)} ${item.unit || ''}.` : `akan otomatis dikonversi ke ${item.unit || 'satuan dasar'}.`}`)
+        : 'Pilih bahan untuk melihat satuan yang tersedia.';
     }
 
     function getRecipeUnitForItem(itemId) {
@@ -7309,17 +7491,41 @@
 
     function populateTransferSelect(items) {
       const select = $('#transferItem');
-      const sourceItems = items.filter((item) => (item.division || 'Gudang Utama') === 'Gudang Utama');
+      const canTransferAnySource = hasFullAdminAccess();
+      const userDivision = state.user?.division || '';
+      const sourceItems = items.filter((item) => canTransferAnySource || String(item.division || 'Gudang Utama') === String(userDivision));
       select.innerHTML = sourceItems.length
-        ? '<option value="">Pilih bahan dari Gudang Utama</option>' + sourceItems.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.item_name)} — stok ${escapeHtml(formatStockDisplay(item.stock_quantity, item))}</option>`).join('')
-        : '<option value="">Belum ada stok di Gudang Utama</option>';
+        ? '<option value="">Pilih bahan dan lokasi asal</option>' + sourceItems.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.item_name)} — ${escapeHtml(item.division || 'Gudang Utama')} — stok ${escapeHtml(formatStockDisplay(item.stock_quantity, item))}</option>`).join('')
+        : `<option value="">${canTransferAnySource ? 'Belum ada stok' : 'Tidak ada stok pada divisi akun Anda'}</option>`;
+      updateTransferFormOptions();
+    }
+
+    function updateTransferFormOptions() {
+      const source = state.inventory.find((item) => String(item.id) === String($('#transferItem')?.value));
+      const destination = $('#transferDestination');
+      const previousDestination = destination?.value || '';
+      if (destination) {
+        const locations = DIVISIONS.filter((division) => division !== (source?.division || 'Gudang Utama'));
+        destination.innerHTML = locations.length
+          ? '<option value="">Pilih lokasi tujuan</option>' + locations.map((division) => `<option value="${escapeHtml(division)}">${escapeHtml(division)}</option>`).join('')
+          : '<option value="">Pilih bahan asal terlebih dahulu</option>';
+        if (locations.includes(previousDestination)) destination.value = previousDestination;
+      }
+      fillEntryUnitSelect('transferUnit', source, $('#transferUnit')?.value || '');
       updateTransferUnitHint();
     }
 
     function updateTransferUnitHint() {
       const selected = state.inventory.find((item) => String(item.id) === String($('#transferItem')?.value));
       const hint = $('#transferUnitHint');
-      if (hint) hint.textContent = selected ? `Masukkan jumlah transfer dalam ${selected.unit || 'satuan stok dasar'}; contoh 5.000 gr.` : 'Transfer memakai satuan stok dasar.';
+      const unit = $('#transferUnit')?.value || selected?.unit || '';
+      const factor = selected ? getEntryUnitFactor(selected, unit) : 1;
+      const quantity = Number($('#transferQuantity')?.value);
+      if (hint) hint.textContent = selected
+        ? (unit.toLowerCase() === String(selected.unit || '').toLowerCase()
+          ? `Asal: ${selected.division || 'Gudang Utama'}. Stok dipotong dalam ${selected.unit || 'satuan dasar'}.`
+          : `Asal: ${selected.division || 'Gudang Utama'}. 1 ${unit} = ${formatQuantity(factor)} ${selected.unit || ''}${Number.isFinite(quantity) && quantity > 0 ? `; input ini memindahkan ${formatQuantity(quantity * factor)} ${selected.unit || ''}.` : '.'}`)
+        : 'Pilih bahan asal untuk melihat satuan dan lokasi.';
     }
 
     async function loadTransfers() {
@@ -7424,41 +7630,34 @@
         showTransferMessage('Supabase belum dikonfigurasi. Isi URL dan anon key terlebih dahulu.', 'error');
         return;
       }
-      const sourceId = $('#transferItem').value;
+      const source = state.inventory.find((item) => String(item.id) === String($('#transferItem').value));
       const destinationDivision = $('#transferDestination').value;
-      const quantity = Number($('#transferQuantity').value);
-      if (!sourceId || !TRANSFER_DESTINATIONS.includes(destinationDivision) || !Number.isFinite(quantity) || quantity <= 0) {
-        showTransferMessage('Pilih bahan, divisi tujuan, dan jumlah transfer yang valid.', 'error');
+      const inputQuantity = Number($('#transferQuantity').value);
+      const inputUnit = $('#transferUnit').value;
+      if (!source || !DIVISIONS.includes(destinationDivision) || destinationDivision === source.division || !Number.isFinite(inputQuantity) || inputQuantity <= 0 || !inputUnit) {
+        showTransferMessage('Pilih bahan, lokasi tujuan yang berbeda, jumlah, dan satuan transfer yang valid.', 'error');
         return;
       }
-
+      const quantity = inputQuantity * getEntryUnitFactor(source, inputUnit);
+      const sourceStock = Number(source.stock_quantity) || 0;
+      if (quantity > sourceStock) {
+        showTransferMessage(`Stok ${source.item_name} di ${source.division || 'Gudang Utama'} tidak cukup. Input ${formatQuantity(inputQuantity)} ${inputUnit} setara ${formatQuantity(quantity)} ${source.unit || ''}, sementara stok tersedia ${formatQuantity(sourceStock)} ${source.unit || ''}.`, 'error');
+        return;
+      }
       const button = $('#saveTransferBtn');
       button.disabled = true;
       button.textContent = 'Memproses...';
       try {
-        const { data: source, error: sourceError } = await supabaseClient
-          .from('inventory')
-          .select('id, item_name, stock_quantity, unit, min_stock, division')
-          .eq('id', sourceId)
-          .eq('division', 'Gudang Utama')
-          .single();
-        if (sourceError || !source) throw sourceError || new Error('Bahan asal tidak ditemukan.');
-        const sourceStock = Number(source.stock_quantity) || 0;
-        if (quantity > sourceStock) throw new Error(`Stok ${source.item_name} di Gudang Utama tidak cukup.`);
         const { data: transferResult, error: rpcError } = await supabaseClient.rpc('process_stock_transfer', {
           p_inventory_item_id: source.id,
-          p_source_division: 'Gudang Utama',
+          p_source_division: source.division || 'Gudang Utama',
           p_destination_division: destinationDivision,
           p_quantity: quantity,
           p_created_by: state.user?.id || null
         });
         if (rpcError) throw rpcError;
-
-        const pending = transferResult?.status === 'pending';
-        showTransferMessage(pending
-          ? `Transfer ${formatQuantity(quantity)} ${source.unit || ''} ${source.item_name} ke ${destinationDivision} menunggu approval.`
-          : `Transfer ${formatQuantity(quantity)} ${source.unit || ''} ${source.item_name} ke ${destinationDivision} berhasil.`, 'success');
-        void logActivity('TRANSFER', `Transfer ${formatQuantity(quantity)} ${source.unit || ''} ${source.item_name} dari Gudang Utama ke ${destinationDivision}.`);
+        showTransferMessage(`Transfer ${formatQuantity(inputQuantity)} ${inputUnit} (${formatQuantity(quantity)} ${source.unit || ''}) ${source.item_name} dari ${source.division || 'Gudang Utama'} ke ${destinationDivision} berhasil langsung dicatat.`, 'success');
+        void logActivity('TRANSFER', `Transfer ${formatQuantity(inputQuantity)} ${inputUnit} (${formatQuantity(quantity)} ${source.unit || ''}) ${source.item_name} dari ${source.division || 'Gudang Utama'} ke ${destinationDivision}; status ${transferResult?.status || 'posted'}.`);
         transferForm.reset();
         await loadTransferData();
         await loadLowStockAlert();
@@ -8125,6 +8324,264 @@
     $('#expenseReportSearch')?.addEventListener('input', () => renderExpenseTable(getVisibleExpenseRows()));
     $('#exportExpensesBtn').addEventListener('click', exportExpensesToExcel);
     $('#reportExportExpensesBtn').addEventListener('click', exportExpensesToExcel);
+
+    function riceAuditNormalize(value) {
+      return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+    }
+
+    function riceAuditRecipeKey(menu, variant) {
+      return `${riceAuditNormalize(menu)}|${riceAuditNormalize(variant || 'Default') || 'default'}`;
+    }
+
+    function riceAuditMassToGrams(quantity, unit) {
+      const normalized = riceAuditNormalize(unit).replace(/\s/g, '');
+      const value = Number(quantity) || 0;
+      if (['g', 'gr', 'gram', 'grams'].includes(normalized)) return value;
+      if (['kg', 'kilogram', 'kilograms'].includes(normalized)) return value * 1000;
+      if (['mg', 'milligram', 'milligrams'].includes(normalized)) return value / 1000;
+      return null;
+    }
+
+    function setRiceAuditDateDefaults() {
+      const start = $('#riceAuditStart');
+      const end = $('#riceAuditEnd');
+      if (!start || !end || (start.value && end.value)) return;
+      const now = new Date();
+      const localDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      start.value = localDate(monthStart);
+      end.value = localDate(now);
+    }
+
+    async function loadRiceAuditData() {
+      const message = $('#riceAuditMessage');
+      const cyclesWrap = $('#riceAuditCyclesWrap');
+      const menusWrap = $('#riceAuditMenuWrap');
+      const uncountedWrap = $('#riceAuditUncountedWrap');
+      if (!message || !cyclesWrap || !menusWrap || !uncountedWrap) return;
+      if (!supabaseConfigured) {
+        message.textContent = 'Supabase belum dikonfigurasi.';
+        message.className = 'form-message error';
+        return;
+      }
+      setRiceAuditDateDefaults();
+      const startDate = $('#riceAuditStart').value;
+      const endDate = $('#riceAuditEnd').value;
+      const gramsPerPortion = Number($('#ricePortionGrams').value);
+      if (!startDate || !endDate || startDate > endDate || !Number.isFinite(gramsPerPortion) || gramsPerPortion <= 0) {
+        message.textContent = 'Periksa rentang tanggal dan acuan gram per porsi.';
+        message.className = 'form-message error';
+        return;
+      }
+      message.textContent = 'Menghitung resep, penjualan, dan siklus pemakaian beras...';
+      message.className = 'form-message';
+      cyclesWrap.innerHTML = '<div class="loading-row">Menghitung siklus...</div>';
+      menusWrap.innerHTML = '<div class="loading-row">Menghitung menu terjual...</div>';
+      uncountedWrap.innerHTML = '<div class="loading-row">Memeriksa menu yang belum terhitung...</div>';
+      try {
+        const [salesResult, recipesResult, prepsResult, inventoryResult, eventsResult, linesResult] = await Promise.all([
+          fetchSalesRows(startDate, endDate),
+          supabaseClient.from('recipes').select('menu_name, variant, component_type, preparation_id, inventory_item_id, quantity_needed, recipe_unit'),
+          supabaseClient.rpc('list_preparations'),
+          supabaseClient.from('inventory').select('id, item_name, division, unit'),
+          fetchAllReportRows('fb_non_sale_events', 'id, usage_date, usage_type, division, inventory_item_id, preparation_id, quantity, unit, status, reason, created_at', 'usage_date'),
+          fetchAllReportRows('fb_non_sale_event_lines', 'event_id, inventory_item_id, division, quantity, unit', 'event_id')
+        ]);
+        const dataError = salesResult.error || recipesResult.error || prepsResult.error || inventoryResult.error || eventsResult.error || linesResult.error;
+        if (dataError) throw dataError;
+        const sales = salesResult.rows || [];
+        const recipes = recipesResult.data || [];
+        const preparations = (prepsResult.data || []).filter((prep) => prep.is_active !== false);
+        const inventory = inventoryResult.data || [];
+        const events = eventsResult.data || [];
+        const eventLines = linesResult.data || [];
+        const prepById = new Map(preparations.map((prep) => [String(prep.id), prep]));
+        const prepLinesById = new Map();
+        for (const prep of preparations) {
+          const result = await supabaseClient.rpc('list_preparation_lines', { p_preparation_id: prep.id });
+          if (result.error) throw result.error;
+          prepLinesById.set(String(prep.id), result.data || []);
+        }
+        const ricePrepIds = new Set(preparations.filter((prep) => riceAuditNormalize(prep.prep_name).replace(/\s/g, '').includes('nasiputih')).map((prep) => String(prep.id)));
+        const inventoryById = new Map(inventory.map((item) => [String(item.id), item]));
+        const prepRecipesByKey = new Map();
+        for (const recipe of recipes) {
+          const key = riceAuditRecipeKey(recipe.menu_name, recipe.variant);
+          const list = prepRecipesByKey.get(key) || [];
+          list.push(recipe);
+          prepRecipesByKey.set(key, list);
+        }
+        const collectRiceRawItems = (prepId, seen = new Set()) => {
+          const id = String(prepId);
+          if (seen.has(id)) return new Set();
+          seen.add(id);
+          const found = new Set();
+          for (const line of prepLinesById.get(id) || []) {
+            if (line.component_type === 'preparation') {
+              for (const childId of collectRiceRawItems(line.child_preparation_id, seen)) found.add(childId);
+            } else if (line.inventory_item_id != null) found.add(String(line.inventory_item_id));
+          }
+          return found;
+        };
+        const riceRawItemIds = new Set(inventory.filter((item) => /beras|rice/i.test(item.item_name || '')).map((item) => String(item.id)));
+        for (const ricePrepId of ricePrepIds) {
+          for (const itemId of collectRiceRawItems(ricePrepId)) riceRawItemIds.add(itemId);
+        }
+        const portionEquivalentAtRicePrep = (amount, prep) => {
+          const unit = riceAuditNormalize(prep.output_unit).replace(/\s/g, '');
+          const grams = riceAuditMassToGrams(amount, prep.output_unit);
+          if (grams !== null) return grams / gramsPerPortion;
+          if (/porsi|portion|serving/.test(unit)) return Number(amount) || 0;
+          return Number(amount) || 0;
+        };
+        const expandRiceUse = (prepId, consumedOutput, path = new Set()) => {
+          const id = String(prepId);
+          if (ricePrepIds.has(id)) {
+            const prep = prepById.get(id);
+            return prep ? { linked: true, portions: portionEquivalentAtRicePrep(consumedOutput, prep) } : { linked: false, portions: 0 };
+          }
+          if (path.has(id)) return { linked: false, portions: 0 };
+          const prep = prepById.get(id);
+          if (!prep) return { linked: false, portions: 0 };
+          const effectiveOutput = Number(prep.output_quantity) * ((Number(prep.yield_percentage) || 100) / 100);
+          if (!Number.isFinite(effectiveOutput) || effectiveOutput <= 0) return { linked: false, portions: 0 };
+          const nextPath = new Set(path);
+          nextPath.add(id);
+          const batchFactor = Number(consumedOutput) / effectiveOutput;
+          let linked = false;
+          let portions = 0;
+          for (const line of prepLinesById.get(id) || []) {
+            if (line.component_type !== 'preparation' || !line.child_preparation_id) continue;
+            const childAmount = Number(line.quantity_needed) * batchFactor;
+            const child = expandRiceUse(line.child_preparation_id, childAmount, nextPath);
+            linked ||= child.linked;
+            portions += child.portions;
+          }
+          return { linked, portions };
+        };
+        const foodCandidate = (row) => {
+          const category = riceAuditNormalize(row.category_item);
+          const name = riceAuditNormalize(`${row.product_name || ''} ${row.variant || ''}`);
+          if (/drink|beverage|minuman|beer|wine|cocktail|coffee|kopi|tea|teh|juice|jus|soda|mocktail/.test(`${category} ${name}`)) return false;
+          return /food|makanan|meal|nasi|rice|ayam|ikan|sapi|beef|steak|soto|sop|mie|noodle|pasta|pizza|burger|roti|goreng|sate|snack/.test(`${category} ${name}`);
+        };
+        const menuStats = new Map();
+        const portionsByDate = new Map();
+        for (const sale of sales) {
+          if (String(sale.status || 'posted').toLowerCase() === 'void') continue;
+          const menu = String(sale.product_name || '').trim();
+          const variant = String(sale.variant || 'Default').trim() || 'Default';
+          const quantity = Number(sale.quantity_sold) || 0;
+          const key = riceAuditRecipeKey(menu, variant);
+          const rootRecipes = prepRecipesByKey.get(key) || [];
+          let hasRice = false;
+          let ricePortions = 0;
+          for (const recipe of rootRecipes) {
+            if (recipe.component_type !== 'preparation' || !recipe.preparation_id) continue;
+            const result = expandRiceUse(recipe.preparation_id, Number(recipe.quantity_needed) * quantity);
+            hasRice ||= result.linked;
+            ricePortions += result.portions;
+          }
+          const mapKey = `${key}`;
+          const current = menuStats.get(mapKey) || { menu, variant, quantity: 0, portions: 0, linked: false, hasRecipe: rootRecipes.length > 0, category: sale.category_item || '' };
+          current.quantity += quantity;
+          current.portions += ricePortions;
+          current.linked ||= hasRice;
+          current.hasRecipe ||= rootRecipes.length > 0;
+          menuStats.set(mapKey, current);
+          if (hasRice && sale.sale_date) portionsByDate.set(sale.sale_date, (portionsByDate.get(sale.sale_date) || 0) + ricePortions);
+        }
+        const countedMenus = [...menuStats.values()].filter((row) => row.linked).sort((a, b) => b.portions - a.portions || a.menu.localeCompare(b.menu));
+        const uncountedMenus = [...menuStats.values()].filter((row) => !row.linked && foodCandidate(row)).sort((a, b) => b.quantity - a.quantity || a.menu.localeCompare(b.menu));
+        const eventById = new Map(events.map((event) => [String(event.id), event]));
+        const rawItemInKitchen = (id) => riceRawItemIds.has(String(id)) && String(inventoryById.get(String(id))?.division || '') === 'Kitchen';
+        const toGrams = (quantity, unit) => riceAuditMassToGrams(quantity, unit);
+        const markerRows = events.filter((event) => event.usage_type === 'daily_usage' && String(event.status || 'posted').toLowerCase() === 'posted' && rawItemInKitchen(event.inventory_item_id) && event.usage_date)
+          .map((event) => ({ ...event, item: inventoryById.get(String(event.inventory_item_id)), grams: toGrams(event.quantity, event.unit || inventoryById.get(String(event.inventory_item_id))?.unit) }))
+          .filter((event) => event.grams !== null && event.grams > 0)
+          .sort((a, b) => String(a.inventory_item_id).localeCompare(String(b.inventory_item_id)) || String(a.usage_date).localeCompare(String(b.usage_date)) || String(a.created_at).localeCompare(String(b.created_at)));
+        const markerGroups = new Map();
+        for (const marker of markerRows) {
+          const key = `${marker.inventory_item_id}|${marker.division}|${marker.usage_date}`;
+          const group = markerGroups.get(key) || { ...marker, grams: 0, reasons: [] };
+          group.grams += marker.grams;
+          if (marker.reason) group.reasons.push(marker.reason);
+          markerGroups.set(key, group);
+        }
+        const markers = [...markerGroups.values()].sort((a, b) => String(a.inventory_item_id).localeCompare(String(b.inventory_item_id)) || String(a.usage_date).localeCompare(String(b.usage_date)));
+        const oneDayAfter = (date) => { const [year, month, day] = String(date).split('-').map(Number); return new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10); };
+        const cycles = markers.map((marker, index) => {
+          const next = markers.slice(index + 1).find((row) => String(row.inventory_item_id) === String(marker.inventory_item_id) && String(row.division) === String(marker.division));
+          const start = String(marker.usage_date);
+          const nextDate = next && String(next.usage_date) <= endDate ? String(next.usage_date) : '';
+          if (start < startDate || start > endDate) return null;
+          const periodEndExclusive = nextDate || oneDayAfter(endDate);
+          const periodStart = start;
+          const cycleEvents = events.filter((event) => String(event.usage_date) >= periodStart && String(event.usage_date) < periodEndExclusive && String(event.usage_date) <= endDate && event.usage_type !== 'daily_usage' && String(event.status || 'posted').toLowerCase() === 'posted');
+          const relevantEventIds = new Set(cycleEvents.map((event) => String(event.id)));
+          const recorded = eventLines.filter((line) => relevantEventIds.has(String(line.event_id)) && String(line.inventory_item_id) === String(marker.inventory_item_id) && String(line.division) === String(marker.division));
+          let nonSalesGrams = 0;
+          let wasteGrams = 0;
+          for (const line of recorded) {
+            const parent = eventById.get(String(line.event_id));
+            const grams = toGrams(line.quantity, line.unit || marker.item?.unit);
+            if (grams === null) continue;
+            if (String(parent?.usage_type || '').startsWith('waste_')) wasteGrams += grams;
+            else nonSalesGrams += grams;
+          }
+          const soldPortions = [...portionsByDate.entries()].filter(([date]) => String(date) >= periodStart && String(date) < periodEndExclusive && String(date) <= endDate).reduce((sum, [, value]) => sum + value, 0);
+          const complete = Boolean(nextDate);
+          const expectedGrams = (soldPortions * gramsPerPortion) + nonSalesGrams + wasteGrams;
+          const unexplained = complete ? marker.grams - expectedGrams : null;
+          const variancePct = complete && marker.grams > 0 ? Math.abs(unexplained) / marker.grams * 100 : null;
+          return { ...marker, nextDate, soldPortions, nonSalesGrams, wasteGrams, expectedGrams, unexplained, variancePct, complete };
+        }).filter(Boolean);
+        const completed = cycles.filter((cycle) => cycle.complete);
+        const totalSoldPortions = countedMenus.reduce((sum, row) => sum + row.portions, 0);
+        const totalUnexplained = completed.reduce((sum, cycle) => sum + cycle.unexplained, 0);
+        const flaggedCount = completed.filter((cycle) => cycle.variancePct > 15).length;
+        $('#riceAuditCycleCount').textContent = String(cycles.length);
+        $('#riceAuditSoldPortions').textContent = formatQuantity(totalSoldPortions);
+        $('#riceAuditUnexplained').textContent = `${formatQuantity(totalUnexplained)} gr`;
+        $('#riceAuditReviewCount').textContent = String(flaggedCount + uncountedMenus.length);
+        cyclesWrap.innerHTML = cycles.length ? `<table class="history-table"><thead><tr><th>Mulai Karung</th><th>Bahan / Divisi</th><th>Berat Siklus</th><th>Porsi Terjual</th><th>Non-Penjualan</th><th>Waste</th><th>Belum Terjelaskan</th><th>Status</th></tr></thead><tbody>${cycles.map((cycle) => {
+          const status = !cycle.complete ? 'Berjalan — menunggu karung berikutnya' : (cycle.variancePct > 15 ? 'Perlu dicek (>15%)' : 'Dalam batas');
+          const unexplainedCell = cycle.complete ? `${formatQuantity(cycle.unexplained)} gr (${formatQuantity(cycle.variancePct)}%)` : 'Belum dihitung';
+          return `<tr><td>${escapeHtml(cycle.usage_date)}${cycle.nextDate ? ` – sebelum ${escapeHtml(cycle.nextDate)}` : ` – sampai ${escapeHtml(endDate)}`}</td><td>${escapeHtml(cycle.item?.item_name || 'Beras')} / ${escapeHtml(cycle.division || 'Kitchen')}</td><td>${formatQuantity(cycle.grams)} gr</td><td>${formatQuantity(cycle.soldPortions)}</td><td>${formatQuantity(cycle.nonSalesGrams)} gr</td><td>${formatQuantity(cycle.wasteGrams)} gr</td><td>${unexplainedCell}</td><td>${cycle.complete && cycle.variancePct > 15 ? '<span class="variance-warning">' + escapeHtml(status) + '</span>' : escapeHtml(status)}</td></tr>`;
+        }).join('')}</tbody></table>` : '<div class="loading-row">Belum ada catatan Pemakaian Harian untuk beras di Kitchen pada periode ini.</div>';
+        menusWrap.innerHTML = countedMenus.length ? `<table class="history-table"><thead><tr><th>Menu / Varian</th><th>Terjual</th><th>Setara Porsi Nasi</th><th>Status</th></tr></thead><tbody>${countedMenus.map((row) => `<tr><td>${escapeHtml(row.menu)} / ${escapeHtml(row.variant)}</td><td>${formatQuantity(row.quantity)}</td><td>${formatQuantity(row.portions)}</td><td><span class="status-badge status-success">Terhubung ke NASI-PUTIH</span></td></tr>`).join('')}</tbody></table>` : '<div class="loading-row">Belum ada penjualan dengan resep yang terhubung ke preparation NASI-PUTIH pada periode ini.</div>';
+        uncountedWrap.innerHTML = uncountedMenus.length ? `<table class="history-table"><thead><tr><th>Menu / Varian</th><th>Kategori</th><th>Terjual</th><th>Temuan</th><th>Aksi</th></tr></thead><tbody>${uncountedMenus.map((row) => `<tr><td>${escapeHtml(row.menu)} / ${escapeHtml(row.variant)}</td><td>${escapeHtml(row.category || '-')}</td><td>${formatQuantity(row.quantity)}</td><td>${row.hasRecipe ? 'Resep ada, tetapi belum terhubung ke preparation NASI-PUTIH' : 'Resep belum ada; pemakaian nasi belum dapat dihitung'}</td><td><button type="button" class="reset-btn" data-fix-rice-menu="${escapeHtml(row.menu)}" data-fix-rice-variant="${escapeHtml(row.variant)}">Perbaiki Resep</button></td></tr>`).join('')}</tbody></table>` : '<div class="loading-row">Tidak ada menu makanan yang perlu ditinjau pada periode ini.</div>';
+        message.textContent = `Audit selesai. ${countedMenus.length} menu terhubung; ${uncountedMenus.length} menu makanan perlu ditinjau. Siklus terakhir yang belum diikuti catatan karung baru ditampilkan sebagai berjalan.`;
+        message.className = 'form-message success';
+      } catch (error) {
+        console.error(error);
+        message.textContent = `Audit nasi gagal dimuat: ${error.message}`;
+        message.className = 'form-message error';
+        cyclesWrap.innerHTML = '<div class="loading-row">Data siklus tidak dapat dihitung.</div>';
+        menusWrap.innerHTML = '<div class="loading-row">Data penjualan nasi tidak dapat dihitung.</div>';
+        uncountedWrap.innerHTML = '<div class="loading-row">Daftar menu tidak dapat dimuat.</div>';
+      }
+    }
+
+    async function handleRiceAuditFixClick(event) {
+      const button = event.target.closest('[data-fix-rice-menu]');
+      if (!button) return;
+      const menuName = button.dataset.fixRiceMenu || '';
+      const variant = button.dataset.fixRiceVariant || 'Default';
+      if (!hasFullAdminAccess()) return;
+      document.querySelector('.nav-btn[data-page="stockPage"][data-master-tab="menu"]')?.click();
+      await loadMenuMaster();
+      const row = state.menuMasterRows.find((item) => riceAuditRecipeKey(item.menu_name, item.variant) === riceAuditRecipeKey(menuName, variant));
+      if (!row) {
+        showMenuMasterMessage(`Master ${menuName} / ${variant} belum ditemukan. Sinkronkan katalog penjualan terlebih dahulu, lalu hubungkan resep ke preparation NASI-PUTIH.`, 'warning');
+        return;
+      }
+      const fakeButton = document.createElement('button');
+      fakeButton.dataset.menuId = row.menu_id;
+      fakeButton.dataset.variantId = row.variant_id;
+      await handleMenuMasterTableClick({ target: { closest: (selector) => selector === '[data-action="edit-menu-master"]' ? fakeButton : null } });
+      $('#menuMasterForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 
     function setSalesReportDateDefaults() {
       const start = $('#salesReportStart');
