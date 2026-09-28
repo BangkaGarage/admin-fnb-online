@@ -1016,7 +1016,7 @@
                 <div class="form-grid">
                   <div class="form-field"><label for="menuMasterCode">Kode Menu *</label><input id="menuMasterCode" type="text" placeholder="Contoh: MIN-AMER-HOT" required /></div>
                   <div class="form-field"><label for="menuMasterName">Nama Menu *</label><input id="menuMasterName" type="text" placeholder="Contoh: AMERICANO" required /></div>
-                  <div class="form-field"><label for="menuMasterCategory">Kategori *</label><select id="menuMasterCategory" required><option>Makanan</option><option>Minuman</option><option>Beer</option><option>Snack</option><option>Other</option></select></div>
+                  <div class="form-field"><label for="menuMasterCategory">Kategori *</label><select id="menuMasterCategory" required><option>Makanan</option><option>Minuman</option><option>Beer</option><option>Snack</option><option>Jasa / Charge</option><option>Other</option></select></div>
                   <div class="form-field"><label for="menuMasterOutlet">Outlet / Unit</label><input id="menuMasterOutlet" type="text" value="Rebel House" placeholder="Contoh: Rebel House" /></div>
                   <div class="form-field"><label for="menuMasterUnit">Satuan Jual</label><input id="menuMasterUnit" type="text" value="porsi" placeholder="porsi, gelas, botol" /></div>
                   <div class="form-field"><label for="menuMasterVariant">Varian</label><input id="menuMasterVariant" type="text" value="Default" placeholder="HOT, ICE, REGULAR" /></div>
@@ -1027,7 +1027,8 @@
                   <div class="form-field"><label for="menuMasterTargetHpp">Target HPP (%)</label><input id="menuMasterTargetHpp" type="number" min="0" max="100" step="0.1" placeholder="Contoh: 30" /></div>
                   <div class="form-field"><label for="menuMasterBuffer">Buffer HPP (%)</label><input id="menuMasterBuffer" type="number" min="0" max="100" step="0.1" value="10" placeholder="Contoh: 10" /><small class="field-help">Cadangan biaya tidak terhitung. Tidak memotong stok dan tidak menjadi pengeluaran.</small></div>
                   <div class="form-field full"><label><input id="menuMasterActive" type="checkbox" checked /> Menu aktif dan dapat digunakan dalam penjualan</label></div>
-                  <div class="form-field full"><label>Resep dan kebutuhan per porsi</label><div id="menuRecipeIngredientsList" class="recipe-ingredients-list"></div><button id="addMenuRecipeIngredientBtn" class="reset-btn add-ingredient-btn" type="button">+ Tambah Komponen Resep</button><small class="field-help">Pilih bahan dari stok Bar, Kitchen, atau Waiters, atau pilih preparation dari tab Preparation &amp; Produksi. Untuk preparation, isi 1 porsi jika menu memakai 1 porsi.</small></div>
+                  <div id="menuRecipeEditorField" class="form-field full"><label>Resep dan kebutuhan per porsi</label><div id="menuRecipeIngredientsList" class="recipe-ingredients-list"></div><button id="addMenuRecipeIngredientBtn" class="reset-btn add-ingredient-btn" type="button">+ Tambah Komponen Resep</button><small class="field-help">Pilih bahan dari stok Bar, Kitchen, atau Waiters, atau pilih preparation dari tab Preparation &amp; Produksi. Untuk preparation, isi 1 porsi jika menu memakai 1 porsi.</small></div>
+                  <div id="serviceChargeNote" class="form-field full hidden"><small class="field-help">Jasa/Charge tidak memakai bahan dan tidak memotong stok. HPP tercatat Rp0, tanpa resep.</small></div>
                   <div class="form-field"><label for="menuMasterCalculatedHpp">HPP Bahan Aktual</label><input id="menuMasterCalculatedHpp" type="text" value="Rp0" readonly /></div>
                   <div class="form-field"><label for="menuMasterReferenceHpp">HPP Acuan Setelah Buffer</label><input id="menuMasterReferenceHpp" type="text" value="Rp0" readonly /><small class="field-help">HPP aktual × (1 + Buffer HPP).</small></div>
                 </div>
@@ -2550,6 +2551,7 @@
     $('#refreshMenuMasterBtn').addEventListener('click', loadMenuMaster);
     $('#syncMenuCatalogBtn').addEventListener('click', synchronizeMenuCatalogAndReports);
     $('#resetMenuMasterBtn').addEventListener('click', () => window.setTimeout(clearMenuMasterForm, 0));
+    $('#menuMasterCategory').addEventListener('change', syncServiceChargeForm);
     $('#menuMasterTableWrap').addEventListener('click', handleMenuMasterTableClick);
     $('#riceAuditUncountedWrap')?.addEventListener('click', handleRiceAuditFixClick);
     $('#addMenuRecipeIngredientBtn').addEventListener('click', () => addMenuRecipeIngredientRow());
@@ -5309,6 +5311,7 @@
       $('#menuMasterBuffer').value = 10;
       $('#menuRecipeIngredientsList').innerHTML = '';
       addMenuRecipeIngredientRow();
+      syncServiceChargeForm();
       $('#menuMasterCalculatedHpp').value = 'Rp0';
       $('#menuMasterReferenceHpp').value = 'Rp0';
       menuMasterMessage.textContent = '';
@@ -5426,6 +5429,12 @@
     }
 
     async function updateMenuRecipeHpp() {
+      if (isServiceChargeCategory($('#menuMasterCategory')?.value)) {
+        $('#menuMasterCalculatedHpp').value = formatRupiah(0);
+        $('#menuMasterHpp').value = '0';
+        $('#menuMasterReferenceHpp').value = formatRupiah(0);
+        return;
+      }
       const hpp = await calculateMenuRecipeHpp();
       $('#menuMasterCalculatedHpp').value = formatRupiah(hpp);
       $('#menuMasterHpp').value = hpp ? hpp.toFixed(2) : '';
@@ -5433,7 +5442,24 @@
       $('#menuMasterReferenceHpp').value = formatRupiah(hpp * (1 + (Number.isFinite(bufferPct) ? bufferPct : 10) / 100));
     }
 
+    function isServiceChargeCategory(category) {
+      return /jasa|charge|layanan|service/i.test(String(category || ''));
+    }
+
+    function syncServiceChargeForm() {
+      const isServiceCharge = isServiceChargeCategory($('#menuMasterCategory')?.value);
+      $('#menuRecipeEditorField')?.classList.toggle('hidden', isServiceCharge);
+      $('#serviceChargeNote')?.classList.toggle('hidden', !isServiceCharge);
+      if (isServiceCharge) $('#menuRecipeIngredientsList').innerHTML = '';
+      void updateMenuRecipeHpp();
+    }
+
     async function loadMenuRecipeRows(menuName, variant) {
+      if (isServiceChargeCategory($('#menuMasterCategory')?.value)) {
+        $('#menuRecipeIngredientsList').innerHTML = '';
+        await updateMenuRecipeHpp();
+        return;
+      }
       if (!supabaseConfigured || !menuName) return;
       const { data, error } = await supabaseClient.from('recipes')
         .select('inventory_item_id, preparation_id, component_type, quantity_needed, recipe_unit, variant')
@@ -5522,7 +5548,8 @@
         return;
       }
       const tableRows = rows.map((row) => {
-        const hpp = Number(row.hpp_standard) || 0;
+        const isServiceCharge = isServiceChargeCategory(row.category);
+        const hpp = isServiceCharge ? 0 : (Number(row.hpp_standard) || 0);
         const bufferPct = Number.isFinite(Number(row.buffer_hpp_pct)) ? Number(row.buffer_hpp_pct) : 10;
         const referenceHpp = hpp * (1 + bufferPct / 100);
         const price = Number(row.selling_price) || 0;
@@ -5534,7 +5561,7 @@
           <td>${escapeHtml(row.category || '-')}</td>
           <td>${escapeHtml(row.variant || 'Default')}</td>
           <td>${escapeHtml(row.stock_division || '-')}</td>
-          <td>${Number(row.recipe_count) > 0 ? `${Number(row.recipe_count)} komponen` : '<span class="variance-warning">Belum diatur</span>'}</td>
+          <td>${isServiceCharge ? '<span class="stock-ok">Jasa / tanpa stok</span>' : Number(row.recipe_count) > 0 ? `${Number(row.recipe_count)} komponen` : '<span class="variance-warning">Belum diatur</span>'}</td>
           <td class="numeric">${formatRupiah(price)}</td>
           <td class="numeric">${hpp ? formatRupiah(hpp) : '-'}</td>
           <td class="numeric">${hpp ? formatRupiah(referenceHpp) : '-'} <small class="field-help">(+${formatQuantity(bufferPct)}%)</small></td>
@@ -5566,6 +5593,7 @@
         $('#menuMasterCode').value = row.menu_code || '';
         $('#menuMasterName').value = row.menu_name || '';
         $('#menuMasterCategory').value = row.category || 'Other';
+        syncServiceChargeForm();
         $('#menuMasterOutlet').value = row.outlet || 'Rebel House';
         $('#menuMasterUnit').value = row.unit || 'porsi';
         $('#menuMasterVariant').value = row.variant || 'Default';
@@ -5617,6 +5645,7 @@
       const menuName = $('#menuMasterName').value.trim();
       const variant = $('#menuMasterVariant').value.trim() || 'Default';
       const stockDivision = $('#menuMasterStockDivision').value || 'Kitchen';
+      const isServiceCharge = isServiceChargeCategory($('#menuMasterCategory').value);
       const price = Number($('#menuMasterPrice').value);
       const bufferHppPct = Number($('#menuMasterBuffer').value);
       if (!menuCode || !menuName || !Number.isFinite(price) || price < 0) {
@@ -5627,7 +5656,7 @@
         showMenuMasterMessage('Buffer HPP harus diisi antara 0 sampai 100%.', 'error');
         return;
       }
-      const recipeRows = [...document.querySelectorAll('#menuRecipeIngredientsList .menu-recipe-ingredient-row')].map((row) => {
+      const recipeRows = isServiceCharge ? [] : [...document.querySelectorAll('#menuRecipeIngredientsList .menu-recipe-ingredient-row')].map((row) => {
         const component = decodeBomComponent(row.querySelector('.menu-recipe-ingredient-item')?.value || '');
         return {
           component_type: component.type,
@@ -5663,8 +5692,8 @@
         showMenuMasterMessage(`Komponen ${mismatchedRecipeComponent} berbeda divisi dengan divisi pemotongan ${stockDivision}. Pilih stok/resep dari divisi yang sama.`, 'error');
         return;
       }
-      const calculatedHpp = await calculateMenuRecipeHpp();
-      const hppStandard = calculatedHpp > 0 ? calculatedHpp : (Number($('#menuMasterHpp').value) || 0);
+      const calculatedHpp = isServiceCharge ? 0 : await calculateMenuRecipeHpp();
+      const hppStandard = isServiceCharge ? 0 : (calculatedHpp > 0 ? calculatedHpp : (Number($('#menuMasterHpp').value) || 0));
       $('#menuMasterHpp').value = hppStandard ? hppStandard.toFixed(2) : '';
       $('#menuMasterReferenceHpp').value = formatRupiah(hppStandard * (1 + bufferHppPct / 100));
       const button = $('#saveMenuMasterBtn');
@@ -6980,14 +7009,16 @@
         currentWrap.innerHTML = `<div class="loading-row" style="color:var(--red);">Gagal membaca master menu: ${escapeHtml(menuError.message)}</div>`;
         return;
       }
+      state.menuMasterRows = menus || [];
       const hppMap = hppResult.map || new Map();
       state.hppCurrentRows = (menus || []).map((row) => {
+        const isServiceCharge = isServiceChargeCategory(row.category);
         const info = hppMap.get(recipeLookupKey(row.menu_name, row.variant));
-        const liveHpp = info && !info.missingPrice ? Number(info.unitHpp) : Number(row.hpp_standard) || 0;
+        const liveHpp = isServiceCharge ? 0 : (info && !info.missingPrice ? Number(info.unitHpp) : Number(row.hpp_standard) || 0);
         const bufferHppPct = Number.isFinite(Number(row.buffer_hpp_pct)) ? Number(row.buffer_hpp_pct) : 10;
         const referenceHpp = liveHpp * (1 + bufferHppPct / 100);
         const price = Number(row.selling_price) || 0;
-        const hppStatus = getHppStatus({ recipeCount: Number(row.recipe_count) || 0, info, hpp: liveHpp });
+        const hppStatus = getHppStatus({ recipeCount: Number(row.recipe_count) || 0, info, hpp: liveHpp, isServiceCharge });
         return {
           menuCode: row.menu_code,
           menuName: row.menu_name,
@@ -9006,8 +9037,9 @@
       return { map: hppMap, error: null };
     }
 
-    function getHppStatus({ recipeCount = 0, info = null, hpp = 0, method = '', rowStatus = 'posted' } = {}) {
+    function getHppStatus({ recipeCount = 0, info = null, hpp = 0, method = '', rowStatus = 'posted', isServiceCharge = false } = {}) {
       if (String(rowStatus || 'posted').toLowerCase() === 'void') return { key: 'void', label: 'VOID', className: 'status-danger' };
+      if (isServiceCharge) return { key: 'service_charge', label: 'Jasa / tanpa stok', className: 'status-success' };
       const normalizedMethod = String(method || '').toLowerCase();
       if (recipeCount <= 0 || normalizedMethod === 'incomplete_recipe' || normalizedMethod === 'incomplete') {
         return { key: 'incomplete_recipe', label: 'Resep belum lengkap', className: 'status-warning' };
@@ -9088,6 +9120,10 @@
         renderMeetingTips();
         return;
       }
+      if (!state.menuMasterRows.length) {
+        const menuResult = await supabaseClient.rpc('list_menu_master');
+        if (!menuResult.error) state.menuMasterRows = menuResult.data || [];
+      }
       const filter = getUnifiedFilters();
       const { rows: fetchedRows, error } = await fetchSalesRows(filter.start, filter.end, filter.status === 'void');
       if (error) {
@@ -9130,6 +9166,10 @@
         message.textContent = 'Supabase belum dikonfigurasi. Isi URL dan anon key terlebih dahulu.';
         message.className = 'form-message error';
         return;
+      }
+      if (!state.menuMasterRows.length) {
+        const menuResult = await supabaseClient.rpc('list_menu_master');
+        if (!menuResult.error) state.menuMasterRows = menuResult.data || [];
       }
       const unified = getUnifiedFilters();
       const startDate = unified.start || $('#salesReportStart').value;
@@ -9800,6 +9840,15 @@
       const categoryItem = String(row.category_item || '').trim() || 'Other';
       const quantity = Number(row.quantity_sold) || 0;
       const revenue = Number(row.gross_amount) || 0;
+      const normalizedProduct = normalizeMenuName(productName);
+      const normalizedVariant = normalizeMenuName(variant || 'Default');
+      const masterMenu = state.menuMasterRows.find((item) =>
+        normalizeMenuName(item.menu_name) === normalizedProduct &&
+        normalizeMenuName(item.variant || 'Default') === normalizedVariant
+      );
+      if (masterMenu && isServiceChargeCategory(masterMenu.category)) {
+        return { productName, variant, categoryItem, quantity, revenue, hpp: 0, hppKnown: true };
+      }
       const hasSnapshot = Boolean(row.hpp_recorded_at && row.hpp_total !== null && row.hpp_total !== undefined);
       const hppMethod = String(row.hpp_method || '').toLowerCase();
       const hppKnown = hasSnapshot && Number(row.hpp_total) > 0 && !['incomplete_recipe', 'incomplete_price', 'incomplete'].includes(hppMethod);
