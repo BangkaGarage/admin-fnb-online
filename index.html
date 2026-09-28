@@ -6861,8 +6861,27 @@
                 : (Number(currentConversion?.purchase_to_storage) || 1);
               const update = { item_name: operation.itemName, division: operation.division, unit: operation.unit, min_stock: operation.minStock };
               if (operation.hasReferencePrice) update.reference_unit_cost = operation.referencePurchasePrice / priceFactor;
-              const { error: updateError } = await supabaseClient.from('inventory').update(update).eq('id', operation.id);
+              const { data: savedInventory, error: updateError } = await supabaseClient.from('inventory')
+                .update(update)
+                .eq('id', operation.id)
+                .select('id, min_stock, reference_unit_cost')
+                .maybeSingle();
               if (updateError) { failures.push(`ID ${operation.id}: ${updateError.message}`); continue; }
+              if (!savedInventory) {
+                failures.push(`ID ${operation.id} (${operation.itemName}): aplikasi tidak menerima konfirmasi perubahan dari database. Periksa hak akses pembaruan.`);
+                continue;
+              }
+              if (Number(savedInventory.min_stock) !== Number(operation.minStock)) {
+                failures.push(`ID ${operation.id} (${operation.itemName}): minimal stok tersimpan ${savedInventory.min_stock}, seharusnya ${operation.minStock}.`);
+                continue;
+              }
+              if (operation.hasReferencePrice) {
+                const expectedUnitCost = operation.referencePurchasePrice / priceFactor;
+                if (Math.abs((Number(savedInventory.reference_unit_cost) || 0) - expectedUnitCost) > 0.01) {
+                  failures.push(`ID ${operation.id} (${operation.itemName}): harga acuan per satuan stok tidak cocok setelah disimpan.`);
+                  continue;
+                }
+              }
               if (operation.hasConversionFields) {
                 const { conversion } = operation;
                 const { error: conversionError } = await supabaseClient.rpc('save_unit_conversion', {
