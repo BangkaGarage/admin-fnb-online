@@ -3296,6 +3296,22 @@
       externalMenu.focus();
     }
 
+    async function syncPendingSalesHppFromReport() {
+      if (!hasFullAdminAccess()) throw new Error('Hanya Admin atau Super Admin yang dapat menyinkronkan HPP transaksi.');
+      if (!supabaseConfigured) throw new Error('Supabase belum dikonfigurasi.');
+      const confirmed = window.confirm('Sinkronkan HPP untuk semua transaksi yang snapshot HPP-nya masih kosong dan resepnya sudah lengkap? Penjualan dan stok tidak berubah.');
+      if (!confirmed) return null;
+      const { data, error } = await supabaseClient.rpc('backfill_missing_sales_hpp', {});
+      if (error) throw error;
+      await loadProductProfitReport();
+      const updated = Number(data?.updated_count || 0);
+      const skipped = Number(data?.skipped_count || 0);
+      const message = `Sinkronisasi HPP selesai: ${updated} transaksi diperbarui${skipped ? `; ${skipped} masih menunggu resep atau harga bahan lengkap` : ''}.`;
+      const status = $('#profitLossMessage');
+      if (status) { status.textContent = message; status.className = skipped ? 'form-message warning' : 'form-message success'; }
+      return data;
+    }
+
     function activateReportsWorkspaceTab(tabKey) {
       if (tabKey === 'finance') tabKey = 'sales';
       const button = document.querySelector(`.reports-workspace-tab[data-report-tab="${tabKey}"]`);
@@ -3355,7 +3371,12 @@
           const previousText = action.textContent;
           action.textContent = 'Membuka…';
           try {
-            await openRecipeEditorFromReport(action.dataset.productName || '', action.dataset.variantName || '');
+            if (action.dataset.reportActionKind === 'hpp') {
+              action.textContent = 'Menyinkronkan…';
+              await syncPendingSalesHppFromReport();
+            } else {
+              await openRecipeEditorFromReport(action.dataset.productName || '', action.dataset.variantName || '');
+            }
           } catch (error) {
             console.error(error);
             const message = $('#profitLossMessage');
@@ -10054,7 +10075,8 @@
           ? '<span class="status-badge status-warning">Resep / harga bahan perlu dicek</span>'
           : (!row.hppKnown ? '<span class="status-badge status-warning">HPP transaksi lama belum tersimpan</span>' : '<span class="status-badge status-success">Lengkap</span>');
         const actionLabel = row.recipeIncomplete ? 'Perbaiki resep / HPP' : (!row.hppKnown ? 'Sinkronkan HPP' : 'Buka resep / HPP');
-        const action = `<button type="button" class="reset-btn" data-report-row-action="true" data-product-name="${escapeHtml(row.productName || '')}" data-variant-name="${escapeHtml(row.variant || '')}">${actionLabel}</button>`;
+        const actionKind = !row.recipeIncomplete && !row.hppKnown ? 'hpp' : 'recipe';
+        const action = `<button type="button" class="reset-btn" data-report-row-action="true" data-report-action-kind="${actionKind}" data-product-name="${escapeHtml(row.productName || '')}" data-variant-name="${escapeHtml(row.variant || '')}">${actionLabel}</button>`;
         return `<tr><td>${escapeHtml(row.productName || '-')}</td><td>${escapeHtml(row.variant || '-')}</td><td>${escapeHtml(row.categoryItem || '-')}</td><td>${formatQuantity(row.quantity)}</td><td class="amount">${formatRupiah(row.revenue)}</td><td class="amount">${row.hppKnown ? formatRupiah(row.hpp) : '-'}</td><td class="amount ${profit < 0 ? 'profit-negative' : 'profit-positive'}">${row.hppKnown ? formatRupiah(profit) : '-'}</td><td>${formatMargin(row.revenue, row.hpp, row.hppKnown)}</td><td>${status}</td><td>${action}</td></tr>`;
       }).join('');
       $('#profitVariantTableWrap').innerHTML = variantRows
