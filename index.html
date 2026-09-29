@@ -225,6 +225,12 @@
     .master-tab-panel > .section-title:first-child { margin-top: 0; }
     .master-tab-panel .section-title h1 { font-size: 24px; }
     .master-tab-panel .master-inline-note { margin: -8px 0 18px; color: var(--muted); font-size: 12px; }
+    .menu-workspace-view { display: none; }
+    .menu-workspace-view.active { display: block; animation: fade .16s ease; }
+    #menuWorkspacePage .expense-layout { grid-template-columns: minmax(0, 1fr); }
+    #menuWorkspacePage .menu-workspace-view > .panel { margin-top: 14px; }
+    #menuWorkspacePage .recipe-ingredients-list { max-width: 100%; }
+    #menuWorkspacePage .menu-workspace-view[data-menu-view="preparation"] .expense-layout { grid-template-columns: minmax(0, 1fr); }
     @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
     .welcome { margin-bottom: 22px; }
@@ -640,10 +646,18 @@
           </div>
         </div>
           <div class="nav-group collapsed">
+            <button class="nav-group-toggle" type="button" aria-expanded="false">Menu &amp; Produk</button>
+            <div class="nav-submenu">
+              <button type="button" class="nav-btn" data-page="menuWorkspacePage" data-menu-section="input" data-title="Input Nama Menu"><span class="nav-icon">＋</span><span>Input Nama Menu</span></button>
+              <button type="button" class="nav-btn" data-page="menuWorkspacePage" data-menu-section="list" data-title="Daftar Menu"><span class="nav-icon">☷</span><span>Daftar Menu</span></button>
+              <button type="button" class="nav-btn" data-page="menuWorkspacePage" data-menu-section="recipes" data-title="Daftar Resep"><span class="nav-icon">≡</span><span>Daftar Resep</span></button>
+              <button type="button" class="nav-btn" data-page="menuWorkspacePage" data-menu-section="preparation" data-title="Daftar Preparation"><span class="nav-icon">▤</span><span>Daftar Preparation</span></button>
+            </div>
+          </div>
+          <div class="nav-group collapsed">
           <button class="nav-group-toggle" type="button" aria-expanded="false">Master Data &amp; Persediaan</button>
           <div class="nav-submenu">
             <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="materials" data-title="Bahan Baku &amp; Konversi"><span class="nav-icon">▤</span><span>Bahan &amp; Konversi</span></button>
-            <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="menu" data-super-admin-only="true" data-title="Menu, Resep &amp; Preparation"><span class="nav-icon">▥</span><span>Menu &amp; Resep</span></button>
             <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="purchase" data-title="Belanja Masuk"><span class="nav-icon">＋</span><span>Belanja Masuk</span></button>
             <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="transfer" data-super-admin-only="true" data-title="Transfer Stok"><span class="nav-icon">↔</span><span>Transfer Stok</span></button>
             <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="stock" data-super-admin-only="true" data-title="Stok Gudang &amp; Divisi"><span class="nav-icon">▦</span><span>Stok Gudang &amp; Divisi</span></button>
@@ -657,6 +671,7 @@
             <button class="nav-group-toggle" type="button" aria-expanded="false">Laporan</button>
             <div class="nav-submenu">
               <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="sales" data-title="Penjualan &amp; Laba Rugi"><span class="nav-icon">◫</span><span>Penjualan &amp; Laba Rugi</span></button>
+              <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="productProfit" data-title="Laporan Laba Produk"><span class="nav-icon">▥</span><span>Laporan Laba Produk</span></button>
               <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="hpp" data-title="HPP Menu"><span class="nav-icon">▤</span><span>HPP Menu</span></button>
               <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="rice" data-title="Audit Nasi &amp; Hasil Karung"><span class="nav-icon">◉</span><span>Audit Nasi &amp; Karung</span></button>
               <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="backup" data-title="Backup &amp; Export"><span class="nav-icon">↓</span><span>Backup &amp; Export</span></button>
@@ -1002,7 +1017,7 @@
                 <span class="summary-chip">Per porsi</span>
               </div>
               <div class="supabase-note">
-                Resep penjualan dikelola hanya dari tab <strong>Master Menu &amp; HPP</strong>.
+                Resep penjualan dikelola di halaman <strong>Menu &amp; Produk → Daftar Resep</strong>.
                 Form resep lama di halaman stok dinonaktifkan agar tidak ada dua sumber resep yang dapat menghasilkan HPP atau pemotongan stok berbeda.
               </div>
               <div class="recipe-panel">
@@ -1670,7 +1685,7 @@
     const TRANSFER_DESTINATIONS = DIVISIONS;
     // Admin boleh memakai seluruh modul operasional seperti Super Admin.
     // Reset Sistem tetap menjadi pengecualian dan hanya boleh dibuka Super Admin.
-    const ADMIN_PAGES = ['reportsWorkspacePage', 'blindOpnamePage', 'stockPage', 'assetPage', 'menuMasterPage', 'bomPage', 'transferPage', 'wastePage', 'stockReportPage', 'opnamePage', 'activityLogsPage', 'settingsPage'];
+    const ADMIN_PAGES = ['reportsWorkspacePage', 'blindOpnamePage', 'stockPage', 'assetPage', 'menuWorkspacePage', 'menuMasterPage', 'bomPage', 'transferPage', 'wastePage', 'stockReportPage', 'opnamePage', 'activityLogsPage', 'settingsPage'];
     const SUPER_ADMIN_ONLY_PAGES = ['systemResetPage'];
 
     const state = {
@@ -1926,7 +1941,7 @@
       if (activeMasterTab === 'movements') return {
         start: value('movementStart'), end: value('movementEnd'), menu: String(value('movementSearch')).trim().toLowerCase(), variant: '', status: 'all', user: '', category: value('movementType', 'all').toLowerCase(), division: value('movementDivision', 'all')
       };
-      if (activePage === 'reportPage') return {
+      if (activePage === 'reportPage' || (activePage === 'reportsWorkspacePage' && activeReportTab === 'productProfit')) return {
         start: value('financeReportStart'), end: value('financeReportEnd'), menu: '', variant: '', status: 'all', user: '', category: value('financeExpenseCategory', 'all').toLowerCase(), division: 'all'
       };
       if (activePage === 'closingPage') return {
@@ -2260,6 +2275,7 @@
           loadCombinedInventoryData();
           activateMasterWorkspaceTab(button.dataset.masterTab || document.querySelector('.master-workspace-tab.active')?.dataset.masterTab || 'materials');
         }
+        if (requestedPage === 'menuWorkspacePage' && hasFullAdminAccess()) activateMenuWorkspaceSection(button.dataset.menuSection || 'input');
         if (requestedPage === 'menuMasterPage' && hasFullAdminAccess()) loadMenuMaster();
         if (requestedPage === 'bomPage' && hasFullAdminAccess()) loadPreparations();
         if (requestedPage === 'transferPage') loadTransferData();
@@ -2305,7 +2321,7 @@
       {
         keywords: ['resep', 'hpp', 'harga pokok', 'menu', 'varian', 'bahan'],
         title: 'Resep dan HPP',
-        answer: 'Buka Master Data & Persediaan → Menu & Resep. Isi menu dan harga, hubungkan bahan baku per porsi untuk menghitung HPP, lalu gunakan tab Preparation bila menu memakai racikan. Preparation bersifat acuan dan tidak menjadi stok fisik; HPP acuan menambahkan buffer 10%.'
+        answer: 'Buka Menu & Produk. Gunakan halaman Input Nama Menu untuk nama, kategori, varian, dan harga; Daftar Resep untuk bahan per porsi dan HPP; Daftar Preparation untuk racikan virtual. HPP acuan menambahkan buffer 10%.'
       },
       {
         keywords: ['waste', 'rusak', 'basi', 'tumpah', 'komplen', 'komplimen', 'kalibrasi', 'testing', 'non penjualan'],
@@ -2330,7 +2346,7 @@
       {
         keywords: ['laporan', 'analisis', 'keuangan', 'laba', 'rugi', 'backup', 'export', 'filter'],
         title: 'Laporan dan Analisis',
-        answer: 'Buka Laporan. Pilih Penjualan & Laba Rugi untuk omzet, HPP, rekonsiliasi iSeller dan laba; HPP Menu untuk biaya resep; Audit Nasi untuk pemeriksaan hasil pemakaian karung; atau Backup & Export untuk salinan data. Untuk saldo, buka Master Data & Persediaan → Stok Gudang & Divisi.'
+        answer: 'Buka Laporan. Laporan Laba Produk menunjukkan omzet, HPP, profit dan margin setiap menu-varian. Penjualan & Laba Rugi berisi ringkasan periode dan rekonsiliasi iSeller. HPP Menu dan Audit Nasi dipakai untuk pemeriksaan yang lebih khusus; Backup & Export untuk salinan data.'
       },
       {
         keywords: ['aset', 'inventaris', 'gelas', 'piring', 'sendok', 'meja', 'kursi', 'mesin', 'pecah', 'umur'],
@@ -2348,6 +2364,7 @@
       const page = document.querySelector('.page.active')?.id || 'dashboardPage';
       const masterTab = document.querySelector('#stockPage.active .master-tab-panel.active')?.dataset.masterTabPanel || '';
       const reportTab = document.querySelector('#reportsWorkspacePage.active .reports-tab-panel.active')?.dataset.reportTab || '';
+      const menuSection = document.querySelector('#menuWorkspacePage.active .menu-workspace-view.active')?.dataset.menuView || '';
       const operationTab = document.querySelector('#expensePage.active .operations-tab-panel.active')?.dataset.operationTabPanel || '';
       const labels = {
         dashboardPage: 'Dashboard', expensePage: 'Input Penjualan & Pengeluaran', stockPage: 'Master Data & Persediaan',
@@ -2355,10 +2372,12 @@
         activityLogsPage: 'Log Aktivitas Staf', settingsPage: 'Pengaturan', systemResetPage: 'Reset Sistem'
       };
       const masterLabels = { materials: 'Bahan Baku & Konversi', bom: 'Menu, Resep & Preparation', menu: 'Menu, Resep & Preparation', purchase: 'Belanja Masuk', transfer: 'Transfer Stok', stock: 'Stok Gudang & Divisi', waste: 'Waste & Non-Penjualan', opname: 'Penyesuaian & Opname', movements: 'Audit Detail Mutasi' };
-      const reportLabels = { sales: 'Penjualan & Laba Rugi', hpp: 'HPP Menu', rice: 'Audit Nasi & Karung', finance: 'Penjualan & Laba Rugi', backup: 'Backup & Export' };
+      const reportLabels = { sales: 'Penjualan & Laba Rugi', productProfit: 'Laporan Laba Produk', hpp: 'HPP Menu', rice: 'Audit Nasi & Karung', finance: 'Penjualan & Laba Rugi', backup: 'Backup & Export' };
+      const menuLabels = { input: 'Input Nama Menu', list: 'Daftar Menu', recipes: 'Daftar Resep', preparation: 'Daftar Preparation' };
       const operationLabels = { sales: 'Penjualan Manual', import: 'Import iSeller', expenses: 'Pengeluaran' };
       if (page === 'stockPage' && masterLabels[masterTab]) return `Konteks: ${masterLabels[masterTab]}`;
       if (page === 'reportsWorkspacePage' && reportLabels[reportTab]) return `Konteks: ${reportLabels[reportTab]}`;
+      if (page === 'menuWorkspacePage' && menuLabels[menuSection]) return `Konteks: ${menuLabels[menuSection]}`;
       if (page === 'expensePage' && operationLabels[operationTab]) return `Konteks: ${operationLabels[operationTab]}`;
       return `Konteks: ${labels[page] || 'Dashboard'}`;
     }
@@ -2372,11 +2391,11 @@
       'Belanja Masuk': { page: 'stockPage', tab: 'purchase' },
       'Transfer Stok': { page: 'stockPage', tab: 'transfer' },
       'Penjualan dan Import iSeller': { page: 'expensePage' },
-      'Resep dan HPP': { page: 'stockPage', tab: 'menu' },
+      'Resep dan HPP': { page: 'menuWorkspacePage', section: 'recipes' },
       'Waste dan Pemakaian Non-Penjualan': { page: 'stockPage', tab: 'waste' },
       'Blind Stock Opname': { page: 'blindOpnamePage' },
       'Closing Harian': { page: 'closingPage' },
-      'Laporan dan Analisis': { page: 'reportsWorkspacePage', tab: 'sales' },
+      'Laporan dan Analisis': { page: 'reportsWorkspacePage', tab: 'productProfit' },
       'Inventaris Aset': { page: 'assetPage' },
       'Cadangan Maintenance': { page: 'reportsWorkspacePage', tab: 'sales' }
     };
@@ -2387,6 +2406,7 @@
       const pageButton = document.querySelector(`.nav-btn[data-page="${route.page}"]`);
       if (!pageButton || pageButton.classList.contains('hidden')) return;
       pageButton.click();
+      if (route.section) window.setTimeout(() => activateMenuWorkspaceSection(route.section), 0);
       if (route.tab) {
         window.setTimeout(() => {
           const tabButton = route.page === 'reportsWorkspacePage'
@@ -2935,6 +2955,187 @@
       if (loaders[tabKey]) void loaders[tabKey]();
     }
 
+    function createMenuWorkspaceView(key, title, description) {
+      const view = document.createElement('section');
+      view.className = 'menu-workspace-view';
+      view.dataset.menuView = key;
+      const heading = document.createElement('div');
+      heading.className = 'section-title';
+      heading.innerHTML = `<h2>${escapeHtml(title)}</h2><p>${escapeHtml(description)}</p>`;
+      view.appendChild(heading);
+      return view;
+    }
+
+    function populateRecipeMenuSelector(selectedValue = '') {
+      const select = $('#recipeTargetMenu');
+      if (!select) return;
+      const current = selectedValue || select.value;
+      const rows = state.menuMasterRows || [];
+      select.innerHTML = '<option value="">Pilih menu yang resepnya akan diisi</option>' + rows.map((row) => {
+        const value = `${row.menu_id}::${row.variant_id}`;
+        const label = `${row.menu_name || '-'} / ${row.variant || 'Default'}`;
+        return `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`;
+      }).join('');
+      if (current) select.value = current;
+    }
+
+    function activateMenuWorkspaceSection(section = 'input') {
+      const allowed = ['input', 'list', 'recipes', 'preparation'];
+      const active = allowed.includes(section) ? section : 'input';
+      state.menuMasterSaveMode = active === 'recipes' ? 'recipe' : 'menu';
+      document.querySelectorAll('#menuWorkspacePage .menu-workspace-view').forEach((view) => view.classList.toggle('active', view.dataset.menuView === active));
+      const form = $('#menuMasterForm');
+      if (form) {
+        const inputIds = ['menuMasterCode', 'menuMasterName', 'menuMasterCategory', 'menuMasterOutlet', 'menuMasterUnit', 'menuMasterVariant', 'menuMasterStockDivision', 'menuMasterPrice', 'menuMasterEffectiveDate', 'menuMasterActive'];
+        const recipeIds = ['menuMasterHpp', 'menuMasterTargetHpp', 'menuMasterBuffer'];
+        inputIds.forEach((id) => { const field = $(`#${id}`); if (field) field.disabled = active !== 'input'; });
+        recipeIds.forEach((id) => { const field = $(`#${id}`); if (field) field.disabled = active !== 'recipes'; });
+        form.querySelectorAll('#menuRecipeIngredientsList select, #menuRecipeIngredientsList input, #menuRecipeIngredientsList button').forEach((field) => { field.disabled = active !== 'recipes'; });
+        ['saveMenuDetailsBtn', 'resetMenuMasterBtn'].forEach((id) => { const button = $(`#${id}`); if (button) button.disabled = active !== 'input'; });
+        const recipeSave = $('#saveMenuMasterBtn'); if (recipeSave) recipeSave.disabled = active !== 'recipes';
+        const target = $('#recipeTargetMenu'); if (target) target.disabled = active !== 'recipes';
+      }
+      const status = $('#menuMasterMessage');
+      const statusHost = active === 'recipes' ? $('#recipeSaveStatusHost') : active === 'list' ? $('#menuListStatusHost') : $('#menuEntryStatusHost');
+      if (status && statusHost && status.parentElement !== statusHost) statusHost.appendChild(status);
+      if (active === 'recipes') populateRecipeMenuSelector();
+      if (active === 'preparation') void loadPreparations();
+      if (active === 'list') void loadMenuMaster();
+      if (active === 'recipes') void (async () => { await loadMenuMaster(); await loadRecipes(); populateRecipeMenuSelector($('#recipeTargetMenu')?.value || ''); })();
+    }
+
+    async function handleRecipeTargetMenuChange() {
+      const value = $('#recipeTargetMenu')?.value || '';
+      const [menuId, variantId] = value.split('::');
+      const row = state.menuMasterRows.find((item) => String(item.menu_id) === menuId && String(item.variant_id) === variantId);
+      if (!row) return;
+      $('#menuMasterId').value = row.menu_id || '';
+      $('#menuMasterVariantId').value = row.variant_id || '';
+      state.menuMasterEdit = { menuId: String(row.menu_id || ''), variantId: String(row.variant_id || ''), menuName: String(row.menu_name || ''), variant: String(row.variant || 'Default') };
+      $('#menuMasterCode').value = row.menu_code || '';
+      $('#menuMasterName').value = row.menu_name || '';
+      $('#menuMasterCategory').value = row.category || 'Other';
+      $('#menuMasterOutlet').value = row.outlet || 'Rebel House';
+      $('#menuMasterUnit').value = row.unit || 'porsi';
+      $('#menuMasterVariant').value = row.variant || 'Default';
+      $('#menuMasterStockDivision').value = row.stock_division || 'Kitchen';
+      $('#menuMasterPrice').value = Number(row.selling_price) || 0;
+      $('#menuMasterEffectiveDate').value = row.effective_from || new Date().toISOString().slice(0, 10);
+      $('#menuMasterHpp').value = Number(row.hpp_standard) || '';
+      $('#menuMasterTargetHpp').value = Number(row.target_hpp_pct) || '';
+      $('#menuMasterBuffer').value = Number.isFinite(Number(row.buffer_hpp_pct)) ? Number(row.buffer_hpp_pct) : 10;
+      $('#menuMasterActive').checked = Boolean(row.is_active);
+      syncServiceChargeForm();
+      await loadMenuRecipeRows(row.menu_name, row.variant);
+      const name = $('#selectedRecipeMenuName');
+      if (name) name.textContent = `${row.menu_name || '-'} / ${row.variant || 'Default'}`;
+    }
+
+    function mergeMenuWorkspace() {
+      if ($('#menuWorkspacePage')) return;
+      const menuSource = $('#menuMasterPage');
+      const prepSource = $('#bomPage');
+      const stockSource = $('#stockPage');
+      const form = $('#menuMasterForm');
+      const formPanel = form?.closest('.panel');
+      const menuListPanel = $('#menuMasterTableWrap')?.closest('.panel');
+      if (!menuSource || !prepSource || !stockSource || !form || !formPanel || !menuListPanel) return;
+      form.classList.add('panel');
+
+      const page = document.createElement('section');
+      page.id = 'menuWorkspacePage';
+      page.className = 'page';
+      page.innerHTML = '<div class="section-title"><h1>Menu &amp; Produk</h1><p>Setiap pekerjaan ada di halamannya sendiri. Isi data menu, resep, preparation, lalu periksa laba produk melalui Laporan.</p></div>';
+      const inputView = createMenuWorkspaceView('input', 'Input Nama Menu', 'Buat atau perbarui nama, kategori, varian, divisi, dan harga jual menu.');
+      const listView = createMenuWorkspaceView('list', 'Daftar Menu', 'Cari dan edit menu yang sudah tersimpan.');
+      const recipeView = createMenuWorkspaceView('recipes', 'Daftar Resep & HPP', 'Pilih menu, lalu isi bahan per porsi. Sistem menghitung HPP aktual dan HPP acuan.');
+      const prepView = createMenuWorkspaceView('preparation', 'Daftar Preparation', 'Kelola resep racikan sebagai komponen virtual yang dapat dipakai oleh resep menu.');
+      inputView.classList.add('active');
+
+      const oldGrid = form.querySelector('.form-grid');
+      const metadataGrid = document.createElement('div'); metadataGrid.className = 'form-grid';
+      const recipeGrid = document.createElement('div'); recipeGrid.className = 'form-grid';
+      const metadataIds = new Set(['menuMasterCode','menuMasterName','menuMasterCategory','menuMasterOutlet','menuMasterUnit','menuMasterVariant','menuMasterStockDivision','menuMasterPrice','menuMasterEffectiveDate','menuMasterActive']);
+      const recipeIds = new Set(['menuRecipeEditorField','serviceChargeNote','menuMasterHpp','menuMasterTargetHpp','menuMasterBuffer','menuMasterCalculatedHpp','menuMasterReferenceHpp']);
+      [...(oldGrid?.children || [])].forEach((field) => {
+        const fieldId = field.querySelector('[id]')?.id;
+        if (metadataIds.has(fieldId)) metadataGrid.appendChild(field);
+        else if (recipeIds.has(fieldId)) recipeGrid.appendChild(field);
+        else recipeGrid.appendChild(field);
+      });
+      oldGrid?.remove();
+
+      const formHead = formPanel.querySelector('.panel-head');
+      if (formHead) formHead.remove();
+      const formActions = form.querySelector('.form-actions');
+      const originalSave = $('#saveMenuMasterBtn');
+      const resetButton = $('#resetMenuMasterBtn');
+      if (formActions) formActions.remove();
+      const formTitle = document.createElement('div');
+      formTitle.className = 'panel-head';
+      formTitle.innerHTML = '<div><h3 id="menuFormStepTitle">Data menu</h3><p class="panel-subtitle">Kolom wajib ditandai dengan tanda bintang.</p></div>';
+      inputView.appendChild(formTitle);
+      inputView.appendChild(metadataGrid);
+      const inputActions = document.createElement('div'); inputActions.className = 'form-actions';
+      const inputSave = document.createElement('button'); inputSave.id = 'saveMenuDetailsBtn'; inputSave.className = 'save-btn'; inputSave.type = 'submit'; inputSave.textContent = 'Simpan Nama Menu';
+      inputSave.addEventListener('click', () => { state.menuMasterSaveMode = 'menu'; });
+      if (resetButton) inputActions.appendChild(resetButton);
+      inputActions.appendChild(inputSave);
+      inputView.appendChild(inputActions);
+      const inputStatusHost = document.createElement('div'); inputStatusHost.id = 'menuEntryStatusHost'; inputView.appendChild(inputStatusHost);
+
+      listView.appendChild(menuListPanel);
+      const menuImports = [...menuSource.querySelectorAll(':scope > .panel')].filter((node) => node !== menuListPanel && !node.contains(form));
+      menuImports.forEach((node) => listView.appendChild(node));
+      const listStatusHost = document.createElement('div'); listStatusHost.id = 'menuListStatusHost'; listView.appendChild(listStatusHost);
+
+      const recipeSelector = document.createElement('div');
+      recipeSelector.className = 'panel';
+      recipeSelector.innerHTML = '<div class="panel-head"><div><h3>Pilih menu</h3><p class="panel-subtitle">Resep disimpan berdasarkan menu dan varian.</p></div></div><div class="form-field"><label for="recipeTargetMenu">Menu &amp; varian *</label><select id="recipeTargetMenu" required><option value="">Memuat menu...</option></select></div><p class="field-help">Menu baru harus disimpan terlebih dahulu di halaman Input Nama Menu.</p>';
+      recipeView.appendChild(recipeSelector);
+      recipeView.appendChild(recipeGrid);
+      const selectedName = document.createElement('div'); selectedName.className = 'supabase-note'; selectedName.innerHTML = 'Resep untuk: <strong id="selectedRecipeMenuName">Pilih menu di atas</strong>'; recipeView.appendChild(selectedName);
+      if (originalSave) { originalSave.textContent = 'Simpan Resep & HPP'; originalSave.addEventListener('click', () => { state.menuMasterSaveMode = 'recipe'; }); }
+      const recipeActions = document.createElement('div'); recipeActions.className = 'form-actions';
+      if (originalSave) recipeActions.appendChild(originalSave);
+      recipeView.appendChild(recipeActions);
+      const recipeStatusHost = document.createElement('div'); recipeStatusHost.id = 'recipeSaveStatusHost'; recipeView.appendChild(recipeStatusHost);
+
+      const recipePanel = stockSource.querySelector('.inventory-layout > .inventory-panel:nth-child(2)');
+      if (recipePanel) {
+        recipePanel.querySelector('.supabase-note')?.remove();
+        const headers = recipePanel.querySelectorAll('.panel-head');
+        if (headers.length > 1) headers[0].remove();
+        const recipeTitle = recipePanel.querySelector('.recipe-panel .panel-head h3');
+        if (recipeTitle) recipeTitle.textContent = 'Daftar semua resep';
+        const recipeSubtitle = recipePanel.querySelector('.recipe-panel .panel-subtitle');
+        if (recipeSubtitle) recipeSubtitle.textContent = 'Satu baris untuk setiap bahan atau preparation di dalam resep.';
+        recipeView.appendChild(recipePanel);
+      }
+      const prepChildren = [...prepSource.childNodes].filter((node) => !(node.nodeType === Node.ELEMENT_NODE && node.classList.contains('section-title')));
+      prepChildren.forEach((node) => prepView.appendChild(node));
+      const prepLayout = prepView.querySelector('.expense-layout');
+      prepLayout?.classList.add('menu-preparation-layout');
+
+      form.prepend(inputView);
+      form.append(listView, recipeView);
+      const message = $('#menuMasterMessage');
+      if (message) inputStatusHost.appendChild(message);
+      formPanel.remove();
+      const remainingMenuImports = [...menuSource.querySelectorAll(':scope > .panel')];
+      remainingMenuImports.forEach((node) => listView.appendChild(node));
+      menuListPanel.classList.add('menu-table-panel');
+      const emptyMenuLayouts = menuSource.querySelectorAll('.expense-layout');
+      emptyMenuLayouts.forEach((layout) => { if (!layout.children.length) layout.remove(); });
+      page.append(form, prepView);
+      menuSource.remove();
+      prepSource.remove();
+      stockSource.parentNode.insertBefore(page, stockSource);
+      $('#recipeTargetMenu')?.addEventListener('change', handleRecipeTargetMenuChange);
+      activateMenuWorkspaceSection('input');
+      populateRecipeMenuSelector();
+    }
+
     function mergeMasterInventoryWorkspace() {
       const stockPage = $('#stockPage');
       if (!stockPage || stockPage.dataset.workspaceReady === 'true') return;
@@ -2947,7 +3148,6 @@
       host.id = 'masterWorkspaceTabHost';
       const specs = [
         ['materials', 'Bahan Baku & Konversi', ['stockPage'], false],
-        ['menu', 'Menu, Resep & Preparation', ['menuMasterPage', 'bomPage'], true],
         ['purchase', 'Belanja Masuk', ['purchasePage'], false],
         ['transfer', 'Transfer Stok', ['transferPage'], false],
         ['stock', 'Stok Gudang & Divisi', ['stockReportPage'], true],
@@ -2968,35 +3168,6 @@
         if (index === 0) panel.classList.add('active');
         host.appendChild(panel);
       });
-      const menuPanel = host.querySelector('[data-master-tab-panel="menu"]');
-      if (menuPanel) {
-        createInnerWorkspace(menuPanel, [
-          { label: 'Menu, Resep & HPP', getNodes: (root) => [root.querySelector(':scope > [data-menu-workspace-group="menu"]')] },
-          { label: 'Preparation', getNodes: (root) => [root.querySelector(':scope > [data-menu-workspace-group="preparation"]')] }
-        ], { root: menuPanel, ariaLabel: 'Menu, resep, HPP, dan preparation' });
-        const menuTitle = menuPanel.querySelector('.section-title h1');
-        if (menuTitle) menuTitle.textContent = 'Menu, Resep & Preparation';
-        const menuDescription = menuPanel.querySelector('.section-title p');
-        if (menuDescription) menuDescription.textContent = 'Isi nama menu dan harga, lengkapi resep untuk menghitung HPP, lalu kelola preparation di tab sebelah.';
-        const menuForm = menuPanel.querySelector('#menuMasterForm');
-        const menuGrid = menuForm?.querySelector('.form-grid');
-        const menuListPanel = menuPanel.querySelector('#menuMasterTableWrap')?.closest('.panel');
-        const recipeEditorField = menuPanel.querySelector('#menuRecipeEditorField');
-        if (menuGrid && menuListPanel && recipeEditorField) {
-          menuListPanel.classList.add('form-field', 'full');
-          menuGrid.insertBefore(menuListPanel, recipeEditorField);
-        }
-        const menuFormTitle = menuForm?.closest('.panel')?.querySelector('.panel-head h3');
-        if (menuFormTitle) menuFormTitle.textContent = 'Input menu, resep, dan HPP';
-        const menuFormSubtitle = menuForm?.closest('.panel')?.querySelector('.panel-subtitle');
-        if (menuFormSubtitle) menuFormSubtitle.textContent = 'Isi nama dan harga menu, periksa daftar semua menu, lalu lengkapi resep per porsi. HPP dihitung otomatis.';
-        const menuListTitle = menuPanel.querySelector('#menuMasterTableWrap')?.closest('.panel')?.querySelector('.panel-head h3');
-        if (menuListTitle) menuListTitle.textContent = 'Daftar semua menu';
-        const menuListSubtitle = menuPanel.querySelector('#menuMasterTableWrap')?.closest('.panel')?.querySelector('.panel-subtitle');
-        if (menuListSubtitle) menuListSubtitle.textContent = 'Daftar semua menu dan varian. Gunakan Edit untuk mengubah informasi atau resep.';
-        const prepTitle = menuPanel.querySelector('#bomForm')?.closest('.panel')?.querySelector('.panel-head h3');
-        if (prepTitle) prepTitle.textContent = 'Input preparation';
-      }
       const movementPanel = host.querySelector('[data-master-tab-panel="movements"]');
       movementPanel.innerHTML = '<div class="section-title"><h1>Audit Detail Mutasi</h1><p>Pusat Riwayat Stok adalah ringkasan operasional; tab ini khusus pemeriksaan teknis dan export, sehingga keduanya tidak dimaksudkan untuk dijumlahkan bersama.</p></div><div class="panel"><div class="panel-head"><div><h3>Audit Detail Mutasi · Data Teknis</h3><p class="panel-subtitle">Gunakan saat perlu menelusuri referensi, pengguna, catatan, atau satu jenis mutasi tertentu. Angka di sini adalah detail transaksi, bukan laporan nilai tambahan.</p></div><div class="panel-actions"><button id="refreshStockMovementHistoryBtn" class="reset-btn" type="button">↻ Refresh</button><button id="exportStockMovementHistoryBtn" class="export-btn" type="button">Export Audit</button></div></div><div class="panel-actions" style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:8px;"><input id="movementStart" class="compact-select" type="date" /><input id="movementEnd" class="compact-select" type="date" /><select id="movementDivision" class="compact-select"><option value="all">Semua Divisi</option><option>Gudang Utama</option><option>Bar</option><option>Kitchen</option><option>Waiters</option></select><select id="movementType" class="compact-select"><option value="all">Semua Jenis</option><option>purchase</option><option>transfer_in</option><option>transfer_out</option><option>sale</option><option>non_sale</option><option>waste</option><option>opname_adjustment</option><option>void</option></select><input id="movementSearch" class="compact-select" type="search" placeholder="Cari bahan / referensi" /></div><div id="stockMovementHistoryWrap" class="report-table-wrap"><div class="loading-row">Buka tab ini untuk memuat audit detail.</div></div></div>';
       stockPage.replaceChildren(title, tabs, host);
@@ -3026,6 +3197,12 @@
       await Promise.all([loadSalesReport(), loadSalesReconciliation(), loadProfitLossReport()]);
     }
 
+    async function loadProductProfitReport() {
+      if ($('#productProfitStart') && $('#financeReportStart')) $('#financeReportStart').value = $('#productProfitStart').value;
+      if ($('#productProfitEnd') && $('#financeReportEnd')) $('#financeReportEnd').value = $('#productProfitEnd').value;
+      await loadProfitLossReport();
+    }
+
     function activateReportsWorkspaceTab(tabKey) {
       if (tabKey === 'finance') tabKey = 'sales';
       const button = document.querySelector(`.reports-workspace-tab[data-report-tab="${tabKey}"]`);
@@ -3038,6 +3215,7 @@
       document.querySelector('.nav-btn[data-page="reportsWorkspacePage"][data-report-tab="' + tabKey + '"]')?.classList.add('active');
       const loaders = {
         sales: () => refreshCombinedSalesFinance('sales'),
+        productProfit: loadProductProfitReport,
         hpp: loadHppReportData,
         rice: loadRiceAuditData,
         finance: loadProfitLossReport,
@@ -3050,6 +3228,26 @@
       if ($('#reportsWorkspacePage')) return;
       const firstSource = $('#salesReportPage');
       if (!firstSource) return;
+      const productProfitSource = document.createElement('section');
+      productProfitSource.id = 'productProfitReportPage';
+      productProfitSource.className = 'page';
+      productProfitSource.innerHTML = '<div class="section-title"><h1>Laporan Laba Produk</h1><p>Bandingkan omzet, HPP, profit setelah HPP, dan margin untuk setiap menu-varian.</p></div>';
+      const productProfitFilters = document.createElement('div');
+      productProfitFilters.className = 'panel';
+      productProfitFilters.innerHTML = '<div class="panel-head"><div><h3>Periode laporan</h3><p class="panel-subtitle">Pilih tanggal penjualan yang ingin dibandingkan.</p></div></div><div class="panel-actions"><label class="field-help" for="productProfitStart">Dari</label><input id="productProfitStart" class="compact-select" type="date"><label class="field-help" for="productProfitEnd">Sampai</label><input id="productProfitEnd" class="compact-select" type="date"><button id="refreshProductProfitBtn" class="save-btn" type="button">Tampilkan Laba Produk</button></div>';
+      productProfitSource.appendChild(productProfitFilters);
+      const productProfitPanel = $('#profitVariantTableWrap')?.closest('.panel');
+      if (productProfitPanel) {
+        const productTitle = productProfitPanel.querySelector('.panel-head h3');
+        if (productTitle) productTitle.textContent = 'Laba per Menu & Varian';
+        productProfitSource.appendChild(productProfitPanel);
+      }
+      if ($('#financeReportStart') && $('#productProfitStart')) $('#productProfitStart').value = $('#financeReportStart').value || $('#salesReportStart')?.value || '';
+      if ($('#financeReportEnd') && $('#productProfitEnd')) $('#productProfitEnd').value = $('#financeReportEnd').value || $('#salesReportEnd')?.value || '';
+      $('#refreshProductProfitBtn')?.addEventListener('click', loadProductProfitReport);
+      $('#productProfitStart')?.addEventListener('change', loadProductProfitReport);
+      $('#productProfitEnd')?.addEventListener('change', loadProductProfitReport);
+      firstSource.parentNode.insertBefore(productProfitSource, firstSource);
       const workspace = document.createElement('section');
       workspace.id = 'reportsWorkspacePage';
       workspace.className = 'page';
@@ -3062,6 +3260,7 @@
       firstSource.parentNode.insertBefore(workspace, firstSource);
       const specs = [
         ['sales', 'Penjualan & Laba Rugi', ['salesReportPage', 'reportPage']],
+        ['productProfit', 'Laporan Laba Produk', ['productProfitReportPage']],
         ['hpp', 'HPP Menu', ['hppReportPage']],
         ['rice', 'Audit Nasi & Karung', ['riceAuditPage']],
         ['backup', 'Backup & Export', ['backupExportPage']]
@@ -3177,11 +3376,6 @@
 
     function prepareCompactWorkspaces() {
       const panelBy = (root, selector) => root.querySelector(selector)?.closest('.panel');
-      createInnerWorkspace($('#stockPage'), [
-        { label: 'Bahan Baku & Konversi', getNodes: (root) => [root.querySelector('.inventory-layout > .inventory-panel:nth-child(1)'), root.querySelector(':scope > .deduction-note')] },
-        { label: 'Resep Menu', getNodes: (root) => [root.querySelector('.inventory-layout > .inventory-panel:nth-child(2)')] },
-        { label: 'Import Bahan', getNodes: (root) => [panelBy(root, '#importInventoryMessage')] }
-      ], { ariaLabel: 'Master bahan dan resep' });
       createInnerWorkspace($('#transferPage'), [
         { label: 'Input Transfer', getNodes: (root) => [root.querySelector('.expense-layout > .panel:nth-child(1)')] },
         { label: 'Riwayat Transfer', getNodes: (root) => [root.querySelector('.expense-layout > .panel.history-panel')] }
@@ -3247,6 +3441,7 @@
     $('#opnameItem').addEventListener('change', updateOpnamePreview);
     $('#opnamePhysical').addEventListener('input', updateOpnamePreview);
     prepareCompactWorkspaces();
+    mergeMenuWorkspace();
     mergeMasterInventoryWorkspace();
     mergeReportsWorkspace();
     mergeOperationsWorkspace();
@@ -3615,6 +3810,14 @@
     }
 
     async function handleRecipeTableClick(event) {
+      const edit = event.target.closest('[data-action="edit-recipe-menu"]');
+      if (edit) {
+        const fakeButton = document.createElement('button');
+        fakeButton.dataset.menuId = edit.dataset.menuId || '';
+        fakeButton.dataset.variantId = edit.dataset.variantId || '';
+        await handleMenuMasterTableClick({ target: { closest: () => fakeButton } });
+        return;
+      }
       const button = event.target.closest('[data-action="delete-recipe"]');
       if (!button) return;
       await deleteProtectedRecord('recipes', button.dataset.id, `Resep ${button.dataset.name || ''}`, loadRecipes);
@@ -5408,11 +5611,14 @@
       $('#menuMasterBuffer').value = 10;
       $('#menuRecipeIngredientsList').innerHTML = '';
       addMenuRecipeIngredientRow();
+      if ($('#recipeTargetMenu')) $('#recipeTargetMenu').value = '';
+      if ($('#selectedRecipeMenuName')) $('#selectedRecipeMenuName').textContent = 'Pilih menu di atas';
       syncServiceChargeForm();
       $('#menuMasterCalculatedHpp').value = 'Rp0';
       $('#menuMasterReferenceHpp').value = 'Rp0';
       menuMasterMessage.textContent = '';
       menuMasterMessage.className = 'form-message';
+      state.menuMasterSaveMode = 'menu';
     }
 
     function menuRecipeIngredientOptions(selectedValue = '') {
@@ -5593,6 +5799,7 @@
       }
       state.menuMasterRows = data || [];
       renderMenuMaster(state.menuMasterRows);
+      populateRecipeMenuSelector($('#recipeTargetMenu')?.value || '');
     }
 
     async function synchronizeMenuCatalogAndReports() {
@@ -5647,32 +5854,23 @@
       const tableRows = rows.map((row) => {
         const isServiceCharge = isServiceChargeCategory(row.category);
         const hpp = isServiceCharge ? 0 : (Number(row.hpp_standard) || 0);
-        const bufferPct = Number.isFinite(Number(row.buffer_hpp_pct)) ? Number(row.buffer_hpp_pct) : 10;
-        const referenceHpp = hpp * (1 + bufferPct / 100);
         const price = Number(row.selling_price) || 0;
-        const hppPct = price > 0 && hpp > 0 ? `${((hpp / price) * 100).toFixed(1).replace('.', ',')}%` : '-';
         const statusClass = row.is_active ? 'stock-ok' : 'variance-neutral';
         return `<tr>
           <td>${escapeHtml(row.menu_code || '-')}</td>
-          <td>${escapeHtml(row.menu_name || '-')}</td>
-          <td>${escapeHtml(row.category || '-')}</td>
+          <td><strong>${escapeHtml(row.menu_name || '-')}</strong><br><small class="field-help">${escapeHtml(row.category || '-')}</small></td>
           <td>${escapeHtml(row.variant || 'Default')}</td>
-          <td>${escapeHtml(row.stock_division || '-')}</td>
-          <td>${isServiceCharge ? '<span class="stock-ok">Jasa / tanpa stok</span>' : Number(row.recipe_count) > 0 ? `${Number(row.recipe_count)} komponen` : '<span class="variance-warning">Belum diatur</span>'}</td>
           <td class="numeric">${formatRupiah(price)}</td>
-          <td class="numeric">${hpp ? formatRupiah(hpp) : '-'}</td>
-          <td class="numeric">${hpp ? formatRupiah(referenceHpp) : '-'} <small class="field-help">(+${formatQuantity(bufferPct)}%)</small></td>
-          <td class="numeric">${hppPct}</td>
-          <td>${escapeHtml(row.outlet || '-')}</td>
+          <td class="numeric">${isServiceCharge ? 'Tanpa HPP' : hpp ? formatRupiah(hpp) : '<span class="variance-warning">Belum dihitung</span>'}</td>
           <td class="${statusClass}">${row.is_active ? 'Aktif' : 'Nonaktif'}</td>
-          <td><div class="action-group"><button class="reset-btn" type="button" data-action="edit-menu-master" data-menu-id="${escapeHtml(row.menu_id)}" data-variant-id="${escapeHtml(row.variant_id)}">Edit</button>${hasFullAdminAccess() ? `<button class="delete-btn" type="button" data-action="delete-menu-master" data-menu-id="${escapeHtml(row.menu_id)}" data-variant-id="${escapeHtml(row.variant_id)}" data-menu-name="${escapeHtml(row.menu_name || '')}" data-variant="${escapeHtml(row.variant || 'Default')}">Hapus</button>` : ''}</div></td>
+          <td><div class="action-group"><button class="reset-btn" type="button" data-action="edit-menu-master" data-menu-id="${escapeHtml(row.menu_id)}" data-variant-id="${escapeHtml(row.variant_id)}">Edit Menu</button><button class="reset-btn" type="button" data-action="edit-menu-recipe" data-menu-id="${escapeHtml(row.menu_id)}" data-variant-id="${escapeHtml(row.variant_id)}">Edit Resep</button>${hasFullAdminAccess() ? `<button class="delete-btn" type="button" data-action="delete-menu-master" data-menu-id="${escapeHtml(row.menu_id)}" data-variant-id="${escapeHtml(row.variant_id)}" data-menu-name="${escapeHtml(row.menu_name || '')}" data-variant="${escapeHtml(row.variant || 'Default')}">Hapus</button>` : ''}</div></td>
         </tr>`;
       }).join('');
-      tableWrap.innerHTML = `<table class="history-table"><thead><tr><th>Kode</th><th>Nama Menu</th><th>Kategori</th><th>Varian</th><th>Divisi Potong</th><th>Resep</th><th>Harga Jual</th><th>HPP Aktual</th><th>HPP Acuan</th><th>HPP %</th><th>Outlet</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${tableRows}</tbody></table>`;
+      tableWrap.innerHTML = `<table class="history-table"><thead><tr><th>Kode</th><th>Nama Menu</th><th>Varian</th><th>Harga Jual</th><th>HPP Menu</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${tableRows}</tbody></table>`;
     }
 
     async function handleMenuMasterTableClick(event) {
-      const button = event.target.closest('[data-action="edit-menu-master"]');
+      const button = event.target.closest('[data-action="edit-menu-master"], [data-action="edit-menu-recipe"]');
       if (button) {
         const row = state.menuMasterRows.find((item) => String(item.menu_id) === String(button.dataset.menuId) && String(item.variant_id) === String(button.dataset.variantId));
         if (!row) return;
@@ -5702,8 +5900,16 @@
         $('#menuMasterBuffer').value = Number.isFinite(Number(row.buffer_hpp_pct)) ? Number(row.buffer_hpp_pct) : 10;
         $('#menuMasterActive').checked = Boolean(row.is_active);
         await loadMenuRecipeRows(row.menu_name, row.variant);
-        showMenuMasterMessage('Data menu dimuat ke form. Simpan untuk memperbarui.', 'warning');
-        $('#menuMasterCode').focus();
+        const editRecipe = button.dataset.action === 'edit-menu-recipe';
+        if (editRecipe) {
+          const value = `${row.menu_id}::${row.variant_id}`;
+          populateRecipeMenuSelector(value);
+          const name = $('#selectedRecipeMenuName');
+          if (name) name.textContent = `${row.menu_name || '-'} / ${row.variant || 'Default'}`;
+        }
+        activateMenuWorkspaceSection(editRecipe ? 'recipes' : 'input');
+        showMenuMasterMessage(editRecipe ? 'Resep dimuat. Sesuaikan bahan atau takaran, lalu simpan.' : 'Data menu dimuat. Perbarui informasi, lalu simpan.', 'warning');
+        (editRecipe ? $('#menuRecipeIngredientsList') : $('#menuMasterCode'))?.focus();
         return;
       }
       const deleteButton = event.target.closest('[data-action="delete-menu-master"]');
@@ -5730,6 +5936,7 @@
 
     async function saveMenuMaster(event) {
       event.preventDefault();
+      const saveMode = state.menuMasterSaveMode === 'recipe' ? 'recipe' : 'menu';
       if (!hasFullAdminAccess()) {
         showMenuMasterMessage('Akses ditolak. Hanya Admin atau Super Admin yang dapat mengubah master menu.', 'error');
         return;
@@ -5793,7 +6000,7 @@
       const hppStandard = isServiceCharge ? 0 : (calculatedHpp > 0 ? calculatedHpp : (Number($('#menuMasterHpp').value) || 0));
       $('#menuMasterHpp').value = hppStandard ? hppStandard.toFixed(2) : '';
       $('#menuMasterReferenceHpp').value = formatRupiah(hppStandard * (1 + bufferHppPct / 100));
-      const button = $('#saveMenuMasterBtn');
+      const button = saveMode === 'recipe' ? $('#saveMenuMasterBtn') : $('#saveMenuDetailsBtn');
       button.disabled = true;
       button.textContent = 'Menyimpan...';
       try {
@@ -5822,12 +6029,14 @@
         clearMenuMasterForm();
         showMenuMasterMessage(`Master menu ${menuName} / ${variant} berhasil disimpan.`, 'success');
         await loadMenuMaster();
+        if (saveMode === 'recipe') await loadRecipes();
+        activateMenuWorkspaceSection(saveMode === 'recipe' ? 'recipes' : 'input');
       } catch (error) {
         console.error(error);
         showMenuMasterMessage(`Master menu gagal disimpan: ${error.message}`, 'error');
       } finally {
         button.disabled = false;
-        button.textContent = 'Simpan Master Menu';
+        button.textContent = saveMode === 'recipe' ? 'Simpan Resep & HPP' : 'Simpan Nama Menu';
       }
     }
 
@@ -8606,12 +8815,19 @@
       const inventoryById = new Map(state.inventory.map((item) => [String(item.id), item]));
       const rows = recipes.map((recipe) => {
         const item = inventoryById.get(String(recipe.inventory_item_id));
-        if (!recipeDetailVisible) return `<tr><td>${escapeHtml(recipe.menu_name || '-')}</td><td>${escapeHtml(recipe.variant || '-')}</td><td>${escapeHtml(item?.item_name || 'ID tidak ditemukan')}</td><td>${formatQuantity(recipe.quantity_needed)} ${escapeHtml(item?.unit || '')}</td></tr>`;
-        return `<tr><td>${escapeHtml(recipe.menu_name || '-')}</td><td>${escapeHtml(recipe.variant || '-')}</td><td>${escapeHtml(item?.item_name || 'ID tidak ditemukan')}</td><td>${escapeHtml(item?.division || 'Gudang Utama')}</td><td>${formatQuantity(recipe.quantity_needed)} ${escapeHtml(item?.unit || '')}</td><td><span class="panel-subtitle">Dikelola di Master Menu &amp; HPP</span></td></tr>`;
+        const preparation = state.preparations.find((row) => String(row.id) === String(recipe.preparation_id));
+        const isPreparation = String(recipe.component_type || 'inventory') === 'preparation';
+        const componentName = isPreparation ? (preparation?.prep_name || `Preparation ${recipe.preparation_id || '-'}`) : (item?.item_name || `Bahan ${recipe.inventory_item_id || '-'}`);
+        const componentUnit = recipe.recipe_unit || (isPreparation ? preparation?.output_unit : item?.unit) || '';
+        const division = isPreparation ? preparation?.division : item?.division;
+        const master = state.menuMasterRows.find((row) => recipeLookupKey(row.menu_name, row.variant) === recipeLookupKey(recipe.menu_name, recipe.variant));
+        const action = master ? `<button class="reset-btn" type="button" data-action="edit-recipe-menu" data-menu-id="${escapeHtml(master.menu_id)}" data-variant-id="${escapeHtml(master.variant_id)}">Edit Resep</button>` : '<span class="panel-subtitle">Menu belum dimaster</span>';
+        if (!recipeDetailVisible) return `<tr><td>${escapeHtml(recipe.menu_name || '-')}</td><td>${escapeHtml(recipe.variant || '-')}</td><td>${escapeHtml(componentName)}</td><td>${formatQuantity(recipe.quantity_needed)} ${escapeHtml(componentUnit)}</td></tr>`;
+        return `<tr><td>${escapeHtml(recipe.menu_name || '-')}</td><td>${escapeHtml(recipe.variant || '-')}</td><td>${escapeHtml(componentName)}</td><td>${escapeHtml(division || '-')}</td><td>${formatQuantity(recipe.quantity_needed)} ${escapeHtml(componentUnit)}</td><td>${action}</td></tr>`;
       }).join('');
       tableWrap.innerHTML = recipeDetailVisible
-        ? `<table class="recipe-table"><thead><tr><th>Menu</th><th>Varian</th><th>Bahan Baku</th><th>Divisi</th><th>Kebutuhan / Porsi</th><th>Keterangan</th></tr></thead><tbody>${rows}</tbody></table>`
-        : `<table class="recipe-table"><thead><tr><th>Menu</th><th>Varian</th><th>Bahan Baku</th><th>Kebutuhan / Porsi</th></tr></thead><tbody>${rows}</tbody></table>`;
+        ? `<table class="recipe-table"><thead><tr><th>Menu</th><th>Varian</th><th>Bahan / Preparation</th><th>Divisi</th><th>Kebutuhan / Porsi</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`
+        : `<table class="recipe-table"><thead><tr><th>Menu</th><th>Varian</th><th>Bahan / Preparation</th><th>Kebutuhan / Porsi</th></tr></thead><tbody>${rows}</tbody></table>`;
     }
 
     function exportRecipeDetail() {
@@ -9204,7 +9420,7 @@
       const menuName = button.dataset.fixRiceMenu || '';
       const variant = button.dataset.fixRiceVariant || 'Default';
       if (!hasFullAdminAccess()) return;
-      document.querySelector('.nav-btn[data-page="stockPage"][data-master-tab="menu"]')?.click();
+      document.querySelector('.nav-btn[data-page="menuWorkspacePage"][data-menu-section="recipes"]')?.click();
       await loadMenuMaster();
       const row = state.menuMasterRows.find((item) => riceAuditRecipeKey(item.menu_name, item.variant) === riceAuditRecipeKey(menuName, variant));
       if (!row) {
@@ -9214,7 +9430,8 @@
       const fakeButton = document.createElement('button');
       fakeButton.dataset.menuId = row.menu_id;
       fakeButton.dataset.variantId = row.variant_id;
-      await handleMenuMasterTableClick({ target: { closest: (selector) => selector === '[data-action="edit-menu-master"]' ? fakeButton : null } });
+      fakeButton.dataset.action = 'edit-menu-recipe';
+      await handleMenuMasterTableClick({ target: { closest: () => fakeButton } });
       $('#menuMasterForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
@@ -9226,6 +9443,8 @@
       const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
       start.value = firstDay.toISOString().slice(0, 10);
       end.value = today.toISOString().slice(0, 10);
+      if ($('#financeReportStart') && !$('#financeReportStart').value) $('#financeReportStart').value = start.value;
+      if ($('#financeReportEnd') && !$('#financeReportEnd').value) $('#financeReportEnd').value = end.value;
     }
 
     setSalesReportDateDefaults();
@@ -9637,7 +9856,11 @@
       }
       const monthMap = new Map();
       const variantMap = new Map();
-      const unified = getUnifiedFilters();
+      const activeReportTab = document.querySelector('#reportsWorkspacePage.active .reports-tab-panel.active')?.dataset.reportTab || '';
+      const activePage = document.querySelector('.page.active')?.id || '';
+      const unified = activePage === 'reportsWorkspacePage' && ['sales', 'productProfit'].includes(activeReportTab)
+        ? { ...getUnifiedFilters(), start: $('#financeReportStart')?.value || '', end: $('#financeReportEnd')?.value || '', menu: '', category: 'all' }
+        : getUnifiedFilters();
       const financeStart = unified.start || $('#financeReportStart')?.value || '';
       const financeEnd = unified.end || $('#financeReportEnd')?.value || '';
       const financeCategory = unified.category !== 'all' ? unified.category : ($('#financeExpenseCategory')?.value || 'all');
