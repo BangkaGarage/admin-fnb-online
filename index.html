@@ -3219,6 +3219,81 @@
       await Promise.all([loadSalesReport(), loadSalesReconciliation(), loadProfitLossReport()]);
     }
 
+    async function loadLifetimeSalesAccumulation() {
+      const message = $('#lifetimeSalesAccumulationMessage');
+      const tableWrap = $('#lifetimeSalesProductTableWrap');
+      const refresh = $('#refreshLifetimeSalesBtn');
+      if (!message || !tableWrap) return;
+      if (!supabaseConfigured) {
+        message.textContent = 'Supabase belum dikonfigurasi. Akumulasi keseluruhan belum dapat dimuat.';
+        message.className = 'form-message error';
+        return;
+      }
+      if (refresh) { refresh.disabled = true; refresh.textContent = 'Memuat...'; }
+      message.textContent = 'Menghitung seluruh transaksi penjualan...';
+      message.className = 'form-message warning';
+      tableWrap.innerHTML = '<div class="loading-row">Memuat semua transaksi...</div>';
+      try {
+        if (!state.menuMasterRows.length) await loadMenuMaster();
+        const { data, error } = await fetchAllReportRows(
+          'sales',
+          'id, sale_date, product_name, variant, category_item, quantity_sold, gross_amount, hpp_total, hpp_method, hpp_recorded_at, status',
+          'sale_date'
+        );
+        if (error) throw error;
+        const sales = (data || []).filter((row) => String(row.status || 'posted').toLowerCase() !== 'void');
+        const totals = { quantity: 0, revenue: 0, hpp: 0, hppKnown: true, rows: 0, hppKnownRows: 0 };
+        const byProduct = new Map();
+        sales.forEach((row) => {
+          const metrics = getSaleProfitMetrics(row);
+          const productName = metrics.productName || 'Tanpa Nama Produk';
+          const variant = metrics.variant || 'Default';
+          const categoryItem = metrics.categoryItem || 'Other';
+          const key = `${normalizeMenuName(productName)}::${normalizeMenuName(variant)}::${normalizeMenuName(categoryItem)}`;
+          const current = byProduct.get(key) || { productName, variant, categoryItem, quantity: 0, revenue: 0, hpp: 0, hppKnown: true, salesRows: 0, knownRows: 0 };
+          current.quantity += metrics.quantity;
+          current.revenue += metrics.revenue;
+          current.hpp += metrics.hpp;
+          current.hppKnown = current.hppKnown && metrics.hppKnown;
+          current.salesRows += 1;
+          if (metrics.hppKnown) current.knownRows += 1;
+          byProduct.set(key, current);
+          totals.quantity += metrics.quantity;
+          totals.revenue += metrics.revenue;
+          totals.hpp += metrics.hpp;
+          totals.hppKnown = totals.hppKnown && metrics.hppKnown;
+          totals.rows += 1;
+          if (metrics.hppKnown) totals.hppKnownRows += 1;
+        });
+        const products = [...byProduct.values()].sort((a, b) => b.quantity - a.quantity || b.revenue - a.revenue);
+        $('#lifetimeSalesQuantity').textContent = formatQuantity(totals.quantity);
+        $('#lifetimeSalesRevenue').textContent = formatRupiah(totals.revenue);
+        $('#lifetimeSalesHpp').textContent = totals.hppKnown ? formatRupiah(totals.hpp) : '-';
+        $('#lifetimeSalesProfit').textContent = totals.hppKnown ? formatRupiah(totals.revenue - totals.hpp) : '-';
+        const missingHppRows = totals.rows - totals.hppKnownRows;
+        $('#lifetimeSalesHppNote').textContent = missingHppRows ? `${missingHppRows.toLocaleString('id-ID')} baris belum memiliki HPP` : `${totals.rows.toLocaleString('id-ID')} baris tercakup`;
+        const rows = products.map((row) => {
+          const profit = row.hppKnown ? row.revenue - row.hpp : null;
+          const status = row.hppKnown
+            ? '<span class="status-badge status-success">HPP lengkap</span>'
+            : `<span class="status-badge status-warning">HPP belum lengkap (${row.salesRows - row.knownRows} baris)</span>`;
+          return `<tr><td>${escapeHtml(row.productName)}</td><td>${escapeHtml(row.variant)}</td><td>${escapeHtml(row.categoryItem)}</td><td>${formatQuantity(row.quantity)}</td><td class="amount">${formatRupiah(row.revenue)}</td><td class="amount">${row.hppKnown ? formatRupiah(row.hpp) : '-'}</td><td class="amount ${profit !== null && profit < 0 ? 'profit-negative' : 'profit-positive'}">${profit === null ? '-' : formatRupiah(profit)}</td><td>${status}</td></tr>`;
+        }).join('');
+        tableWrap.innerHTML = rows
+          ? `<table class="history-table"><thead><tr><th>Produk</th><th>Varian</th><th>Jenis</th><th>Total Terjual</th><th>Total Omzet</th><th>Total HPP</th><th>Profit Setelah HPP</th><th>Status HPP</th></tr></thead><tbody>${rows}</tbody></table>`
+          : '<div class="loading-row">Belum ada transaksi penjualan.</div>';
+        message.textContent = `${totals.rows.toLocaleString('id-ID')} baris transaksi dari semua tanggal dihitung; ${products.length.toLocaleString('id-ID')} produk/varian unik. Transaksi void tidak dihitung.`;
+        message.className = missingHppRows ? 'form-message warning' : 'form-message success';
+      } catch (error) {
+        console.error(error);
+        message.textContent = `Gagal memuat akumulasi keseluruhan: ${error.message}`;
+        message.className = 'form-message error';
+        tableWrap.innerHTML = '<div class="loading-row">Akumulasi belum dapat ditampilkan.</div>';
+      } finally {
+        if (refresh) { refresh.disabled = false; refresh.textContent = '↻ Refresh Total'; }
+      }
+    }
+
     async function loadProductProfitReport() {
       if ($('#productProfitStart') && $('#financeReportStart')) $('#financeReportStart').value = $('#productProfitStart').value;
       if ($('#productProfitEnd') && $('#financeReportEnd')) $('#financeReportEnd').value = $('#productProfitEnd').value;
@@ -3339,7 +3414,7 @@
       document.querySelectorAll('.nav-btn').forEach((item) => item.classList.remove('active'));
       document.querySelector('.nav-btn[data-page="reportsWorkspacePage"][data-report-tab="' + tabKey + '"]')?.classList.add('active');
       const loaders = {
-        productProfit: loadProductProfitReport,
+        productProfit: async () => { await Promise.all([loadProductProfitReport(), loadLifetimeSalesAccumulation()]); },
         stockMovement: async () => { await loadStockReport(); await loadRiceAuditData(); }
       };
       if (loaders[tabKey]) void loaders[tabKey]();
@@ -3353,6 +3428,10 @@
       productProfitSource.id = 'productProfitReportPage';
       productProfitSource.className = 'page';
       productProfitSource.innerHTML = '<div class="section-title"><h1>Laporan Laba Produk</h1><p>Bandingkan omzet, HPP, profit setelah HPP, dan margin untuk setiap menu-varian.</p></div>';
+      const lifetimePanel = document.createElement('div');
+      lifetimePanel.className = 'panel';
+      lifetimePanel.innerHTML = '<div class="panel-head"><div><h3>Akumulasi Total Keseluruhan</h3><p class="panel-subtitle">Total penjualan dari semua tanggal, tidak mengikuti filter periode di bawah. Transaksi void tidak dihitung.</p></div><button id="refreshLifetimeSalesBtn" class="reset-btn" type="button">↻ Refresh Total</button></div><div class="finance-stats-grid"><div class="finance-card"><span>Total Produk Terjual</span><strong id="lifetimeSalesQuantity">0</strong><small>Akumulasi semua tanggal</small></div><div class="finance-card"><span>Omzet Terkumpul</span><strong id="lifetimeSalesRevenue">Rp0</strong><small>Seluruh transaksi aktif</small></div><div class="finance-card"><span>Total HPP Transaksi</span><strong id="lifetimeSalesHpp">-</strong><small id="lifetimeSalesHppNote">Menunggu data</small></div><div class="finance-card"><span>Profit Setelah HPP</span><strong id="lifetimeSalesProfit">-</strong><small>Omzet dikurangi HPP tersimpan</small></div></div><p id="lifetimeSalesAccumulationMessage" class="form-message" role="status"></p><div id="lifetimeSalesProductTableWrap" class="history-table-wrap"><div class="loading-row">Membuka laporan untuk memuat akumulasi semua tanggal.</div></div>';
+      productProfitSource.appendChild(lifetimePanel);
       const productProfitFilters = document.createElement('div');
       productProfitFilters.className = 'panel';
       productProfitFilters.innerHTML = '<div class="panel-head"><div><h3>Penjualan Produk &amp; Laba</h3><p class="panel-subtitle">Jumlah terjual dan omzet dijumlahkan per menu-varian untuk rentang tanggal yang dipilih.</p></div></div><div class="panel-actions"><label class="field-help" for="productProfitPreset">Periode</label><select id="productProfitPreset" class="compact-select"><option value="all" selected>Semua tanggal</option><option value="today">Hari ini</option><option value="yesterday">Kemarin</option><option value="7days">7 hari terakhir</option><option value="30days">30 hari terakhir</option><option value="month">Bulan ini</option><option value="custom">Rentang tanggal</option></select><label class="field-help" for="productProfitStart">Dari</label><input id="productProfitStart" class="compact-select" type="date"><label class="field-help" for="productProfitEnd">Sampai</label><input id="productProfitEnd" class="compact-select" type="date"><button id="refreshProductProfitBtn" class="save-btn" type="button">Tampilkan</button><button id="syncAllMenuReportBtn" class="reset-btn" type="button">Sinkronkan Semua Menu &amp; HPP</button></div>';
@@ -3366,6 +3445,7 @@
       if ($('#financeReportStart') && $('#productProfitStart')) $('#productProfitStart').value = $('#financeReportStart').value || $('#salesReportStart')?.value || '';
       if ($('#financeReportEnd') && $('#productProfitEnd')) $('#productProfitEnd').value = $('#financeReportEnd').value || $('#salesReportEnd')?.value || '';
       $('#refreshProductProfitBtn')?.addEventListener('click', loadProductProfitReport);
+      lifetimePanel.querySelector('#refreshLifetimeSalesBtn')?.addEventListener('click', loadLifetimeSalesAccumulation);
       $('#syncAllMenuReportBtn')?.addEventListener('click', () => {
         const syncButton = $('#syncMenuCatalogBtn');
         if (syncButton) syncButton.click();
