@@ -643,8 +643,7 @@
           <button class="nav-group-toggle" type="button" aria-expanded="false">Master Data &amp; Persediaan</button>
           <div class="nav-submenu">
             <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="materials" data-title="Bahan Baku &amp; Konversi"><span class="nav-icon">▤</span><span>Bahan &amp; Konversi</span></button>
-            <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="bom" data-super-admin-only="true" data-title="Preparation / Resep Acuan"><span class="nav-icon">≡</span><span>Preparation / Resep</span></button>
-            <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="menu" data-super-admin-only="true" data-title="Master Menu &amp; HPP"><span class="nav-icon">▥</span><span>Menu &amp; HPP</span></button>
+            <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="menu" data-super-admin-only="true" data-title="Menu, Resep &amp; Preparation"><span class="nav-icon">▥</span><span>Menu &amp; Resep</span></button>
             <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="purchase" data-title="Belanja Masuk"><span class="nav-icon">＋</span><span>Belanja Masuk</span></button>
             <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="transfer" data-super-admin-only="true" data-title="Transfer Stok"><span class="nav-icon">↔</span><span>Transfer Stok</span></button>
             <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="stock" data-super-admin-only="true" data-title="Stok Gudang &amp; Divisi"><span class="nav-icon">▦</span><span>Stok Gudang &amp; Divisi</span></button>
@@ -657,10 +656,9 @@
           <div class="nav-group collapsed">
             <button class="nav-group-toggle" type="button" aria-expanded="false">Laporan</button>
             <div class="nav-submenu">
-              <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="sales" data-title="Penjualan &amp; Rekonsiliasi"><span class="nav-icon">◫</span><span>Penjualan &amp; Rekonsiliasi</span></button>
-              <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="hpp" data-title="Food Cost &amp; HPP"><span class="nav-icon">▤</span><span>Food Cost &amp; HPP</span></button>
+              <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="sales" data-title="Penjualan &amp; Laba Rugi"><span class="nav-icon">◫</span><span>Penjualan &amp; Laba Rugi</span></button>
+              <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="hpp" data-title="HPP Menu"><span class="nav-icon">▤</span><span>HPP Menu</span></button>
               <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="rice" data-title="Audit Nasi &amp; Hasil Karung"><span class="nav-icon">◉</span><span>Audit Nasi &amp; Karung</span></button>
-              <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="finance" data-title="Laporan Laba Rugi"><span class="nav-icon">▥</span><span>Laba Rugi</span></button>
               <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="backup" data-title="Backup &amp; Export"><span class="nav-icon">↓</span><span>Backup &amp; Export</span></button>
               <button type="button" class="nav-btn" data-page="closingPage" data-title="Closing Harian"><span class="nav-icon">✓</span><span>Closing Harian</span></button>
             </div>
@@ -1345,7 +1343,7 @@
         </section>
 
         <section id="salesReportPage" class="page">
-          <div class="section-title"><h1>Laporan Penjualan Produk</h1><p>Data penjualan dibaca langsung dari tabel <code>sales</code> di Supabase.</p></div>
+          <div class="section-title"><h1>Rincian Penjualan</h1><p>Omzet dan jumlah menu terjual, termasuk rekonsiliasi file iSeller.</p></div>
           <div class="panel">
             <div class="panel-head"><div><h3>Filter periode penjualan</h3><p class="panel-subtitle">Gunakan tanggal untuk menampilkan omzet dan jumlah produk yang tersimpan permanen.</p></div><button id="refreshSalesReportBtn" class="reset-btn" type="button">↻ Refresh</button></div>
             <form id="salesReportFilterForm">
@@ -1457,7 +1455,7 @@
         </section>
 
         <section id="reportPage" class="page">
-          <div class="section-title"><h1>Laporan Keuangan</h1><p>Ringkasan omzet bersih setelah diskon, pengeluaran, dan laba rugi bersih.</p></div>
+          <div class="section-title"><h1>Laba Rugi &amp; Pengeluaran</h1><p>Omzet dikurangi HPP dan pengeluaran operasional untuk menunjukkan laba bersih.</p></div>
           <div id="reportPlaceholder" class="placeholder hidden"><div><div class="big-icon">▥</div><h3>Modul laporan keuangan siap dikembangkan</h3><p>Perhitungan laba rugi membaca data penjualan permanen dari tabel sales dan pengeluaran dari tabel expenses.</p></div></div>
           <div class="panel">
             <div class="panel-head"><div><h3>Laporan Laba Rugi Bulanan</h3><p class="panel-subtitle">Omzet bersih setelah diskon dikurangi HPP dan seluruh pengeluaran operasional. Cadangan maintenance hanya angka referensi dari laba bersih.</p></div><div class="panel-actions"><input id="financeReportStart" class="compact-select" type="date" title="Tanggal mulai" /><input id="financeReportEnd" class="compact-select" type="date" title="Tanggal akhir" /><select id="financeExpenseCategory" class="compact-select"><option value="all">Semua Kategori</option></select><button id="refreshProfitLossBtn" class="reset-btn" type="button">↻ Refresh</button></div></div>
@@ -1928,7 +1926,7 @@
       if (activeMasterTab === 'movements') return {
         start: value('movementStart'), end: value('movementEnd'), menu: String(value('movementSearch')).trim().toLowerCase(), variant: '', status: 'all', user: '', category: value('movementType', 'all').toLowerCase(), division: value('movementDivision', 'all')
       };
-      if (activePage === 'reportPage' || (activePage === 'reportsWorkspacePage' && activeReportTab === 'finance')) return {
+      if (activePage === 'reportPage') return {
         start: value('financeReportStart'), end: value('financeReportEnd'), menu: '', variant: '', status: 'all', user: '', category: value('financeExpenseCategory', 'all').toLowerCase(), division: 'all'
       };
       if (activePage === 'closingPage') return {
@@ -2307,7 +2305,7 @@
       {
         keywords: ['resep', 'hpp', 'harga pokok', 'menu', 'varian', 'bahan'],
         title: 'Resep dan HPP',
-        answer: 'Buka Master Data & Persediaan → Master Menu & HPP. Buat menu dan varian, lalu hubungkan bahan baku dengan kebutuhan per porsi memakai satuan dasar seperti gr, ml, atau pcs.\n\nPreparation tetap virtual: hanya menjadi acuan resep dan tidak membuat stok produksi. HPP juga memakai tambahan biaya acuan 10% sesuai pengaturan sistem.'
+        answer: 'Buka Master Data & Persediaan → Menu & Resep. Isi menu dan harga, hubungkan bahan baku per porsi untuk menghitung HPP, lalu gunakan tab Preparation bila menu memakai racikan. Preparation bersifat acuan dan tidak menjadi stok fisik; HPP acuan menambahkan buffer 10%.'
       },
       {
         keywords: ['waste', 'rusak', 'basi', 'tumpah', 'komplen', 'komplimen', 'kalibrasi', 'testing', 'non penjualan'],
@@ -2332,7 +2330,7 @@
       {
         keywords: ['laporan', 'analisis', 'keuangan', 'laba', 'rugi', 'backup', 'export', 'filter'],
         title: 'Laporan dan Analisis',
-        answer: 'Buka Laporan & Analisis. Gunakan tab Penjualan & Rekonsiliasi, Food Cost & HPP, Laba Rugi, atau Backup & Export. Gunakan filter tanggal dan pencarian sesuai kebutuhan, lalu tekan Refresh jika baru saja memasukkan data.\n\nUntuk stok, buka Master Data & Persediaan → Stok Gudang & Divisi. Pusat Riwayat Stok dan Audit Detail Mutasi tetap memiliki fungsi yang berbeda.'
+        answer: 'Buka Laporan. Pilih Penjualan & Laba Rugi untuk omzet, HPP, rekonsiliasi iSeller dan laba; HPP Menu untuk biaya resep; Audit Nasi untuk pemeriksaan hasil pemakaian karung; atau Backup & Export untuk salinan data. Untuk saldo, buka Master Data & Persediaan → Stok Gudang & Divisi.'
       },
       {
         keywords: ['aset', 'inventaris', 'gelas', 'piring', 'sendok', 'meja', 'kursi', 'mesin', 'pecah', 'umur'],
@@ -2356,8 +2354,8 @@
         closingPage: 'Closing Harian', blindOpnamePage: 'Blind Stock Opname', assetPage: 'Inventaris Aset',
         activityLogsPage: 'Log Aktivitas Staf', settingsPage: 'Pengaturan', systemResetPage: 'Reset Sistem'
       };
-      const masterLabels = { materials: 'Bahan Baku & Konversi', bom: 'Preparation / Resep Acuan', menu: 'Master Menu & HPP', purchase: 'Belanja Masuk', transfer: 'Transfer Stok', stock: 'Stok Gudang & Divisi', waste: 'Waste & Non-Penjualan', opname: 'Penyesuaian & Opname', movements: 'Audit Detail Mutasi' };
-      const reportLabels = { sales: 'Penjualan & Rekonsiliasi', hpp: 'Food Cost & HPP', finance: 'Laba Rugi', backup: 'Backup & Export' };
+      const masterLabels = { materials: 'Bahan Baku & Konversi', bom: 'Menu, Resep & Preparation', menu: 'Menu, Resep & Preparation', purchase: 'Belanja Masuk', transfer: 'Transfer Stok', stock: 'Stok Gudang & Divisi', waste: 'Waste & Non-Penjualan', opname: 'Penyesuaian & Opname', movements: 'Audit Detail Mutasi' };
+      const reportLabels = { sales: 'Penjualan & Laba Rugi', hpp: 'HPP Menu', rice: 'Audit Nasi & Karung', finance: 'Penjualan & Laba Rugi', backup: 'Backup & Export' };
       const operationLabels = { sales: 'Penjualan Manual', import: 'Import iSeller', expenses: 'Pengeluaran' };
       if (page === 'stockPage' && masterLabels[masterTab]) return `Konteks: ${masterLabels[masterTab]}`;
       if (page === 'reportsWorkspacePage' && reportLabels[reportTab]) return `Konteks: ${reportLabels[reportTab]}`;
@@ -2378,9 +2376,9 @@
       'Waste dan Pemakaian Non-Penjualan': { page: 'stockPage', tab: 'waste' },
       'Blind Stock Opname': { page: 'blindOpnamePage' },
       'Closing Harian': { page: 'closingPage' },
-      'Laporan dan Analisis': { page: 'reportsWorkspacePage', tab: 'finance' },
+      'Laporan dan Analisis': { page: 'reportsWorkspacePage', tab: 'sales' },
       'Inventaris Aset': { page: 'assetPage' },
-      'Cadangan Maintenance': { page: 'reportPage' }
+      'Cadangan Maintenance': { page: 'reportsWorkspacePage', tab: 'sales' }
     };
 
     function openAssistantRelatedPage(guide) {
@@ -2673,10 +2671,10 @@
     $('#executeBlindOpnameBtn').addEventListener('click', executeBlindOpnameReview);
     $('#salesReportFilterForm').addEventListener('submit', (event) => {
       event.preventDefault();
-      loadSalesReport();
+      refreshCombinedSalesFinance('sales');
     });
     ['salesReportCategory', 'salesReportMenu'].forEach((id) => document.getElementById(id)?.addEventListener('input', loadSalesReport));
-    $('#refreshSalesReportBtn').addEventListener('click', loadSalesReport);
+    $('#refreshSalesReportBtn').addEventListener('click', () => refreshCombinedSalesFinance('sales'));
     $('#riceAuditFilterForm')?.addEventListener('submit', (event) => { event.preventDefault(); loadRiceAuditData(); });
     $('#refreshRiceAuditBtn')?.addEventListener('click', loadRiceAuditData);
     $('#refreshSalesReconciliationBtn')?.addEventListener('click', loadSalesReconciliation);
@@ -2685,8 +2683,9 @@
     $('#salesMappingTableWrap')?.addEventListener('click', handleSalesMappingTableClick);
     $('#mappingTargetMenu')?.addEventListener('change', populateMappingVariants);
     $('#confirmSalesUploadBtn')?.addEventListener('click', confirmValidatedSalesUpload);
-    $('#refreshProfitLossBtn').addEventListener('click', loadProfitLossReport);
-    ['financeReportStart', 'financeReportEnd', 'financeExpenseCategory'].forEach((id) => document.getElementById(id)?.addEventListener('change', loadProfitLossReport));
+    $('#refreshProfitLossBtn').addEventListener('click', () => refreshCombinedSalesFinance('finance'));
+    ['financeReportStart', 'financeReportEnd'].forEach((id) => document.getElementById(id)?.addEventListener('change', () => refreshCombinedSalesFinance('finance')));
+    $('#financeExpenseCategory')?.addEventListener('change', loadProfitLossReport);
     dailyClosingForm?.addEventListener('submit', closeDailyPeriod);
     $('#closingCorrectionForm')?.addEventListener('submit', submitClosingCorrection);
     $('#correctionType')?.addEventListener('change', syncClosingCorrectionFields);
@@ -2880,9 +2879,14 @@
       sourceIds.forEach((sourceId) => {
         const source = $(`#${sourceId}`);
         if (!source) return;
+        const contentTarget = key === 'menu' ? document.createElement('div') : panel;
+        if (key === 'menu') {
+          contentTarget.dataset.menuWorkspaceGroup = sourceId === 'bomPage' ? 'preparation' : 'menu';
+          panel.appendChild(contentTarget);
+        }
         [...source.childNodes].forEach((node) => {
           if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains('section-title') && options.stripTitles) return;
-          panel.appendChild(node);
+          contentTarget.appendChild(node);
         });
         // stockPage is the permanent workspace shell. Its children are moved
         // into the tab, but the page element itself must remain in the DOM so
@@ -2943,8 +2947,7 @@
       host.id = 'masterWorkspaceTabHost';
       const specs = [
         ['materials', 'Bahan Baku & Konversi', ['stockPage'], false],
-        ['bom', 'Preparation / Resep Acuan', ['bomPage'], true],
-        ['menu', 'Master Menu & HPP', ['menuMasterPage'], true],
+        ['menu', 'Menu, Resep & Preparation', ['menuMasterPage', 'bomPage'], true],
         ['purchase', 'Belanja Masuk', ['purchasePage'], false],
         ['transfer', 'Transfer Stok', ['transferPage'], false],
         ['stock', 'Stok Gudang & Divisi', ['stockReportPage'], true],
@@ -2965,6 +2968,35 @@
         if (index === 0) panel.classList.add('active');
         host.appendChild(panel);
       });
+      const menuPanel = host.querySelector('[data-master-tab-panel="menu"]');
+      if (menuPanel) {
+        createInnerWorkspace(menuPanel, [
+          { label: 'Menu, Resep & HPP', getNodes: (root) => [root.querySelector(':scope > [data-menu-workspace-group="menu"]')] },
+          { label: 'Preparation', getNodes: (root) => [root.querySelector(':scope > [data-menu-workspace-group="preparation"]')] }
+        ], { root: menuPanel, ariaLabel: 'Menu, resep, HPP, dan preparation' });
+        const menuTitle = menuPanel.querySelector('.section-title h1');
+        if (menuTitle) menuTitle.textContent = 'Menu, Resep & Preparation';
+        const menuDescription = menuPanel.querySelector('.section-title p');
+        if (menuDescription) menuDescription.textContent = 'Isi nama menu dan harga, lengkapi resep untuk menghitung HPP, lalu kelola preparation di tab sebelah.';
+        const menuForm = menuPanel.querySelector('#menuMasterForm');
+        const menuGrid = menuForm?.querySelector('.form-grid');
+        const menuListPanel = menuPanel.querySelector('#menuMasterTableWrap')?.closest('.panel');
+        const recipeEditorField = menuPanel.querySelector('#menuRecipeEditorField');
+        if (menuGrid && menuListPanel && recipeEditorField) {
+          menuListPanel.classList.add('form-field', 'full');
+          menuGrid.insertBefore(menuListPanel, recipeEditorField);
+        }
+        const menuFormTitle = menuForm?.closest('.panel')?.querySelector('.panel-head h3');
+        if (menuFormTitle) menuFormTitle.textContent = 'Input menu, resep, dan HPP';
+        const menuFormSubtitle = menuForm?.closest('.panel')?.querySelector('.panel-subtitle');
+        if (menuFormSubtitle) menuFormSubtitle.textContent = 'Isi nama dan harga menu, periksa daftar semua menu, lalu lengkapi resep per porsi. HPP dihitung otomatis.';
+        const menuListTitle = menuPanel.querySelector('#menuMasterTableWrap')?.closest('.panel')?.querySelector('.panel-head h3');
+        if (menuListTitle) menuListTitle.textContent = 'Daftar semua menu';
+        const menuListSubtitle = menuPanel.querySelector('#menuMasterTableWrap')?.closest('.panel')?.querySelector('.panel-subtitle');
+        if (menuListSubtitle) menuListSubtitle.textContent = 'Daftar semua menu dan varian. Gunakan Edit untuk mengubah informasi atau resep.';
+        const prepTitle = menuPanel.querySelector('#bomForm')?.closest('.panel')?.querySelector('.panel-head h3');
+        if (prepTitle) prepTitle.textContent = 'Input preparation';
+      }
       const movementPanel = host.querySelector('[data-master-tab-panel="movements"]');
       movementPanel.innerHTML = '<div class="section-title"><h1>Audit Detail Mutasi</h1><p>Pusat Riwayat Stok adalah ringkasan operasional; tab ini khusus pemeriksaan teknis dan export, sehingga keduanya tidak dimaksudkan untuk dijumlahkan bersama.</p></div><div class="panel"><div class="panel-head"><div><h3>Audit Detail Mutasi · Data Teknis</h3><p class="panel-subtitle">Gunakan saat perlu menelusuri referensi, pengguna, catatan, atau satu jenis mutasi tertentu. Angka di sini adalah detail transaksi, bukan laporan nilai tambahan.</p></div><div class="panel-actions"><button id="refreshStockMovementHistoryBtn" class="reset-btn" type="button">↻ Refresh</button><button id="exportStockMovementHistoryBtn" class="export-btn" type="button">Export Audit</button></div></div><div class="panel-actions" style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:8px;"><input id="movementStart" class="compact-select" type="date" /><input id="movementEnd" class="compact-select" type="date" /><select id="movementDivision" class="compact-select"><option value="all">Semua Divisi</option><option>Gudang Utama</option><option>Bar</option><option>Kitchen</option><option>Waiters</option></select><select id="movementType" class="compact-select"><option value="all">Semua Jenis</option><option>purchase</option><option>transfer_in</option><option>transfer_out</option><option>sale</option><option>non_sale</option><option>waste</option><option>opname_adjustment</option><option>void</option></select><input id="movementSearch" class="compact-select" type="search" placeholder="Cari bahan / referensi" /></div><div id="stockMovementHistoryWrap" class="report-table-wrap"><div class="loading-row">Buka tab ini untuk memuat audit detail.</div></div></div>';
       stockPage.replaceChildren(title, tabs, host);
@@ -2980,7 +3012,22 @@
       return document.querySelector('#reportsWorkspacePage.active .reports-tab-panel.active')?.dataset.reportTab === tabKey;
     }
 
+    function syncCombinedReportDates(source = 'sales') {
+      const start = source === 'finance' ? $('#financeReportStart')?.value : $('#salesReportStart')?.value;
+      const end = source === 'finance' ? $('#financeReportEnd')?.value : $('#salesReportEnd')?.value;
+      if (start && $('#salesReportStart')) $('#salesReportStart').value = start;
+      if (end && $('#salesReportEnd')) $('#salesReportEnd').value = end;
+      if (start && $('#financeReportStart')) $('#financeReportStart').value = start;
+      if (end && $('#financeReportEnd')) $('#financeReportEnd').value = end;
+    }
+
+    async function refreshCombinedSalesFinance(source = 'sales') {
+      syncCombinedReportDates(source);
+      await Promise.all([loadSalesReport(), loadSalesReconciliation(), loadProfitLossReport()]);
+    }
+
     function activateReportsWorkspaceTab(tabKey) {
+      if (tabKey === 'finance') tabKey = 'sales';
       const button = document.querySelector(`.reports-workspace-tab[data-report-tab="${tabKey}"]`);
       const panel = document.querySelector(`.reports-tab-panel[data-report-tab="${tabKey}"]`);
       if (!button || !panel) return;
@@ -2990,7 +3037,7 @@
       document.querySelectorAll('.nav-btn').forEach((item) => item.classList.remove('active'));
       document.querySelector('.nav-btn[data-page="reportsWorkspacePage"][data-report-tab="' + tabKey + '"]')?.classList.add('active');
       const loaders = {
-        sales: async () => { await loadSalesReport(); await loadSalesReconciliation(); },
+        sales: () => refreshCombinedSalesFinance('sales'),
         hpp: loadHppReportData,
         rice: loadRiceAuditData,
         finance: loadProfitLossReport,
@@ -3014,11 +3061,10 @@
       workspace.append(tabs, host);
       firstSource.parentNode.insertBefore(workspace, firstSource);
       const specs = [
-        ['sales', 'Penjualan & Rekonsiliasi', 'salesReportPage'],
-        ['hpp', 'Food Cost & HPP', 'hppReportPage'],
-        ['rice', 'Audit Nasi & Karung', 'riceAuditPage'],
-        ['finance', 'Laba Rugi', 'reportPage'],
-        ['backup', 'Backup & Export', 'backupExportPage']
+        ['sales', 'Penjualan & Laba Rugi', ['salesReportPage', 'reportPage']],
+        ['hpp', 'HPP Menu', ['hppReportPage']],
+        ['rice', 'Audit Nasi & Karung', ['riceAuditPage']],
+        ['backup', 'Backup & Export', ['backupExportPage']]
       ];
       specs.forEach(([key, label, sourceId], index) => {
         const button = document.createElement('button');
@@ -3031,13 +3077,21 @@
         const panel = document.createElement('div');
         panel.className = `reports-tab-panel${index === 0 ? ' active' : ''}`;
         panel.dataset.reportTab = key;
-        const source = $(`#${sourceId}`);
-        if (source) {
+        const sourceIds = Array.isArray(sourceId) ? sourceId : [sourceId];
+        sourceIds.forEach((id) => {
+          const source = $(`#${id}`);
+          if (!source) return;
           [...source.childNodes].forEach((node) => panel.appendChild(node));
           source.remove();
-        }
+        });
         host.appendChild(panel);
       });
+      const combinedTitle = workspace.querySelector('.section-title h1');
+      if (combinedTitle) combinedTitle.textContent = 'Laporan';
+      const combinedDescription = workspace.querySelector('.section-title p');
+      if (combinedDescription) combinedDescription.textContent = 'Laporan utama diringkas menjadi penjualan dan laba, HPP menu, audit nasi, serta backup.';
+      const salesTitle = workspace.querySelector('[data-report-tab="sales"] .section-title h1');
+      if (salesTitle) salesTitle.textContent = 'Penjualan & Laba Rugi';
     }
 
     function activateOperationsWorkspaceTab(tabKey) {
@@ -3128,15 +3182,6 @@
         { label: 'Resep Menu', getNodes: (root) => [root.querySelector('.inventory-layout > .inventory-panel:nth-child(2)')] },
         { label: 'Import Bahan', getNodes: (root) => [panelBy(root, '#importInventoryMessage')] }
       ], { ariaLabel: 'Master bahan dan resep' });
-      createInnerWorkspace($('#bomPage'), [
-        { label: 'Form Preparation', getNodes: (root) => [root.querySelector('.expense-layout > .panel:nth-child(1)')] },
-        { label: 'Daftar Preparation', getNodes: (root) => [root.querySelector('.expense-layout > .panel.history-panel')] },
-        { label: 'Import Preparation', getNodes: (root) => [panelBy(root, '#importPreparationMessage')] }
-      ], { ariaLabel: 'Preparation dan resep acuan', removeSelectors: [':scope > .supabase-note'] });
-      createInnerWorkspace($('#menuMasterPage'), [
-        { label: 'Form & Daftar Menu', getNodes: (root) => [root.querySelector('.expense-layout > .panel:nth-child(1)'), root.querySelector('.expense-layout > .panel.history-panel')] },
-        { label: 'Import Menu', getNodes: (root) => [panelBy(root, '#importMenuMessage')] }
-      ], { ariaLabel: 'Master menu dan harga jual' });
       createInnerWorkspace($('#transferPage'), [
         { label: 'Input Transfer', getNodes: (root) => [root.querySelector('.expense-layout > .panel:nth-child(1)')] },
         { label: 'Riwayat Transfer', getNodes: (root) => [root.querySelector('.expense-layout > .panel.history-panel')] }
@@ -3169,11 +3214,6 @@
         { label: 'Input Opname', getNodes: (root) => [root.querySelector('.expense-layout > .panel:nth-child(1)')] },
         { label: 'Riwayat Opname', getNodes: (root) => [root.querySelector('.expense-layout > .panel.history-panel')] }
       ], { ariaLabel: 'Stock opname' });
-      createInnerWorkspace($('#salesReportPage'), [
-        { label: 'Ringkasan Penjualan', getNodes: (root) => [root.querySelector(':scope > .panel'), root.querySelector(':scope > .finance-stats-grid')] },
-        { label: 'Rekonsiliasi iSeller', getNodes: (root) => [panelBy(root, '#salesReconciliationTableWrap')] },
-        { label: 'Rekap Produk', getNodes: (root) => [panelBy(root, '#salesReportTableWrap')] }
-      ], { ariaLabel: 'Laporan penjualan' });
       createInnerWorkspace($('#hppReportPage'), [
         { label: 'HPP Aktif', getNodes: (root) => [root.querySelector(':scope > .panel:not(.history-panel)')] },
         { label: 'Riwayat HPP', getNodes: (root) => [root.querySelector(':scope > .panel.history-panel')] }
@@ -3183,11 +3223,7 @@
         { label: 'Upload Hasil', getNodes: (root) => [root.querySelector('.expense-layout > .panel:nth-child(2)')] },
         { label: 'Review Variance', getNodes: (root) => [root.querySelector(':scope > #blindOpnamePreviewPanel')] }
       ], { ariaLabel: 'Blind stock opname' });
-      createInnerWorkspace($('#reportPage'), [
-        { label: 'Laba Rugi', getNodes: (root) => [panelBy(root, '#profitLossTableWrap')] },
-        { label: 'Profitabilitas Menu', getNodes: (root) => [panelBy(root, '#profitVariantTableWrap')] },
-        { label: 'Export Pengeluaran', getNodes: (root) => [root.querySelector(':scope > #reportExportCard')] }
-      ], { ariaLabel: 'Laporan keuangan', removeSelectors: [':scope > #reportPlaceholder'] });
+      $('#reportPage #reportPlaceholder')?.remove();
       createInnerWorkspace($('#closingPage'), [
         { label: 'Closing & Validasi', getNodes: (root) => [root.querySelector(':scope > .panel:not(.history-panel)')] },
         { label: 'Koreksi Setelah Closing', getNodes: (root) => [panelBy(root, '#closingCorrectionForm')] },
@@ -3371,7 +3407,7 @@
       state.appSettings = data || settings;
       $('#settingsLastSaved').textContent = new Date().toLocaleString('id-ID');
       updateFinanceStats();
-      if (isReportTabActive('finance')) void loadProfitLossReport();
+      if (isReportTabActive('sales')) void loadProfitLossReport();
       showSettingsMessage('Pengaturan berhasil disimpan.', 'success');
       void logActivity('SETTINGS_UPDATE', 'Pengaturan sistem diperbarui oleh Super Admin.');
     }
@@ -8599,7 +8635,7 @@
 
     async function saveRecipe(event) {
       event?.preventDefault();
-      window.alert('Resep dikelola dari Master Menu & HPP. Sumber resep lama sudah dinonaktifkan.');
+      window.alert('Resep dikelola dari Master Data & Persediaan → Menu & Resep.');
     }
 
     function formatQuantity(value) {
