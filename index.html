@@ -3235,13 +3235,15 @@
       tableWrap.innerHTML = '<div class="loading-row">Memuat semua transaksi...</div>';
       try {
         if (!state.menuMasterRows.length) await loadMenuMaster();
-        const { data, error } = await fetchAllReportRows(
-          'sales',
-          'id, sale_date, product_name, variant, category_item, quantity_sold, gross_amount, hpp_total, hpp_method, hpp_recorded_at, status',
-          'sale_date'
-        );
-        if (error) throw error;
-        const sales = (data || []).filter((row) => String(row.status || 'posted').toLowerCase() !== 'void');
+        const [salesResult, expenseResult] = await Promise.all([
+          fetchAllReportRows('sales', 'id, sale_date, product_name, variant, category_item, quantity_sold, gross_amount, hpp_total, hpp_method, hpp_recorded_at, status', 'sale_date'),
+          fetchAllReportRows('expenses', 'id, expense_date, category, expense_name, amount, status', 'expense_date')
+        ]);
+        if (salesResult.error) throw salesResult.error;
+        if (expenseResult.error) throw expenseResult.error;
+        const sales = (salesResult.data || []).filter((row) => String(row.status || 'posted').toLowerCase() !== 'void');
+        const expenses = (expenseResult.data || []).filter((row) => String(row.status || 'posted').toLowerCase() !== 'void');
+        const totalExpense = expenses.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
         const totals = { quantity: 0, revenue: 0, hpp: 0, hppKnown: true, rows: 0, hppKnownRows: 0 };
         const byProduct = new Map();
         sales.forEach((row) => {
@@ -3266,12 +3268,30 @@
           if (metrics.hppKnown) totals.hppKnownRows += 1;
         });
         const products = [...byProduct.values()].sort((a, b) => b.quantity - a.quantity || b.revenue - a.revenue);
+        const missingHppRows = totals.rows - totals.hppKnownRows;
+        const grossProfit = totals.hppKnown ? totals.revenue - totals.hpp : null;
+        const netProfit = grossProfit === null ? null : grossProfit - totalExpense;
+        const maintenanceReserve = netProfit === null ? null : Math.max(0, netProfit) * 0.01;
+        const afterReserve = netProfit === null ? null : netProfit - (maintenanceReserve || 0);
         $('#lifetimeSalesQuantity').textContent = formatQuantity(totals.quantity);
         $('#lifetimeSalesRevenue').textContent = formatRupiah(totals.revenue);
         $('#lifetimeSalesHpp').textContent = totals.hppKnown ? formatRupiah(totals.hpp) : '-';
-        $('#lifetimeSalesProfit').textContent = totals.hppKnown ? formatRupiah(totals.revenue - totals.hpp) : '-';
-        const missingHppRows = totals.rows - totals.hppKnownRows;
         $('#lifetimeSalesHppNote').textContent = missingHppRows ? `${missingHppRows.toLocaleString('id-ID')} baris belum memiliki HPP` : `${totals.rows.toLocaleString('id-ID')} baris tercakup`;
+        $('#lifetimeSalesGrossProfit').textContent = grossProfit === null ? '-' : formatRupiah(grossProfit);
+        $('#lifetimeSalesExpense').textContent = formatRupiah(totalExpense);
+        $('#lifetimeSalesNetProfit').textContent = netProfit === null ? '-' : formatRupiah(netProfit);
+        $('#lifetimeMaintenanceReserve').textContent = maintenanceReserve === null ? '-' : formatRupiah(maintenanceReserve);
+        $('#lifetimeProfitAfterReserve').textContent = afterReserve === null ? '-' : formatRupiah(afterReserve);
+        const profitLossRows = [
+          ['Omzet penjualan', totals.revenue],
+          ['(-) HPP penjualan', totals.hppKnown ? -totals.hpp : null],
+          ['Laba kotor', grossProfit],
+          ['(-) Pengeluaran operasional', -totalExpense],
+          ['Laba bersih', netProfit],
+          ['(-) Cadangan maintenance (1% dari laba bersih positif)', maintenanceReserve === null ? null : -maintenanceReserve],
+          ['Laba bersih setelah cadangan', afterReserve]
+        ].map(([label, value]) => `<tr><td>${escapeHtml(label)}</td><td class="amount">${value === null ? '-' : formatRupiah(value)}</td></tr>`).join('');
+        $('#lifetimeProfitLossTableWrap').innerHTML = `<table class="history-table"><thead><tr><th>Ringkasan laba rugi semua tanggal</th><th class="amount">Total</th></tr></thead><tbody>${profitLossRows}</tbody></table>`;
         const rows = products.map((row) => {
           const profit = row.hppKnown ? row.revenue - row.hpp : null;
           const status = row.hppKnown
@@ -3282,7 +3302,7 @@
         tableWrap.innerHTML = rows
           ? `<table class="history-table"><thead><tr><th>Produk</th><th>Varian</th><th>Jenis</th><th>Total Terjual</th><th>Total Omzet</th><th>Total HPP</th><th>Profit Setelah HPP</th><th>Status HPP</th></tr></thead><tbody>${rows}</tbody></table>`
           : '<div class="loading-row">Belum ada transaksi penjualan.</div>';
-        message.textContent = `${totals.rows.toLocaleString('id-ID')} baris transaksi dari semua tanggal dihitung; ${products.length.toLocaleString('id-ID')} produk/varian unik. Transaksi void tidak dihitung.`;
+        message.textContent = `${totals.rows.toLocaleString('id-ID')} baris penjualan dan ${expenses.length.toLocaleString('id-ID')} pengeluaran dari semua tanggal dihitung; ${products.length.toLocaleString('id-ID')} produk/varian unik. Transaksi void tidak dihitung.`;
         message.className = missingHppRows ? 'form-message warning' : 'form-message success';
       } catch (error) {
         console.error(error);
@@ -3430,7 +3450,7 @@
       productProfitSource.innerHTML = '<div class="section-title"><h1>Laporan Laba Produk</h1><p>Bandingkan omzet, HPP, profit setelah HPP, dan margin untuk setiap menu-varian.</p></div>';
       const lifetimePanel = document.createElement('div');
       lifetimePanel.className = 'panel';
-      lifetimePanel.innerHTML = '<div class="panel-head"><div><h3>Akumulasi Total Keseluruhan</h3><p class="panel-subtitle">Total penjualan dari semua tanggal, tidak mengikuti filter periode di bawah. Transaksi void tidak dihitung.</p></div><button id="refreshLifetimeSalesBtn" class="reset-btn" type="button">↻ Refresh Total</button></div><div class="finance-stats-grid"><div class="finance-card"><span>Total Produk Terjual</span><strong id="lifetimeSalesQuantity">0</strong><small>Akumulasi semua tanggal</small></div><div class="finance-card"><span>Omzet Terkumpul</span><strong id="lifetimeSalesRevenue">Rp0</strong><small>Seluruh transaksi aktif</small></div><div class="finance-card"><span>Total HPP Transaksi</span><strong id="lifetimeSalesHpp">-</strong><small id="lifetimeSalesHppNote">Menunggu data</small></div><div class="finance-card"><span>Profit Setelah HPP</span><strong id="lifetimeSalesProfit">-</strong><small>Omzet dikurangi HPP tersimpan</small></div></div><p id="lifetimeSalesAccumulationMessage" class="form-message" role="status"></p><div id="lifetimeSalesProductTableWrap" class="history-table-wrap"><div class="loading-row">Membuka laporan untuk memuat akumulasi semua tanggal.</div></div>';
+      lifetimePanel.innerHTML = '<div class="panel-head"><div><h3>Akumulasi Laba Rugi Keseluruhan</h3><p class="panel-subtitle">Gabungan semua transaksi dan pengeluaran dari seluruh tanggal. Transaksi void tidak dihitung. Cadangan maintenance dihitung 1% dari laba bersih positif.</p></div><button id="refreshLifetimeSalesBtn" class="reset-btn" type="button">↻ Refresh Total</button></div><div class="finance-stats-grid"><div class="finance-card"><span>Total Produk Terjual</span><strong id="lifetimeSalesQuantity">0</strong><small>Akumulasi semua tanggal</small></div><div class="finance-card"><span>Omzet Terkumpul</span><strong id="lifetimeSalesRevenue">Rp0</strong><small>Seluruh transaksi aktif</small></div><div class="finance-card"><span>Total HPP</span><strong id="lifetimeSalesHpp">-</strong><small id="lifetimeSalesHppNote">Menunggu data</small></div><div class="finance-card"><span>Laba Kotor</span><strong id="lifetimeSalesGrossProfit">-</strong><small>Omzet dikurangi HPP</small></div><div class="finance-card"><span>Total Pengeluaran</span><strong id="lifetimeSalesExpense">Rp0</strong><small>Termasuk waste dan non-penjualan</small></div><div class="finance-card"><span>Laba Bersih</span><strong id="lifetimeSalesNetProfit">-</strong><small>Laba kotor dikurangi pengeluaran</small></div><div class="finance-card"><span>Cadangan Maintenance 1%</span><strong id="lifetimeMaintenanceReserve">-</strong><small>1% dari laba bersih positif</small></div><div class="finance-card"><span>Laba Setelah Cadangan</span><strong id="lifetimeProfitAfterReserve">-</strong><small>Laba bersih dikurangi cadangan</small></div></div><div id="lifetimeProfitLossTableWrap" class="history-table-wrap"><div class="loading-row">Akumulasi laba rugi akan tampil setelah data dimuat.</div></div><p id="lifetimeSalesAccumulationMessage" class="form-message" role="status"></p><div id="lifetimeSalesProductTableWrap" class="history-table-wrap"><div class="loading-row">Membuka laporan untuk memuat rincian produk.</div></div>';
       productProfitSource.appendChild(lifetimePanel);
       const productProfitFilters = document.createElement('div');
       productProfitFilters.className = 'panel';
