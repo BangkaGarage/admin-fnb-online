@@ -252,6 +252,22 @@
     .charts-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr); gap: 16px; margin-top: 16px; }
     .profit-chart-panel { margin-top: 16px; }
     .chart-box { position: relative; height: 300px; }
+    .dashboard-toolbar { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:18px; }
+    .dashboard-controls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .dashboard-overview { display:grid; grid-template-columns:minmax(0, 1fr) 285px; gap:16px; align-items:start; }
+    .dashboard-main { min-width:0; }
+    .dashboard-rail { display:grid; gap:14px; }
+    .dashboard-rail .panel { padding:16px; }
+    .dashboard-rail-list { display:grid; gap:10px; margin:0; padding:0; list-style:none; }
+    .dashboard-rail-list li { display:flex; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); font-size:13px; }
+    .dashboard-rail-list li:last-child { border-bottom:0; padding-bottom:0; }
+    .dashboard-shortcuts { display:grid; gap:8px; }
+    .dashboard-shortcut { width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px; color:var(--navy); background:#fff; text-align:left; font-weight:700; cursor:pointer; }
+    .dashboard-shortcut:hover { border-color:#93c5fd; background:#eff6ff; }
+    .dashboard-period-note { margin:0 0 14px; color:var(--muted); font-size:12px; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    @media (max-width: 1180px) { .dashboard-overview { grid-template-columns:1fr; } .dashboard-rail { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media (max-width: 700px) { .dashboard-toolbar { display:block; } .dashboard-controls { margin-top:13px; } .dashboard-rail { grid-template-columns:1fr; } }
     .panel { padding: 18px; }
     .panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 13px; margin-bottom: 14px; }
     .panel h3 { margin: 0; font-size: 16px; }
@@ -694,56 +710,80 @@
 
       <div class="content">
         <section id="dashboardPage" class="page active">
-          <div class="welcome">
-            <h1>Selamat datang, <span id="welcomeName">Admin</span> 👋</h1>
-            <p>Ringkasan otomatis untuk operasional hari ini. Data akan berganti mengikuti tanggal kalender setiap hari.</p>
+          <div class="dashboard-toolbar">
+            <div class="welcome">
+              <h1>Halo, <span id="welcomeName">Admin</span>!</h1>
+              <p id="dashboardDateNote">Lacak dan pantau penjualan serta operasional di sini.</p>
+            </div>
+            <div class="dashboard-controls">
+              <label class="sr-only" for="dashboardRangeSelect">Rentang dashboard</label>
+              <select id="dashboardRangeSelect" class="compact-select" aria-label="Rentang dashboard">
+                <option value="today">Hari ini</option><option value="7days" selected>7 hari terakhir</option><option value="30days">30 hari terakhir</option>
+              </select>
+              <button id="refreshDashboardBtn" class="reset-btn" type="button">↻ Refresh</button>
+            </div>
           </div>
           <div id="lowStockAlert" class="low-stock-alert hidden" role="alert">
             <span class="alert-icon">⚠</span>
             <div><strong>PERINGATAN LOW STOCK</strong><span id="lowStockAlertText"></span></div>
           </div>
-
-          <div class="finance-stats-grid">
-            <div class="finance-card"><span>Total Omzet</span><strong id="totalRevenueStat">Rp0</strong><small>Dari tabel sales Supabase</small></div>
-            <div class="finance-card"><span>Total HPP</span><strong id="totalHppStat">Rp0</strong><small>Dari resep per varian</small></div>
-            <div class="finance-card"><span>Total Pengeluaran</span><strong id="totalExpenseStat">Rp0</strong><small>Dari tabel expenses Supabase</small></div>
-            <div class="finance-card"><span id="netProfitCaption">Keuntungan Bersih</span><strong id="netProfitStat">Rp0</strong><small>Omzet dikurangi HPP dan pengeluaran</small></div>
-            <div class="finance-card"><span>Cadangan Maintenance</span><strong id="maintenanceReserveStat">Rp0</strong><small id="maintenanceReserveCaption">Acuan 1% dari laba bersih</small></div>
-          </div>
-
-          <div class="stats-grid">
-            <div class="stat-card"><div class="stat-top"><span>Transaksi penjualan hari ini</span><span class="stat-icon">#</span></div><strong id="dailySalesCountStat">0</strong></div>
-            <div class="stat-card"><div class="stat-top"><span>Pengeluaran hari ini</span><span class="stat-icon">Rp</span></div><strong id="dailyExpenseStat">Rp0</strong></div>
-            <div class="stat-card">
-              <div class="stat-top"><span>Status HPP hari ini</span><span class="stat-icon">✓</span></div>
-              <strong id="dailyHppStatusStat">-</strong>
+          <div class="dashboard-overview">
+            <div class="dashboard-main">
+              <div class="finance-stats-grid">
+                <div class="finance-card"><span>Penjualan Kotor</span><strong id="totalRevenueStat">Rp0</strong><small>Omzet dari penjualan iSeller</small></div>
+                <div class="finance-card"><span>Estimasi HPP</span><strong id="totalHppStat">Rp0</strong><small>Berdasarkan resep yang tersedia</small></div>
+                <div class="finance-card"><span>Pengeluaran</span><strong id="totalExpenseStat">Rp0</strong><small>Pengeluaran pada rentang terpilih</small></div>
+                <div class="finance-card"><span id="netProfitCaption">Laba Setelah HPP &amp; Pengeluaran</span><strong id="netProfitStat">Rp0</strong><small>Perkiraan dari data yang tercatat</small></div>
+                <div class="finance-card"><span>Cadangan Perawatan</span><strong id="maintenanceReserveStat">Rp0</strong><small id="maintenanceReserveCaption">Acuan 1% dari laba bersih</small></div>
+              </div>
+              <div class="stats-grid">
+                <div class="stat-card"><div class="stat-top"><span>Unit menu terjual</span><span class="stat-icon">#</span></div><strong id="dailySalesCountStat">0</strong></div>
+                <div class="stat-card"><div class="stat-top"><span>Pengeluaran periode ini</span><span class="stat-icon">Rp</span></div><strong id="dailyExpenseStat">Rp0</strong></div>
+                <div class="stat-card"><div class="stat-top"><span>Status kelengkapan HPP</span><span class="stat-icon">✓</span></div><strong id="dailyHppStatusStat">-</strong></div>
+                <div class="stat-card"><div class="stat-top"><span>Lokasi dengan stok rendah</span><span class="stat-icon">!</span></div><strong id="dailyLowStockStat">0</strong></div>
+              </div>
+              <p id="dashboardDateLabel" class="dashboard-period-note"></p>
+              <div class="charts-grid">
+                <div class="panel">
+                  <div class="panel-head"><div><h3>Tren Penjualan</h3><p class="panel-subtitle">Omzet per hari pada rentang yang dipilih.</p></div></div>
+                  <div class="chart-box"><canvas id="dailySalesChart" aria-label="Grafik tren penjualan harian"></canvas></div>
+                </div>
+                <div class="panel">
+                  <div class="panel-head"><div><h3>Menu Terlaris</h3><p class="panel-subtitle">Berdasarkan jumlah unit terjual.</p></div></div>
+                  <div class="chart-box"><canvas id="topProductsChart" aria-label="Grafik produk terlaris"></canvas></div>
+                </div>
+                <div class="panel">
+                  <div class="panel-head"><div><h3>Penjualan Menurut Kategori</h3><p class="panel-subtitle">Komposisi omzet pada rentang terpilih.</p></div></div>
+                  <div class="chart-box"><canvas id="categorySalesChart" aria-label="Grafik omzet per kategori"></canvas></div>
+                </div>
+              </div>
+              <div class="panel profit-chart-panel">
+                <div class="panel-head"><div><h3>Ringkasan Laba Harian</h3><p class="panel-subtitle">Perkiraan penjualan dikurangi HPP dan pengeluaran.</p></div></div>
+                <div class="chart-box"><canvas id="netProfitChart" aria-label="Grafik pendapatan dan pengeluaran untuk keuntungan bersih"></canvas></div>
+              </div>
+              <div class="panel meeting-tips-panel">
+                <div class="panel-head"><div><h3>Catatan Operasional</h3><p class="panel-subtitle">Hal yang perlu diperiksa dari penjualan, HPP, dan stok.</p></div></div>
+                <ul id="meetingTipsList" class="tips-list"><li>Memuat catatan berdasarkan data operasional...</li></ul>
+              </div>
             </div>
-            <div class="stat-card">
-              <div class="stat-top"><span>Lokasi low stock</span><span class="stat-icon">!</span></div>
-              <strong id="dailyLowStockStat">0</strong>
-            </div>
-          </div>
-          <div class="charts-grid">
-            <div class="panel">
-                <div class="panel-head"><div><h3>Omzet Hari Ini</h3><p class="panel-subtitle">Otomatis berganti saat tanggal kalender berubah.</p></div></div>
-              <div class="chart-box"><canvas id="dailySalesChart" aria-label="Grafik tren penjualan harian"></canvas></div>
-            </div>
-            <div class="panel">
-                <div class="panel-head"><div><h3>Menu Terlaris Hari Ini</h3><p class="panel-subtitle">Urutan berdasarkan unit terjual pada tanggal hari ini.</p></div></div>
-              <div class="chart-box"><canvas id="topProductsChart" aria-label="Grafik produk terlaris"></canvas></div>
-            </div>
-            <div class="panel">
-                <div class="panel-head"><div><h3>Omzet Kategori Hari Ini</h3><p class="panel-subtitle">Ringkasan kategori dari transaksi tanggal hari ini.</p></div></div>
-              <div class="chart-box"><canvas id="categorySalesChart" aria-label="Grafik omzet per kategori"></canvas></div>
-            </div>
-          </div>
-          <div class="panel profit-chart-panel">
-            <div class="panel-head"><div><h3>Keuntungan Bersih Hari Ini</h3><p class="panel-subtitle">Omzet hari ini dikurangi HPP dan pengeluaran operasional hari ini.</p></div></div>
-            <div class="chart-box"><canvas id="netProfitChart" aria-label="Grafik pendapatan dan pengeluaran untuk keuntungan bersih"></canvas></div>
-          </div>
-          <div class="panel meeting-tips-panel">
-            <div class="panel-head"><div><h3>Tips Rapat Otomatis</h3><p class="panel-subtitle">Poin pembahasan dari omzet, HPP, margin, pengeluaran, dan stok.</p></div></div>
-            <ul id="meetingTipsList" class="tips-list"><li>Memuat tips berdasarkan data operasional...</li></ul>
+            <aside class="dashboard-rail">
+              <div class="panel">
+                <div class="panel-head"><div><h3>Pantauan Operasional</h3><p class="panel-subtitle">Ringkasan yang perlu diperiksa.</p></div></div>
+                <ul class="dashboard-rail-list">
+                  <li><span>Kelengkapan HPP</span><strong id="railHppStatus">-</strong></li>
+                  <li><span>Lokasi stok rendah</span><strong id="railLowStock">0</strong></li>
+                </ul>
+              </div>
+              <div class="panel">
+                <div class="panel-head"><div><h3>Akses Cepat</h3><p class="panel-subtitle">Buka pekerjaan yang sering dipakai.</p></div></div>
+                <div class="dashboard-shortcuts">
+                  <button type="button" class="dashboard-shortcut" data-dashboard-page="expensePage">＋ Catat pemakaian / pengeluaran</button>
+                  <button type="button" class="dashboard-shortcut" data-dashboard-page="stockPage">▦ Lihat stok gudang &amp; divisi</button>
+                  <button type="button" class="dashboard-shortcut" data-dashboard-page="transferPage">⇄ Transfer stok</button>
+                  <button type="button" class="dashboard-shortcut" data-dashboard-report="backup">↓ Backup &amp; Export</button>
+                </div>
+              </div>
+            </aside>
           </div>
         </section>
 
@@ -1662,6 +1702,7 @@
       dashboardSalesRows: [],
       dashboardExpenseRows: [],
       dashboardDate: '',
+      dashboardRange: '7days',
       salesReportRows: [],
       salesAnalytics: { totalRevenue: 0, totalHpp: 0, hasRevenue: false, hppComplete: true, dailyLabels: [], dailyValues: [], dailyKeys: [], dailyRevenue: [], dailyHpp: [], topProducts: [], categoryMetrics: [], variantMetrics: [] },
       activityLogs: [],
@@ -2228,6 +2269,14 @@
         if (requestedPage === 'dashboardPage') { void loadDashboardDaily(); }
       });
     });
+    $('#dashboardRangeSelect')?.addEventListener('change', (event) => { void loadDashboardDaily(event.target.value); });
+    $('#refreshDashboardBtn')?.addEventListener('click', () => { void loadDashboardDaily($('#dashboardRangeSelect')?.value || '7days'); });
+    document.querySelectorAll('[data-dashboard-page]').forEach((button) => button.addEventListener('click', () => {
+      document.querySelector(`.nav-btn[data-page="${button.dataset.dashboardPage}"]`)?.click();
+    }));
+    document.querySelectorAll('[data-dashboard-report]').forEach((button) => button.addEventListener('click', () => {
+      document.querySelector(`.nav-btn[data-report-tab="${button.dataset.dashboardReport}"]`)?.click();
+    }));
 
     const ASSISTANT_GUIDE = [
       {
@@ -3161,7 +3210,7 @@
     mergeReportsWorkspace();
     mergeOperationsWorkspace();
     window.setInterval(() => {
-      if (state.user && document.querySelector('#dashboardPage.active') && state.dashboardDate && state.dashboardDate !== getCurrentDateKey()) void loadDashboardDaily();
+      if (state.user && document.querySelector('#dashboardPage.active') && state.dashboardDate && state.dashboardDate !== getCurrentDateKey()) void loadDashboardDaily($('#dashboardRangeSelect')?.value || state.dashboardRange);
     }, 60000);
     clearMenuMasterForm();
 
@@ -6470,6 +6519,7 @@
           const inventoryItem = inventoryById.get(String(recipe.inventory_item_id || ''));
           const childPreparation = preparationById.get(String(recipe.preparation_id || ''));
           return [{ menu, componentType: isPreparation ? 'Preparation' : 'Bahan', componentName: isPreparation ? (childPreparation?.prep_name || '') : (inventoryItem?.item_name || ''),
+            componentDivision: isPreparation ? (childPreparation?.division || '') : (inventoryItem?.division || ''),
             quantity: Number(recipe.quantity_needed) || 0, recipeUnit: recipe.recipe_unit || inventoryItem?.unit || childPreparation?.output_unit || '' }];
         });
         const preparationLines = [];
@@ -6481,12 +6531,14 @@
             const item = inventoryById.get(String(line.inventory_item_id || ''));
             const childPrep = preparationById.get(String(line.child_preparation_id || ''));
             preparationLines.push({ prep, componentType: isPreparation ? 'Preparation' : 'Bahan', componentName: isPreparation ? (childPrep?.prep_name || '') : (item?.item_name || ''),
+              componentDivision: isPreparation ? (childPrep?.division || '') : (item?.division || ''),
               quantity: Number(line.quantity_needed) || 0, recipeUnit: line.recipe_unit || item?.unit || childPrep?.output_unit || '' });
           });
         }
         const instructions = [
           { Bagian: 'Menu & Resep', Cara: 'Satu baris untuk satu menu/varian dan satu bahan resep. Jika menu belum punya resep, tetap ada satu baris dengan kolom komponen kosong.' },
           { Bagian: 'Preparation', Cara: 'Satu baris untuk satu preparation dan satu bahan resepnya.' },
+          { Bagian: 'Divisi Komponen', Cara: 'Jangan mengubah Divisi Komponen. Kolom ini menentukan bahan atau preparation yang dipakai bila namanya sama di beberapa divisi.' },
           { Bagian: 'Edit nama', Cara: 'Nama bahan atau preparation harus sama dengan daftar yang sudah ada di aplikasi. Kode menu dan kode preparation dipakai untuk mencocokkan data; jangan mengubahnya.' },
           { Bagian: 'Jenis komponen', Cara: 'Pilih Bahan untuk bahan baku, atau Preparation untuk preparation lain yang dipakai sebagai komponen.' },
           { Bagian: 'Menghapus komponen', Cara: 'Jika Anda menghapus satu baris komponen, komponen itu akan terhapus dari resep setelah import. Pastikan baris lain untuk menu/preparation tersebut tetap ada.' },
@@ -6499,6 +6551,7 @@
             'Kode Menu': menu.menu_code || '', 'Nama Menu': menu.menu_name || '', 'Kategori': menu.category || 'Other', 'Varian': menu.variant || 'Default',
             'Harga Jual': Number(menu.selling_price) || 0, 'Berlaku Mulai': menu.effective_from || new Date().toISOString().slice(0, 10),
             'Divisi Stok': menu.stock_division || 'Kitchen', 'Jenis Komponen': line.componentType, 'Nama Komponen': line.componentName,
+            'Divisi Komponen': line.componentDivision,
             'Jumlah per Porsi': line.quantity, 'Satuan Pakai': line.recipeUnit, 'Outlet': menu.outlet || 'Rebel House', 'Satuan Menu': menu.unit || 'porsi',
             'HPP Standar': Number(menu.hpp_standard) || 0, 'Cadangan HPP (%)': Number(menu.buffer_hpp_pct) || 10,
             'Target HPP (%)': Number(menu.target_hpp_pct) || 0, 'Aktif': true
@@ -6510,7 +6563,8 @@
           return lines.map((line) => ({
             'Kode Preparation': prep.prep_code || '', 'Nama Preparation': prep.prep_name || '', 'Hasil per Batch': Number(prep.output_quantity) || 0,
             'Satuan Hasil': prep.output_unit || '', 'Divisi': prep.division || 'Kitchen', 'Yield (%)': Number(prep.yield_percentage) || 100,
-            'Jenis Komponen': line.componentType, 'Nama Komponen': line.componentName, 'Jumlah': line.quantity, 'Satuan Pakai': line.recipeUnit,
+            'Jenis Komponen': line.componentType, 'Nama Komponen': line.componentName, 'Divisi Komponen': line.componentDivision,
+            'Jumlah': line.quantity, 'Satuan Pakai': line.recipeUnit,
             'Aktif': prep.is_active !== false
           }));
         });
@@ -6699,14 +6753,17 @@
     }
     function findImportInventory(itemName, division = '') {
       const candidates = state.inventory.filter((item) => normalizeText(item.item_name) === normalizeText(itemName));
-      const sameDivision = candidates.find((item) => normalizeText(item.division || 'Gudang Utama') === normalizeText(division));
-      if (sameDivision) return sameDivision;
+      const sameDivision = candidates.filter((item) => normalizeText(item.division || 'Gudang Utama') === normalizeText(division));
+      if (sameDivision.length === 1) return sameDivision[0];
+      if (sameDivision.length > 1) return null;
       return candidates.length === 1 ? candidates[0] : null;
     }
     function findImportPreparation(preparationName, division = '') {
       const candidates = state.preparations.filter((item) => normalizeText(item.prep_name) === normalizeText(preparationName));
-      const sameDivision = candidates.find((item) => normalizeText(item.division || 'Kitchen') === normalizeText(division));
-      return sameDivision || (candidates.length === 1 ? candidates[0] : null);
+      const sameDivision = candidates.filter((item) => normalizeText(item.division || 'Kitchen') === normalizeText(division));
+      if (sameDivision.length === 1) return sameDivision[0];
+      if (sameDivision.length > 1) return null;
+      return candidates.length === 1 ? candidates[0] : null;
     }
     function findImportInventoryReference(id, itemName, division = '') {
       const byId = id ? state.inventory.find((item) => String(item.id) === String(id)) : null;
@@ -6789,15 +6846,17 @@
           if (type === 'inventory') {
             const itemName = String(importRowValue(component, 'item_name', '')).trim();
             const itemId = String(importRowValue(component, 'inventory_id', importRowValue(component, 'inventory_item_id', '')) || '').trim();
-            const item = findImportInventoryReference(itemId, itemName, division);
-            if (!item) { importValidationError(errors, component, `${prepCode}: bahan "${itemName || '-'}" tidak ditemukan atau memiliki lebih dari satu divisi.`); return; }
+            const componentDivision = String(importRowValue(component, 'component_division', '') || division).trim();
+            const item = findImportInventoryReference(itemId, itemName, componentDivision);
+            if (!item) { importValidationError(errors, component, `${prepCode}: bahan "${itemName || '-'}" tidak ditemukan di divisi komponen "${componentDivision}" atau namanya masih ambigu.`); return; }
             lines.push({ component_type: 'inventory', inventory_item_id: item.id, child_preparation_id: null, quantity_needed: quantity, recipe_unit: String(importRowValue(component, 'recipe_unit', item.unit || '') || item.unit || '').trim() });
           } else if (type === 'preparation') {
             const childId = String(importRowValue(component, 'child_preparation_id', importRowValue(component, 'preparation_ref_id', '')) || '').trim();
             const childCode = String(importRowValue(component, 'preparation_code', '') || '').trim();
             const preparationName = String(importRowValue(component, 'preparation_name', '')).trim();
-            const preparation = findImportPreparationReference(childId, childCode, preparationName, division);
-            if (!preparation) { importValidationError(errors, component, `${prepCode}: preparation "${preparationName || '-'}" tidak ditemukan atau memiliki lebih dari satu divisi.`); return; }
+            const componentDivision = String(importRowValue(component, 'component_division', '') || division).trim();
+            const preparation = findImportPreparationReference(childId, childCode, preparationName, componentDivision);
+            if (!preparation) { importValidationError(errors, component, `${prepCode}: preparation "${preparationName || '-'}" tidak ditemukan di divisi komponen "${componentDivision}" atau namanya masih ambigu.`); return; }
             lines.push({ component_type: 'preparation', inventory_item_id: null, child_preparation_id: preparation.id, quantity_needed: quantity, recipe_unit: String(importRowValue(component, 'recipe_unit', preparation.output_unit || '') || preparation.output_unit || '').trim() });
           }
         });
@@ -6855,16 +6914,18 @@
           if (type === 'inventory') {
             const itemName = String(importRowValue(component, 'item_name', '')).trim();
             const itemId = String(importRowValue(component, 'inventory_id', importRowValue(component, 'inventory_item_id', '')) || '').trim();
-            const item = findImportInventoryReference(itemId, itemName, stockDivision);
-            if (!item) { importValidationError(errors, component, `${menuCode}/${variant}: bahan "${itemName || '-'}" tidak ditemukan di ${stockDivision} atau memiliki duplikat.`); return; }
+            const componentDivision = String(importRowValue(component, 'component_division', '') || stockDivision).trim();
+            const item = findImportInventoryReference(itemId, itemName, componentDivision);
+            if (!item) { importValidationError(errors, component, `${menuCode}/${variant}: bahan "${itemName || '-'}" tidak ditemukan di divisi komponen "${componentDivision}" atau namanya masih ambigu.`); return; }
             if (isWarehouseInventoryItem(item)) { importValidationError(errors, component, `${menuCode}/${variant}: resep tidak boleh mengambil stok Gudang Utama (${itemName}).`); return; }
             recipeItems.push({ component_type: 'inventory', inventory_item_id: item.id, preparation_id: null, quantity_needed: quantity, recipe_unit: String(importRowValue(component, 'recipe_unit', item.unit || '') || item.unit || '').trim() });
           } else if (type === 'preparation') {
             const childId = String(importRowValue(component, 'preparation_id', importRowValue(component, 'child_preparation_id', '')) || '').trim();
             const childCode = String(importRowValue(component, 'preparation_code', '') || '').trim();
             const preparationName = String(importRowValue(component, 'preparation_name', '')).trim();
-            const preparation = findImportPreparationReference(childId, childCode, preparationName, stockDivision);
-            if (!preparation) { importValidationError(errors, component, `${menuCode}/${variant}: preparation "${preparationName || '-'}" tidak ditemukan atau memiliki duplikat.`); return; }
+            const componentDivision = String(importRowValue(component, 'component_division', '') || stockDivision).trim();
+            const preparation = findImportPreparationReference(childId, childCode, preparationName, componentDivision);
+            if (!preparation) { importValidationError(errors, component, `${menuCode}/${variant}: preparation "${preparationName || '-'}" tidak ditemukan di divisi komponen "${componentDivision}" atau namanya masih ambigu.`); return; }
             recipeItems.push({ component_type: 'preparation', inventory_item_id: null, preparation_id: preparation.id, quantity_needed: quantity, recipe_unit: String(importRowValue(component, 'recipe_unit', preparation.output_unit || '') || preparation.output_unit || '').trim() });
           }
         });
@@ -7148,12 +7209,14 @@
           const friendlyMenuMap = {
             'Kode Menu': 'menu_code', 'Nama Menu': 'menu_name', 'Kategori': 'category', 'Varian': 'variant', 'Harga Jual': 'price',
             'Berlaku Mulai': 'effective_date', 'Divisi Stok': 'stock_division', 'Jenis Komponen': 'component_type', 'Nama Komponen': 'item_name',
+            'Divisi Komponen': 'component_division',
             'Jumlah per Porsi': 'quantity_needed', 'Satuan Pakai': 'recipe_unit', 'Outlet': 'outlet', 'Satuan Menu': 'unit',
             'HPP Standar': 'hpp_standard', 'Cadangan HPP (%)': 'buffer_hpp_pct', 'Target HPP (%)': 'target_hpp_pct', 'Aktif': 'is_active'
           };
           const friendlyPreparationMap = {
             'Kode Preparation': 'prep_code', 'Nama Preparation': 'prep_name', 'Hasil per Batch': 'output_quantity', 'Satuan Hasil': 'output_unit',
             'Divisi': 'division', 'Yield (%)': 'yield_percentage', 'Jenis Komponen': 'component_type', 'Nama Komponen': 'item_name',
+            'Divisi Komponen': 'component_division',
             'Jumlah': 'quantity_needed', 'Satuan Pakai': 'recipe_unit', 'Aktif': 'is_active'
           };
           preparationOperations = buildPreparationImportOperations(toCanonicalRows(friendlyPreparationRows, friendlyPreparationMap), [], []);
@@ -9308,14 +9371,27 @@
       state.salesAnalytics = { totalRevenue: 0, totalHpp: 0, hasRevenue: false, hppComplete: true, dailyLabels: [], dailyValues: [], dailyKeys: [], dailyRevenue: [], dailyHpp: [], topProducts: [], categoryMetrics: [], variantMetrics: [] };
     }
 
-    async function loadDashboardDaily() {
+    function dashboardRangeBounds(range = '7days') {
+      const end = getCurrentDateKey();
+      const days = range === 'today' ? 1 : range === '30days' ? 30 : 7;
+      const startDate = new Date(`${end}T00:00:00`);
+      startDate.setDate(startDate.getDate() - days + 1);
+      const start = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
+      return { start, end, days };
+    }
+
+    async function loadDashboardDaily(range = $('#dashboardRangeSelect')?.value || state.dashboardRange || '7days') {
       const today = getCurrentDateKey();
       state.dashboardDate = today;
-      const dateLabel = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${today}T00:00:00`));
+      state.dashboardRange = range;
+      const bounds = dashboardRangeBounds(range);
+      const startLabel = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short' }).format(new Date(`${bounds.start}T00:00:00`));
+      const endLabel = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${bounds.end}T00:00:00`));
       const dashboardDateLabel = $('#dashboardDateLabel');
       const dashboardDateNote = $('#dashboardDateNote');
-      if (dashboardDateLabel) dashboardDateLabel.textContent = `Data hari ini · ${dateLabel}`;
-      if (dashboardDateNote) dashboardDateNote.textContent = 'Semua angka di bawah hanya membaca transaksi dan pengeluaran pada tanggal ini.';
+      const rangeLabel = range === 'today' ? 'Hari ini' : range === '30days' ? '30 hari terakhir' : '7 hari terakhir';
+      if (dashboardDateLabel) dashboardDateLabel.textContent = `Periode: ${rangeLabel} (${startLabel} – ${endLabel})`;
+      if (dashboardDateNote) dashboardDateNote.textContent = 'Ringkasan penjualan dan operasional mengikuti rentang tanggal yang dipilih.';
       if (!supabaseConfigured) {
         state.dashboardSalesRows = [];
         state.dashboardExpenseRows = [];
@@ -9328,11 +9404,13 @@
         $('#dailyExpenseStat').textContent = formatRupiah(0);
         $('#dailyHppStatusStat').textContent = '-';
         $('#dailyLowStockStat').textContent = '0';
+        $('#railHppStatus').textContent = '-';
+        $('#railLowStock').textContent = '0';
         return;
       }
       const [{ rows: salesRows, error: salesError }, { data: expenseRows, error: expenseError }, lowStockCount] = await Promise.all([
-        fetchSalesRows(today, today, false),
-        supabaseClient.from('expenses').select('id, created_at, expense_date, category, expense_name, amount, notes, status, void_reason, created_by').eq('expense_date', today).order('created_at', { ascending: false }),
+        fetchSalesRows(bounds.start, bounds.end, false),
+        supabaseClient.from('expenses').select('id, created_at, expense_date, category, expense_name, amount, notes, status, void_reason, created_by').gte('expense_date', bounds.start).lte('expense_date', bounds.end).order('created_at', { ascending: false }),
         loadLowStockAlert()
       ]);
       if (salesError || expenseError) {
@@ -9345,7 +9423,7 @@
         updateFinanceStats();
         renderCharts();
         renderMeetingTips();
-        addUploadLog('error', `Dashboard hari ini gagal dimuat: ${error.message}`);
+        addUploadLog('error', `Dashboard gagal dimuat: ${error.message}`);
         return;
       }
       state.dashboardSalesRows = salesRows || [];
@@ -9355,11 +9433,15 @@
       if (hppResult.error) addUploadLog('warning', `HPP hari ini belum dapat dihitung: ${hppResult.error.message}`);
       buildSalesAnalyticsFromSales(state.dashboardSalesRows, hppResult.map);
       const dailyExpenseTotal = getUnifiedExpenseRows().reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-      $('#dailySalesCountStat').textContent = state.dashboardSalesRows.length.toLocaleString('id-ID');
+      const unitsSold = state.dashboardSalesRows.reduce((sum, row) => sum + (Number(row.quantity_sold) || 0), 0);
+      $('#dailySalesCountStat').textContent = unitsSold.toLocaleString('id-ID');
       $('#dailyExpenseStat').textContent = formatRupiah(dailyExpenseTotal);
       $('#dailyHppStatusStat').textContent = !state.salesAnalytics.hasRevenue ? '-' : (state.salesAnalytics.hppComplete ? 'Lengkap' : 'Perlu cek');
       $('#dailyHppStatusStat').style.color = !state.salesAnalytics.hasRevenue || state.salesAnalytics.hppComplete ? 'var(--green)' : 'var(--red)';
       $('#dailyLowStockStat').textContent = Number(lowStockCount || 0).toLocaleString('id-ID');
+      $('#railHppStatus').textContent = $('#dailyHppStatusStat').textContent;
+      $('#railHppStatus').style.color = $('#dailyHppStatusStat').style.color;
+      $('#railLowStock').textContent = Number(lowStockCount || 0).toLocaleString('id-ID');
     }
 
     async function loadSalesAnalytics({ ignoreCategory = false } = {}) {
