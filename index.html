@@ -3306,9 +3306,21 @@
       await loadProductProfitReport();
       const updated = Number(data?.updated_count || 0);
       const skipped = Number(data?.skipped_count || 0);
-      const message = `Sinkronisasi HPP selesai: ${updated} transaksi diperbarui${skipped ? `; ${skipped} masih menunggu resep atau harga bahan lengkap` : ''}.`;
+      const skippedRows = Array.isArray(data?.skipped_rows) ? data.skipped_rows : [];
+      const reasons = skippedRows.slice(0, 5).map((row) => {
+        const label = `${row.menu_name || 'Menu tidak dikenal'}${row.variant && row.variant !== 'Default' ? ` / ${row.variant}` : ''}`;
+        return `${label}: ${row.reason || 'perlu diperiksa'}`;
+      });
+      const more = skipped > reasons.length ? `; dan ${skipped - reasons.length} transaksi lain` : '';
+      const message = updated === 0 && skipped === 0
+        ? 'Tidak ada transaksi tanpa snapshot HPP yang perlu disinkronkan.'
+        : `Sinkronisasi HPP selesai: ${updated} transaksi diperbarui${skipped ? `; ${skipped} dilewati${reasons.length ? ` (${reasons.join('; ')}${more})` : ''}` : ''}.`;
       const status = $('#profitLossMessage');
-      if (status) { status.textContent = message; status.className = skipped ? 'form-message warning' : 'form-message success'; }
+      if (status) {
+        status.textContent = message;
+        status.className = skipped ? 'form-message warning' : 'form-message success';
+        status.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       return data;
     }
 
