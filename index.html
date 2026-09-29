@@ -255,6 +255,7 @@
     .dashboard-toolbar { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:18px; }
     .dashboard-controls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
     .dashboard-overview { display:grid; grid-template-columns:minmax(0, 1fr) 285px; gap:16px; align-items:start; }
+    .dashboard-kpi-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
     .dashboard-main { min-width:0; }
     .dashboard-rail { display:grid; gap:14px; }
     .dashboard-rail .panel { padding:16px; }
@@ -266,6 +267,7 @@
     .dashboard-shortcut:hover { border-color:#93c5fd; background:#eff6ff; }
     .dashboard-period-note { margin:0 0 14px; color:var(--muted); font-size:12px; }
     .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    @media (max-width: 1500px) and (min-width: 1181px) { .dashboard-kpi-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
     @media (max-width: 1180px) { .dashboard-overview { grid-template-columns:1fr; } .dashboard-rail { grid-template-columns:repeat(2,minmax(0,1fr)); } }
     @media (max-width: 700px) { .dashboard-toolbar { display:block; } .dashboard-controls { margin-top:13px; } .dashboard-rail { grid-template-columns:1fr; } }
     .panel { padding: 18px; }
@@ -723,18 +725,18 @@
               <button id="refreshDashboardBtn" class="reset-btn" type="button">↻ Refresh</button>
             </div>
           </div>
+          <p id="dashboardLoadMessage" class="form-message" role="status" aria-live="polite"></p>
           <div id="lowStockAlert" class="low-stock-alert hidden" role="alert">
             <span class="alert-icon">⚠</span>
             <div><strong>PERINGATAN LOW STOCK</strong><span id="lowStockAlertText"></span></div>
           </div>
           <div class="dashboard-overview">
             <div class="dashboard-main">
-              <div class="finance-stats-grid">
+              <div class="finance-stats-grid dashboard-kpi-grid">
                 <div class="finance-card"><span>Penjualan Kotor</span><strong id="totalRevenueStat">Rp0</strong><small>Omzet dari penjualan iSeller</small></div>
                 <div class="finance-card"><span>Estimasi HPP</span><strong id="totalHppStat">Rp0</strong><small>Berdasarkan resep yang tersedia</small></div>
                 <div class="finance-card"><span>Pengeluaran</span><strong id="totalExpenseStat">Rp0</strong><small>Pengeluaran pada rentang terpilih</small></div>
                 <div class="finance-card"><span id="netProfitCaption">Laba Setelah HPP &amp; Pengeluaran</span><strong id="netProfitStat">Rp0</strong><small>Perkiraan dari data yang tercatat</small></div>
-                <div class="finance-card"><span>Cadangan Perawatan</span><strong id="maintenanceReserveStat">Rp0</strong><small id="maintenanceReserveCaption">Acuan 1% dari laba bersih</small></div>
               </div>
               <div class="stats-grid">
                 <div class="stat-card"><div class="stat-top"><span>Unit menu terjual</span><span class="stat-icon">#</span></div><strong id="dailySalesCountStat">0</strong></div>
@@ -772,7 +774,9 @@
                 <ul class="dashboard-rail-list">
                   <li><span>Kelengkapan HPP</span><strong id="railHppStatus">-</strong></li>
                   <li><span>Lokasi stok rendah</span><strong id="railLowStock">0</strong></li>
+                  <li><span>Cadangan perawatan</span><strong id="maintenanceReserveStat">Rp0</strong></li>
                 </ul>
+                <small id="maintenanceReserveCaption" class="field-help">Acuan 1% dari laba bersih</small>
               </div>
               <div class="panel">
                 <div class="panel-head"><div><h3>Akses Cepat</h3><p class="panel-subtitle">Buka pekerjaan yang sering dipakai.</p></div></div>
@@ -780,6 +784,7 @@
                   <button type="button" class="dashboard-shortcut" data-dashboard-page="expensePage">＋ Catat pemakaian / pengeluaran</button>
                   <button type="button" class="dashboard-shortcut" data-dashboard-page="stockPage">▦ Lihat stok gudang &amp; divisi</button>
                   <button type="button" class="dashboard-shortcut" data-dashboard-page="transferPage">⇄ Transfer stok</button>
+                  <button type="button" class="dashboard-shortcut" data-dashboard-report="rice">◉ Audit nasi per karung</button>
                   <button type="button" class="dashboard-shortcut" data-dashboard-report="backup">↓ Backup &amp; Export</button>
                 </div>
               </div>
@@ -1388,7 +1393,7 @@
           <div class="finance-stats-grid" style="margin-top:20px;">
             <div class="finance-card"><span>Siklus Karung</span><strong id="riceAuditCycleCount">0</strong><small>Sesuai catatan mulai pemakaian</small></div>
             <div class="finance-card"><span>Porsi Nasi Terjual</span><strong id="riceAuditSoldPortions">0</strong><small>Menu yang resepnya terhubung ke NASI-PUTIH</small></div>
-            <div class="finance-card"><span>Selisih Belum Terjelaskan</span><strong id="riceAuditUnexplained">0 gr</strong><small>Setelah penjualan, non-penjualan, dan waste</small></div>
+            <div class="finance-card"><span>Total Besaran Selisih</span><strong id="riceAuditUnexplained">0 gr</strong><small>Jumlah absolut selisih pada semua siklus selesai</small></div>
             <div class="finance-card"><span>Perlu Ditinjau</span><strong id="riceAuditReviewCount">0</strong><small>Siklus di atas ambang atau menu belum terhitung</small></div>
           </div>
           <div class="panel history-panel" style="margin-top:20px;"><div class="panel-head"><div><h3>Rincian siklus pemakaian</h3><p class="panel-subtitle">Konsumsi staf, komplimen, testing, kalibrasi, dan waste dilaporkan terpisah.</p></div></div><div id="riceAuditCyclesWrap" class="history-table-wrap"><div class="loading-row">Pilih periode untuk memuat audit beras.</div></div></div>
@@ -9131,7 +9136,8 @@
         }).filter(Boolean);
         const completed = cycles.filter((cycle) => cycle.complete);
         const totalSoldPortions = countedMenus.reduce((sum, row) => sum + row.portions, 0);
-        const totalUnexplained = completed.reduce((sum, cycle) => sum + cycle.unexplained, 0);
+        // Sum magnitudes so positive and negative cycle differences cannot cancel each other out.
+        const totalUnexplained = completed.reduce((sum, cycle) => sum + Math.abs(cycle.unexplained), 0);
         const flaggedCount = completed.filter((cycle) => cycle.variancePct > 15).length;
         $('#riceAuditCycleCount').textContent = String(cycles.length);
         $('#riceAuditSoldPortions').textContent = formatQuantity(totalSoldPortions);
@@ -9381,6 +9387,8 @@
     }
 
     async function loadDashboardDaily(range = $('#dashboardRangeSelect')?.value || state.dashboardRange || '7days') {
+      const loadMessage = $('#dashboardLoadMessage');
+      if (loadMessage) { loadMessage.textContent = 'Memuat data dashboard…'; loadMessage.className = 'form-message warning'; }
       const today = getCurrentDateKey();
       state.dashboardDate = today;
       state.dashboardRange = range;
@@ -9406,6 +9414,7 @@
         $('#dailyLowStockStat').textContent = '0';
         $('#railHppStatus').textContent = '-';
         $('#railLowStock').textContent = '0';
+        if (loadMessage) { loadMessage.textContent = 'Koneksi database belum tersedia. Angka belum dimuat.'; loadMessage.className = 'form-message error'; }
         return;
       }
       const [{ rows: salesRows, error: salesError }, { data: expenseRows, error: expenseError }, lowStockCount] = await Promise.all([
@@ -9423,6 +9432,7 @@
         updateFinanceStats();
         renderCharts();
         renderMeetingTips();
+        if (loadMessage) { loadMessage.textContent = `Dashboard gagal memuat data: ${error.message}`; loadMessage.className = 'form-message error'; }
         addUploadLog('error', `Dashboard gagal dimuat: ${error.message}`);
         return;
       }
@@ -9442,6 +9452,11 @@
       $('#railHppStatus').textContent = $('#dailyHppStatusStat').textContent;
       $('#railHppStatus').style.color = $('#dailyHppStatusStat').style.color;
       $('#railLowStock').textContent = Number(lowStockCount || 0).toLocaleString('id-ID');
+      if (loadMessage) {
+        if (hppResult.error) { loadMessage.textContent = `Penjualan dan pengeluaran dimuat, tetapi estimasi HPP gagal dihitung: ${hppResult.error.message}`; loadMessage.className = 'form-message warning'; }
+        else if (!state.dashboardSalesRows.length && !state.dashboardExpenseRows.length) { loadMessage.textContent = `Tidak ada penjualan atau pengeluaran tercatat pada ${rangeLabel.toLowerCase()} ini.`; loadMessage.className = 'form-message warning'; }
+        else { loadMessage.textContent = `Data berhasil dimuat: ${state.dashboardSalesRows.length.toLocaleString('id-ID')} baris penjualan dan ${state.dashboardExpenseRows.length.toLocaleString('id-ID')} pengeluaran.`; loadMessage.className = 'form-message success'; }
+      }
     }
 
     async function loadSalesAnalytics({ ignoreCategory = false } = {}) {
