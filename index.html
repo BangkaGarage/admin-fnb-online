@@ -383,6 +383,10 @@
     .module-search::before { content: '⌕'; position: absolute; left: 12px; z-index: 1; color: var(--muted); font-size: 17px; pointer-events: none; }
     .module-search button { position: absolute; right: 6px; width: 25px; height: 25px; border: 0; border-radius: 6px; color: var(--muted); background: transparent; font-weight: 800; }
     .module-search button:hover { color: var(--orange-dark); background: #fff7ed; }
+    .table-manual-search { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 10px; flex-wrap:wrap; }
+    .table-manual-search input { width:min(360px, 100%); min-height:38px; padding:9px 12px; border:1px solid #cbd5e1; border-radius:9px; color:var(--navy); background:#fff; }
+    .table-manual-search input:focus { outline:none; border-color:var(--orange); box-shadow:0 0 0 3px rgba(234,88,12,.12); }
+    .table-manual-search small { color:var(--muted); }
     .nav-btn.search-hidden { display: none; }
     .nav-group.search-empty { display: none; }
     .assistant-trigger { min-height: 36px; padding: 8px 11px; border: 1px solid #fed7aa; border-radius: 10px; color: #9a3412; background: #fff7ed; font-size: 11px; font-weight: 850; white-space: nowrap; cursor: pointer; }
@@ -3591,6 +3595,54 @@
     mergeMenuWorkspace();
     mergeMasterInventoryWorkspace();
     mergeReportsWorkspace();
+
+    function setupManualTableSearch() {
+      const tableWraps = new Set(document.querySelectorAll(
+        '#menuMasterPage .history-table-wrap, #menuMasterPage .report-table-wrap, #recipeTableWrap, ' +
+        '#bomPage .history-table-wrap, #bomPage .report-table-wrap, ' +
+        '#reportsWorkspacePage .history-table-wrap, #reportsWorkspacePage .report-table-wrap, ' +
+        '#stockReportPage .history-table-wrap, #stockReportPage .report-table-wrap, ' +
+        '#riceAuditPage .history-table-wrap, #riceAuditPage .report-table-wrap, ' +
+        '#hppReportPage .history-table-wrap, #hppReportPage .report-table-wrap'
+      ));
+      tableWraps.delete($('#salesReportTableWrap')); // This table already uses the report's “Cari Menu” filter.
+      for (const wrap of tableWraps) {
+        if (!wrap || !wrap.id || wrap.dataset.manualSearchReady === 'true') continue;
+        const panel = wrap.closest('.panel');
+        if (panel?.querySelector('input[type="search"]')) continue; // Keep one search field per table panel.
+        wrap.dataset.manualSearchReady = 'true';
+        const control = document.createElement('div');
+        control.className = 'table-manual-search';
+        const input = document.createElement('input');
+        input.type = 'search';
+        input.id = `manualSearch_${wrap.id}`;
+        input.autocomplete = 'off';
+        const isMenuList = Boolean(wrap.closest('#menuMasterPage') || wrap.id === 'recipeTableWrap');
+        const isPreparationList = Boolean(wrap.closest('#bomPage'));
+        input.placeholder = isMenuList ? 'Cari nama menu atau varian...' : isPreparationList ? 'Cari preparation atau bahan...' : 'Cari dalam laporan...';
+        input.setAttribute('aria-label', `Cari pada tabel ${wrap.id}`);
+        const count = document.createElement('small');
+        count.setAttribute('aria-live', 'polite');
+        control.append(input, count);
+        wrap.parentNode.insertBefore(control, wrap);
+        const apply = () => {
+          const query = normalizeText(input.value || '');
+          const rows = [...wrap.querySelectorAll('tbody tr')];
+          let visible = 0;
+          rows.forEach((row) => {
+            const match = !query || normalizeText(row.innerText || row.textContent || '').includes(query);
+            row.hidden = !match;
+            if (match) visible += 1;
+          });
+          count.textContent = rows.length ? `Menampilkan ${visible} dari ${rows.length} baris` : 'Belum ada baris untuk dicari';
+        };
+        input.addEventListener('input', apply);
+        apply();
+        const observer = new MutationObserver(() => apply());
+        observer.observe(wrap, { childList: true, subtree: true });
+      }
+    }
+    setupManualTableSearch();
     mergeOperationsWorkspace();
     window.setInterval(() => {
       if (state.user && document.querySelector('#dashboardPage.active') && state.dashboardDate && state.dashboardDate !== getCurrentDateKey()) void loadDashboardDaily($('#dashboardRangeSelect')?.value || state.dashboardRange);
