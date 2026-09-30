@@ -4156,6 +4156,10 @@
       if (editButton) {
         const item = state.inventory.find((row) => String(row.id) === String(editButton.dataset.id));
         if (!item) return;
+        // The master form is collapsed by default so the stock list stays
+        // visible. Open it before populating/scrolling to the edit controls.
+        const editorDetails = inventoryForm.closest('details.inventory-master-details');
+        if (editorDetails) editorDetails.open = true;
         $('#inventoryEditId').value = item.id;
         $('#inventoryItemName').value = item.item_name || '';
         $('#inventoryDivision').value = item.division || 'Gudang Utama';
