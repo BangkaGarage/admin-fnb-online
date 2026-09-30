@@ -481,6 +481,11 @@
     .inventory-panel { min-width: 0; }
     .inventory-table-wrap { max-height: none; overflow-x: auto; overflow-y: visible; border: 1px solid var(--line); border-radius: 10px; }
     #stockPage .inventory-layout { grid-template-columns: minmax(0, 1fr); }
+    #stockPage > .section-title, #stockPage .master-workspace-tabs { display: none !important; }
+    .inventory-master-details { margin-top: 20px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: #f8fafc; }
+    .inventory-master-details > summary { color: var(--navy); font-size: 15px; font-weight: 850; cursor: pointer; }
+    .inventory-master-details[open] > summary { margin-bottom: 12px; }
+    .inventory-master-details .inventory-conversion-block { margin-top: 14px; }
     #stockPage .inventory-panel { width: 100%; grid-column: 1 / -1; }
     .inventory-table { min-width: 560px; }
     .inventory-filter-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, .55fr); gap: 12px; margin: 16px 0 0; }
@@ -1002,12 +1007,29 @@
             <div class="panel inventory-panel">
               <div class="panel-head">
                 <div>
-                  <h3>Master bahan baku</h3>
-                  <p class="panel-subtitle">Buat daftar bahan dan lokasi penyimpanannya. Bahan baru selalu dimulai dengan stok 0.</p>
+                  <h3>Stok Gudang &amp; Divisi</h3>
+                  <p class="panel-subtitle">Saldo bahan per lokasi ditampilkan terlebih dahulu. Gunakan pencarian atau filter divisi untuk memeriksa stok.</p>
                 </div>
                 <div class="panel-actions"><button id="exportInventoryMasterBtn" class="save-btn" type="button">Export Semua Bahan</button><button id="refreshInventoryBtn" class="reset-btn" type="button">↻ Refresh</button></div>
               </div>
-              <form id="inventoryForm">
+              <div class="inventory-filter-grid">
+                <div class="form-field">
+                  <label for="inventorySearch">Cari bahan</label>
+                  <input id="inventorySearch" type="search" placeholder="Ketik nama bahan, satuan, atau divisi..." autocomplete="off" />
+                </div>
+                <div class="form-field">
+                  <label for="inventoryDivisionFilter">Filter Divisi</label>
+                  <select id="inventoryDivisionFilter">
+                    <option value="all">Semua Divisi</option>
+                    <option value="Gudang Utama">Gudang Utama</option>
+                    <option value="Bar">Bar</option>
+                    <option value="Kitchen">Kitchen</option>
+                    <option value="Waiters">Waiters</option>
+                  </select>
+                </div>
+              </div>
+              <div class="inventory-table-wrap" id="inventoryTableWrap"><div class="loading-row">Buka halaman ini untuk memuat data stok.</div></div>
+              <div class="supabase-note">Preparation/semi-finished bersifat virtual dan tidak ditampilkan sebagai stok fisik. Yang dikontrol di sini hanya bahan mentah per divisi.</div><details class="inventory-master-details"><summary>Tambah atau edit bahan baku dan konversi</summary><p class="field-help">Gunakan formulir ini untuk mengatur nama bahan, satuan, konversi pembelian, dan batas minimum stok. Perubahan master tidak menghapus saldo stok yang sudah ada.</p><form id="inventoryForm">
                 <input id="inventoryEditId" type="hidden" />
                 <div class="form-grid">
                   <div class="form-field full">
@@ -1068,26 +1090,7 @@
                   <button id="resetInventoryBtn" class="reset-btn" type="reset">Kosongkan</button>
                 </div>
                 <p id="inventoryMessage" class="form-message" role="status"></p>
-              </form>
-              <div class="inventory-filter-grid">
-                <div class="form-field">
-                  <label for="inventorySearch">Cari bahan</label>
-                  <input id="inventorySearch" type="search" placeholder="Ketik nama bahan, satuan, atau divisi..." autocomplete="off" />
-                </div>
-                <div class="form-field">
-                  <label for="inventoryDivisionFilter">Filter Divisi</label>
-                  <select id="inventoryDivisionFilter">
-                    <option value="all">Semua Divisi</option>
-                    <option value="Gudang Utama">Gudang Utama</option>
-                    <option value="Bar">Bar</option>
-                    <option value="Kitchen">Kitchen</option>
-                    <option value="Waiters">Waiters</option>
-                  </select>
-                </div>
-              </div>
-              <div class="inventory-table-wrap" id="inventoryTableWrap"><div class="loading-row">Buka halaman ini untuk memuat data stok.</div></div>
-              <div class="supabase-note">Preparation/semi-finished bersifat virtual dan tidak ditampilkan sebagai stok fisik. Yang dikontrol di sini hanya bahan mentah per divisi.</div>
-              <div class="supabase-note">Master bahan hanya membuat baris <code>inventory</code> dengan stok 0. Untuk stok awal yang sudah tersedia, gunakan Penyesuaian Stok; untuk pembelian baru, gunakan Stok Masuk.</div>
+              </form><div class="supabase-note">Master bahan hanya membuat baris <code>inventory</code> dengan stok 0. Untuk stok awal yang sudah tersedia, gunakan Penyesuaian Stok; untuk pembelian baru, gunakan Stok Masuk.</div></details>
             </div>
 
             <div class="panel inventory-panel">
@@ -2327,6 +2330,11 @@
       window.scrollTo(0, 0);
     }
 
+    function setNavigationTitle(title) {
+      const pageTitle = $('#pageTitle');
+      if (pageTitle && title) pageTitle.textContent = title;
+    }
+
     document.querySelectorAll('.nav-btn').forEach((button) => {
       button.addEventListener('click', () => {
         const requestedPage = button.dataset.page;
@@ -2339,6 +2347,10 @@
         }
         const targetPage = document.getElementById(requestedPage);
         if (!targetPage) return;
+        // The sidebar has its own scroll container. Keep the selected item in
+        // place while the main page switches, especially in long menus.
+        const sidebar = $('.sidebar');
+        const sidebarScrollTop = sidebar?.scrollTop || 0;
         document.querySelectorAll('.nav-btn').forEach((item) => item.classList.remove('active'));
         button.classList.add('active');
         const parentGroup = button.closest('.nav-group');
@@ -2347,7 +2359,7 @@
           parentGroup.querySelector('.nav-group-toggle')?.setAttribute('aria-expanded', 'true');
         }
         setActivePage(requestedPage);
-        $('#pageTitle').textContent = button.dataset.title;
+        setNavigationTitle(button.dataset.title);
         if (requestedPage === 'expensePage') {
           loadExpenses();
           loadSalesMappingData();
@@ -2372,6 +2384,7 @@
         if (requestedPage === 'assetPage' && hasFullAdminAccess()) loadAssetData();
         if (requestedPage === 'backupExportPage') void loadBackupExportData();
         if (requestedPage === 'dashboardPage') { void loadDashboardDaily(); }
+        if (sidebar) sidebar.scrollTop = sidebarScrollTop;
       });
     });
     $('#dashboardRangeSelect')?.addEventListener('change', (event) => { void loadDashboardDaily(event.target.value); });
@@ -3027,7 +3040,10 @@
       document.querySelectorAll('.master-workspace-tab').forEach((tab) => tab.classList.toggle('active', tab === button));
       document.querySelectorAll('.master-tab-panel').forEach((item) => item.classList.toggle('active', item === panel));
       document.querySelectorAll('.nav-btn').forEach((item) => item.classList.remove('active'));
-      document.querySelector('.nav-btn[data-page="stockPage"][data-master-tab="' + tabKey + '"]')?.classList.add('active');
+      const selectedNav = document.querySelector('.nav-btn[data-page="stockPage"][data-master-tab="' + tabKey + '"]');
+      selectedNav?.classList.add('active');
+      const masterPageTitles = { materials: 'Bahan Baku & Konversi', purchase: 'Belanja Bahan & Kemasan', transfer: 'Transfer Antar Lokasi', waste: 'Pemakaian Harian & Waste', opname: 'Opname Stok' };
+      if ($('#pageTitle')) $('#pageTitle').textContent = masterPageTitles[tabKey] || selectedNav?.dataset.title || 'Persediaan';
       const loaders = {
         materials: async () => { await loadInventory(); await loadRecipes(); },
         conversion: loadUnitConversionData,
@@ -3253,7 +3269,7 @@
         button.textContent = label;
         button.addEventListener('click', () => activateMasterWorkspaceTab(key));
         tabs.appendChild(button);
-        const panel = createMasterTabPanel(key, label, sourceIds, { superAdminOnly, stripTitles: false });
+        const panel = createMasterTabPanel(key, label, sourceIds, { superAdminOnly, stripTitles: true });
         if (index === 0) panel.classList.add('active');
         host.appendChild(panel);
       });
@@ -3505,7 +3521,10 @@
       document.querySelectorAll('.reports-workspace-tab').forEach((tab) => tab.classList.toggle('active', tab === button));
       document.querySelectorAll('.reports-tab-panel').forEach((item) => item.classList.toggle('active', item === panel));
       document.querySelectorAll('.nav-btn').forEach((item) => item.classList.remove('active'));
-      document.querySelector('.nav-btn[data-page="reportsWorkspacePage"][data-report-tab="' + tabKey + '"]')?.classList.add('active');
+      const selectedNav = document.querySelector('.nav-btn[data-page="reportsWorkspacePage"][data-report-tab="' + tabKey + '"]');
+      selectedNav?.classList.add('active');
+      const reportTitles = { productProfit: 'Laba per Menu', stockMovement: 'Stok & Pergerakan' };
+      setNavigationTitle(reportTitles[tabKey] || selectedNav?.dataset.title || 'Laporan');
       const loaders = {
         productProfit: async () => { await Promise.all([loadProductProfitReport(), loadLifetimeSalesAccumulation()]); },
         stockMovement: async () => { await loadStockReport(); await loadRiceAuditData(); }
@@ -3637,7 +3656,10 @@
         item.setAttribute('aria-hidden', String(!active));
       });
       document.querySelectorAll('.nav-btn').forEach((item) => item.classList.remove('active'));
-      document.querySelector('.nav-btn[data-page="expensePage"][data-operation-tab="' + tabKey + '"]')?.classList.add('active');
+      const selectedNav = document.querySelector('.nav-btn[data-page="expensePage"][data-operation-tab="' + tabKey + '"]');
+      selectedNav?.classList.add('active');
+      const operationTitles = { sales: 'Penjualan Manual', import: 'Impor & Validasi iSeller', expenses: 'Pengeluaran Operasional', income: 'Pemasukan Lain' };
+      setNavigationTitle(operationTitles[tabKey] || selectedNav?.dataset.title || 'Operasional');
       const loaders = {
         sales: loadMenuMaster,
         import: loadSalesMappingData,
@@ -8953,7 +8975,9 @@
 
       if (error) {
         console.error(error);
-        tableWrap.innerHTML = `<div class="loading-row" style="color:var(--red);">Gagal mengambil stok: ${escapeHtml(error.message)}</div>`;
+        state.inventory = [];
+        populateInventorySelect([]);
+        tableWrap.innerHTML = `<div class="loading-row" style="color:var(--red);">Gagal mengambil stok dari Supabase: ${escapeHtml(error.message)}. Data stok tidak dihapus; periksa koneksi, kolom tabel, dan hak akses lalu tekan Refresh.</div>`;
         return;
       }
 
