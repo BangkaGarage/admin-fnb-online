@@ -670,30 +670,46 @@
       <div class="nav-title">Menu utama</div>
       <nav class="nav" aria-label="Navigasi utama">
         <button type="button" class="nav-btn active" data-page="dashboardPage" data-title="Dashboard"><span class="nav-icon">▦</span><span>Dashboard</span></button>
+
         <div class="nav-group">
-          <button class="nav-group-toggle" type="button" aria-expanded="true">Persediaan</button>
+          <button class="nav-group-toggle" type="button" aria-expanded="true">Pemasukan</button>
           <div class="nav-submenu">
-            <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="materials" data-title="Bahan Baku &amp; Konversi"><span class="nav-icon">▤</span><span>Bahan Baku &amp; Konversi</span></button>
-            <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="purchase" data-title="Barang Masuk"><span class="nav-icon">＋</span><span>Barang Masuk</span></button>
-            <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="transfer" data-title="Transfer Antar Lokasi"><span class="nav-icon">↔</span><span>Transfer Antar Lokasi</span></button>
-            <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="waste" data-title="Pemakaian Harian &amp; Waste"><span class="nav-icon">−</span><span>Pemakaian Harian &amp; Waste</span></button>
-            <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="opname" data-super-admin-only="true" data-title="Opname Stok"><span class="nav-icon">✓</span><span>Opname Stok</span></button>
+            <button type="button" class="nav-btn" data-page="expensePage" data-operation-tab="sales" data-title="Penjualan Manual"><span class="nav-icon">↘</span><span>Penjualan Manual</span></button>
+            <button type="button" class="nav-btn" data-page="expensePage" data-operation-tab="import" data-title="Penjualan iSeller"><span class="nav-icon">↥</span><span>Impor &amp; Validasi iSeller</span></button>
+            <button type="button" class="nav-btn" data-page="expensePage" data-operation-tab="income" data-title="Pemasukan Lain"><span class="nav-icon">＋</span><span>Pemasukan Lain</span></button>
+            <button type="button" class="nav-btn" data-page="closingPage" data-title="Closing Harian"><span class="nav-icon">✓</span><span>Closing Harian</span></button>
           </div>
         </div>
-        <div class="nav-group collapsed">
-          <button class="nav-group-toggle" type="button" aria-expanded="false">Menu &amp; HPP</button>
+
+        <div class="nav-group">
+          <button class="nav-group-toggle" type="button" aria-expanded="true">Pengeluaran</button>
           <div class="nav-submenu">
+            <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="purchase" data-title="Belanja Bahan &amp; Kemasan"><span class="nav-icon">＋</span><span>Belanja Bahan &amp; Kemasan</span></button>
+            <button type="button" class="nav-btn" data-page="expensePage" data-operation-tab="expenses" data-title="Pengeluaran Operasional"><span class="nav-icon">▤</span><span>Pengeluaran Operasional</span></button>
+            <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="waste" data-title="Pemakaian Harian &amp; Waste"><span class="nav-icon">−</span><span>Pemakaian Harian &amp; Waste</span></button>
+          </div>
+        </div>
+
+        <div class="nav-group collapsed">
+          <button class="nav-group-toggle" type="button" aria-expanded="false">Katalog</button>
+          <div class="nav-submenu">
+            <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="materials" data-title="Bahan Baku &amp; Konversi"><span class="nav-icon">▤</span><span>Bahan Baku &amp; Konversi</span></button>
             <button type="button" class="nav-btn" data-page="menuWorkspacePage" data-menu-section="input" data-title="Menu"><span class="nav-icon">☷</span><span>Menu</span></button>
             <button type="button" class="nav-btn" data-page="menuWorkspacePage" data-menu-section="preparation" data-title="Preparation"><span class="nav-icon">▤</span><span>Preparation</span></button>
             <button type="button" class="nav-btn" data-page="menuWorkspacePage" data-menu-section="recipes" data-title="Resep &amp; HPP"><span class="nav-icon">≡</span><span>Resep &amp; HPP</span></button>
+            <button type="button" class="nav-btn" data-page="assetPage" data-title="Inventaris Aset"><span class="nav-icon">▥</span><span>Inventaris Aset</span></button>
           </div>
         </div>
+
         <div class="nav-group collapsed">
-          <button class="nav-group-toggle" type="button" aria-expanded="false">Penjualan</button>
+          <button class="nav-group-toggle" type="button" aria-expanded="false">Persediaan</button>
           <div class="nav-submenu">
-            <button type="button" class="nav-btn" data-page="expensePage" data-operation-tab="import" data-title="Penjualan iSeller"><span class="nav-icon">↥</span><span>Impor &amp; Validasi iSeller</span></button>
+            <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="transfer" data-title="Transfer Antar Lokasi"><span class="nav-icon">↔</span><span>Transfer Antar Lokasi</span></button>
+            <button type="button" class="nav-btn" data-page="stockPage" data-master-tab="opname" data-super-admin-only="true" data-title="Opname Stok"><span class="nav-icon">✓</span><span>Opname Stok</span></button>
+            <button type="button" class="nav-btn" data-page="blindOpnamePage" data-title="Blind Stock Opname"><span class="nav-icon">✓</span><span>Blind Stock Opname</span></button>
           </div>
         </div>
+
         <div class="nav-group collapsed">
           <button class="nav-group-toggle" type="button" aria-expanded="false">Laporan</button>
           <div class="nav-submenu">
@@ -701,16 +717,11 @@
             <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="stockMovement" data-title="Stok &amp; Pergerakan"><span class="nav-icon">◫</span><span>Stok &amp; Pergerakan</span></button>
           </div>
         </div>
+
         <div class="nav-group collapsed">
-          <button class="nav-group-toggle" type="button" aria-expanded="false">Lainnya</button>
+          <button class="nav-group-toggle" type="button" aria-expanded="false">Administrasi</button>
           <div class="nav-submenu">
-            <button type="button" class="nav-btn" data-page="expensePage" data-operation-tab="sales" data-title="Penjualan Manual"><span class="nav-icon">↘</span><span>Penjualan Manual</span></button>
-            <button type="button" class="nav-btn" data-page="expensePage" data-operation-tab="expenses" data-title="Pengeluaran Operasional"><span class="nav-icon">▤</span><span>Pengeluaran Operasional</span></button>
-            <button type="button" class="nav-btn" data-page="expensePage" data-operation-tab="income" data-title="Pemasukan Lain"><span class="nav-icon">＋</span><span>Pemasukan Lain</span></button>
             <button type="button" class="nav-btn" data-page="backupExportPage" data-title="Backup &amp; Export"><span class="nav-icon">↓</span><span>Backup &amp; Export</span></button>
-            <button type="button" class="nav-btn" data-page="closingPage" data-title="Closing Harian"><span class="nav-icon">✓</span><span>Closing Harian</span></button>
-            <button type="button" class="nav-btn" data-page="assetPage" data-title="Inventaris Aset"><span class="nav-icon">▥</span><span>Inventaris Aset</span></button>
-            <button type="button" class="nav-btn" data-page="blindOpnamePage" data-title="Blind Stock Opname"><span class="nav-icon">✓</span><span>Blind Stock Opname</span></button>
             <button type="button" class="nav-btn" data-page="activityLogsPage" data-title="Log Aktivitas Staf"><span class="nav-icon">☷</span><span>Log Aktivitas Staf</span></button>
             <button type="button" class="nav-btn" data-page="settingsPage" data-title="Pengaturan"><span class="nav-icon">⚙</span><span>Pengaturan</span></button>
             <button type="button" class="nav-btn" data-page="systemResetPage" data-title="Reset Sistem"><span class="nav-icon">⚙</span><span>Reset Sistem</span></button>
