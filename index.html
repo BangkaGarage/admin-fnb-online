@@ -706,6 +706,7 @@
           <div class="nav-submenu">
             <button type="button" class="nav-btn" data-page="expensePage" data-operation-tab="sales" data-title="Penjualan Manual"><span class="nav-icon">↘</span><span>Penjualan Manual</span></button>
             <button type="button" class="nav-btn" data-page="expensePage" data-operation-tab="expenses" data-title="Pengeluaran Operasional"><span class="nav-icon">▤</span><span>Pengeluaran Operasional</span></button>
+            <button type="button" class="nav-btn" data-page="expensePage" data-operation-tab="income" data-title="Pemasukan Lain"><span class="nav-icon">＋</span><span>Pemasukan Lain</span></button>
             <button type="button" class="nav-btn" data-page="backupExportPage" data-title="Backup &amp; Export"><span class="nav-icon">↓</span><span>Backup &amp; Export</span></button>
             <button type="button" class="nav-btn" data-page="closingPage" data-title="Closing Harian"><span class="nav-icon">✓</span><span>Closing Harian</span></button>
             <button type="button" class="nav-btn" data-page="assetPage" data-title="Inventaris Aset"><span class="nav-icon">▥</span><span>Inventaris Aset</span></button>
@@ -867,6 +868,7 @@
               <form id="salesMappingForm" style="margin-top:16px;"><div class="form-grid"><div class="form-field"><label for="mappingExternalMenu">Nama Menu iSeller *</label><input id="mappingExternalMenu" required placeholder="Contoh: SINGKONG ORI" /></div><div class="form-field"><label for="mappingExternalVariant">Varian iSeller</label><input id="mappingExternalVariant" placeholder="Contoh: ORIGINAL" /></div><div class="form-field"><label for="mappingTargetMenu">Menu Aplikasi *</label><select id="mappingTargetMenu" required><option value="">Memuat menu...</option></select></div><div class="form-field"><label for="mappingTargetVariant">Varian Resep *</label><select id="mappingTargetVariant" required><option value="">Pilih menu terlebih dahulu</option></select></div></div><div class="form-actions"><button class="save-btn" type="submit">Simpan Mapping</button></div><p id="salesMappingMessage" class="form-message" role="status"></p></form><div id="salesMappingTableWrap" class="history-table-wrap" style="margin-top:16px;"><div class="loading-row">Buka halaman ini untuk memuat mapping.</div></div>
             </div>
           </div>
+          <div class="supabase-note" style="margin-bottom:14px;"><strong>Panduan pencatatan F&amp;B:</strong> belanja bahan dan kemasan dicatat sebagai Barang Masuk lalu menjadi HPP saat terpakai/terjual; jangan masukkan lagi sebagai biaya. Gaji, utilitas, pemasaran, komisi platform, pajak usaha, maintenance, dan penyusutan dicatat di bawah. Diskon iSeller sudah mengurangi omzet bersih. Komisi platform dicatat hanya bila belum dikurangkan dari omzet yang diimpor.</div>
           <div class="expense-layout">
             <div class="panel">
               <div class="panel-head">
@@ -885,13 +887,41 @@
                     <label for="expenseCategory">Kategori *</label>
                     <select id="expenseCategory" name="expenseCategory" required>
                       <option value="">Pilih kategori</option>
-                      <option value="Bahan Baku">Bahan Baku</option>
-                      <option value="Listrik &amp; Air">Listrik &amp; Air</option>
-                      <option value="Sewa Tempat">Sewa Tempat</option>
-                      <option value="Gaji Staf">Gaji Staf</option>
-                      <option value="Marketing">Marketing</option>
+                      <optgroup label="Pembelian Stok & Pemakaian">
+                        <option value="__route_purchase">Belanja Bahan Baku / Kemasan Gudang</option>
+                        <option value="__route_non_sale">Konsumsi Staf / Komplimen / Testing / Waste</option>
+                        <option value="__info_discount">Diskon / Promo pada Penjualan iSeller</option>
+                      </optgroup>
+                      <optgroup label="Tenaga Kerja">
+                        <option value="Gaji &amp; Tunjangan">Gaji &amp; Tunjangan</option>
+                        <option value="Lembur &amp; Bonus">Lembur &amp; Bonus</option>
+                        <option value="BPJS / Asuransi">BPJS / Asuransi</option>
+                      </optgroup>
+                      <optgroup label="Operasional &amp; Fasilitas">
+                        <option value="Sewa Tempat">Sewa Tempat</option>
+                        <option value="Listrik Bulanan">Listrik Bulanan</option>
+                        <option value="Air / PDAM">Air / PDAM</option>
+                        <option value="Internet">Internet</option>
+                        <option value="Gas Elpiji">Gas Elpiji</option>
+                        <option value="Retribusi / Kebersihan / Keamanan">Retribusi / Kebersihan / Keamanan</option>
+                        <option value="Maintenance &amp; Perbaikan">Maintenance &amp; Perbaikan</option>
+                      </optgroup>
+                      <optgroup label="Pemasaran">
+                        <option value="Iklan Digital">Iklan Digital</option>
+                        <option value="Endorsement / Influencer">Endorsement / Influencer</option>
+                        <option value="Biaya Aktivasi Promo">Biaya Aktivasi Promo (di luar diskon transaksi)</option>
+                      </optgroup>
+                      <optgroup label="Administrasi, Pajak &amp; Aset">
+                        <option value="Aplikasi POS / Akuntansi">Langganan Aplikasi POS / Akuntansi</option>
+                        <option value="Komisi Platform Online">Komisi Platform Online (jika belum dipotong dari omzet)</option>
+                        <option value="Perizinan / Sertifikasi">Perizinan / Sertifikasi</option>
+                        <option value="Pajak">Pajak</option>
+                        <option value="Penyusutan Aset">Penyusutan Aset</option>
+                        <option value="__route_asset">Penambahan Inventaris / Pembelian Aset</option>
+                      </optgroup>
                       <option value="Lainnya">Lainnya</option>
                     </select>
+                    <div id="expenseCategoryGuide" class="supabase-note hidden" role="status" style="margin-top:8px;"></div>
                   </div>
                   <div class="form-field full">
                     <label for="expenseName">Nama Pengeluaran *</label>
@@ -924,7 +954,7 @@
                 <div class="panel-actions">
                   <input id="expenseReportStart" class="compact-select" type="date" title="Tanggal mulai" />
                   <input id="expenseReportEnd" class="compact-select" type="date" title="Tanggal akhir" />
-                  <select id="expenseReportCategory" class="compact-select"><option value="all">Semua Kategori</option><option>Bahan Baku</option><option>Listrik &amp; Air</option><option>Sewa Tempat</option><option>Gaji Staf</option><option>Marketing</option><option>Operasional / Food Waste</option><option>Operasional / Non-Penjualan</option><option>Lainnya</option></select>
+                  <select id="expenseReportCategory" class="compact-select"><option value="all">Semua Kategori</option><option>Bahan Baku</option><option>Gaji &amp; Tunjangan</option><option>Lembur &amp; Bonus</option><option>BPJS / Asuransi</option><option>Sewa Tempat</option><option>Listrik Bulanan</option><option>Air / PDAM</option><option>Internet</option><option>Gas Elpiji</option><option>Retribusi / Kebersihan / Keamanan</option><option>Maintenance &amp; Perbaikan</option><option>Iklan Digital</option><option>Endorsement / Influencer</option><option>Biaya Aktivasi Promo</option><option>Aplikasi POS / Akuntansi</option><option>Komisi Platform Online</option><option>Perizinan / Sertifikasi</option><option>Pajak</option><option>Penyusutan Aset</option><option>Listrik &amp; Air</option><option>Gaji Staf</option><option>Marketing</option><option>Operasional / Food Waste</option><option>Operasional / Non-Penjualan</option><option>Lainnya</option></select>
                   <input id="expenseReportSearch" class="compact-select" type="search" placeholder="Cari pengeluaran" />
                   <button id="exportExpensesBtn" class="export-btn" type="button" disabled>Export to Excel</button>
                   <button id="refreshExpensesBtn" class="reset-btn" type="button">↻ Refresh</button>
@@ -934,6 +964,24 @@
                 <div class="loading-row">Buka menu ini untuk memuat riwayat pengeluaran.</div>
               </div>
             </div>
+          </div>
+          <div id="otherIncomeWorkspace" class="expense-layout" style="margin-top:18px;">
+            <div class="panel">
+              <div class="panel-head"><div><h3>Catat pemasukan selain penjualan menu</h3><p class="panel-subtitle">Penjualan makanan/minuman iSeller tetap dicatat melalui Impor iSeller. Jangan masukkan omzet yang sama di sini.</p></div><span class="summary-chip">Pemasukan lain</span></div>
+              <div class="supabase-note" style="margin-bottom:14px;">Gunakan untuk katering/acara, sewa tempat, paket perayaan, sponsor/kolaborasi, sewa slot UMKM, franchise/royalti, bunga bank, penjualan jelantah/kardus, atau pelepasan aset. Catat bahan dan biaya acara melalui persediaan/pemakaian agar laba tidak tampak terlalu tinggi. Produk kemasan, merchandise, biji kopi, dan produk retail sebaiknya dibuat sebagai menu/produk agar terhubung ke HPP dan stok.</div>
+              <form id="otherIncomeForm">
+                <div class="form-grid">
+                  <div class="form-field"><label for="otherIncomeDate">Tanggal *</label><input id="otherIncomeDate" type="date" required /></div>
+                  <div class="form-field"><label for="otherIncomeCategory">Kategori pemasukan *</label><select id="otherIncomeCategory" required><option value="">Pilih kategori</option><optgroup label="Layanan &amp; Acara"><option>Katering / Event</option><option>Sewa Tempat / Private Event</option><option>Paket Ulang Tahun / Perayaan</option></optgroup><optgroup label="Kemitraan"><option>Sponsor / Kolaborasi</option><option>Sewa Slot UMKM</option><option>Franchise Fee</option><option>Royalty Fee</option></optgroup><optgroup label="Non-operasional"><option>Bunga Bank</option><option>Penjualan Limbah Operasional</option><option>Penjualan Aset</option><option>Pemasukan Lain</option></optgroup></select></div>
+                  <div class="form-field"><label for="otherIncomeName">Keterangan pemasukan *</label><input id="otherIncomeName" type="text" required placeholder="Contoh: Katering acara kantor" /></div>
+                  <div class="form-field"><label for="otherIncomeSource">Pelanggan / sumber</label><input id="otherIncomeSource" type="text" placeholder="Nama pelanggan, mitra, bank, atau platform" /></div>
+                  <div class="form-field"><label for="otherIncomeAmount">Jumlah (Rp) *</label><input id="otherIncomeAmount" type="number" min="1" step="1" required placeholder="Contoh: 1500000" /></div>
+                  <div class="form-field full"><label for="otherIncomeNotes">Catatan</label><textarea id="otherIncomeNotes" placeholder="Referensi, bukti, atau rincian yang perlu dicatat"></textarea></div>
+                </div>
+                <div class="form-actions"><button id="saveOtherIncomeBtn" class="save-btn" type="submit">Simpan Pemasukan</button><button class="reset-btn" type="reset">Kosongkan</button></div><p id="otherIncomeMessage" class="form-message" role="status"></p>
+              </form>
+            </div>
+            <div class="panel history-panel"><div class="panel-head"><div><h3>Riwayat pemasukan lain</h3><p class="panel-subtitle">Termasuk dalam laporan laba rugi sebagai pendapatan lain, terpisah dari omzet menu.</p></div><div class="panel-actions"><input id="otherIncomeStart" class="compact-select" type="date" title="Tanggal mulai" /><input id="otherIncomeEnd" class="compact-select" type="date" title="Tanggal akhir" /><input id="otherIncomeSearch" class="compact-select" type="search" placeholder="Cari pemasukan" /><button id="refreshOtherIncomeBtn" class="reset-btn" type="button">↻ Refresh</button></div></div><div id="otherIncomeTableWrap" class="history-table-wrap"><div class="loading-row">Buka tab ini untuk memuat riwayat pemasukan.</div></div></div>
           </div>
         </section>
 
@@ -1496,7 +1544,7 @@
           <div class="section-title"><h1>Laba Rugi &amp; Pengeluaran</h1><p>Omzet dikurangi HPP dan pengeluaran operasional untuk menunjukkan laba bersih.</p></div>
           <div id="reportPlaceholder" class="placeholder hidden"><div><div class="big-icon">▥</div><h3>Modul laporan keuangan siap dikembangkan</h3><p>Perhitungan laba rugi membaca data penjualan permanen dari tabel sales dan pengeluaran dari tabel expenses.</p></div></div>
           <div class="panel">
-            <div class="panel-head"><div><h3>Laporan Laba Rugi Bulanan</h3><p class="panel-subtitle">Omzet bersih setelah diskon dikurangi HPP dan seluruh pengeluaran operasional. Cadangan maintenance hanya angka referensi dari laba bersih.</p></div><div class="panel-actions"><input id="financeReportStart" class="compact-select" type="date" title="Tanggal mulai" /><input id="financeReportEnd" class="compact-select" type="date" title="Tanggal akhir" /><select id="financeExpenseCategory" class="compact-select"><option value="all">Semua Kategori</option></select><button id="refreshProfitLossBtn" class="reset-btn" type="button">↻ Refresh</button></div></div>
+            <div class="panel-head"><div><h3>Laporan Laba Rugi Bulanan</h3><p class="panel-subtitle">Pendapatan menu + pemasukan lain, dikurangi HPP dan pengeluaran. Prime Cost = HPP + tenaga kerja; 60–65% ditampilkan sebagai kisaran acuan yang Anda berikan, bukan jaminan laba.</p></div><div class="panel-actions"><input id="financeReportStart" class="compact-select" type="date" title="Tanggal mulai" /><input id="financeReportEnd" class="compact-select" type="date" title="Tanggal akhir" /><select id="financeExpenseCategory" class="compact-select"><option value="all">Semua Kategori</option></select><button id="refreshProfitLossBtn" class="reset-btn" type="button">↻ Refresh</button></div></div>
             <p id="profitLossMessage" class="form-message" role="status"></p>
             <div id="profitLossTableWrap" class="history-table-wrap"><div class="loading-row">Buka menu ini untuk memuat laporan laba rugi.</div></div>
           </div>
@@ -1717,6 +1765,8 @@
       uploadedFileName: '',
       inventory: [],
       expenses: [],
+      otherIncomeRows: [],
+      otherIncomeLoadError: '',
       transfers: [],
       purchases: [],
       wastes: [],
@@ -2400,7 +2450,7 @@
       const masterLabels = { materials: 'Bahan Baku & Konversi', bom: 'Menu, Resep & Preparation', menu: 'Menu, Resep & Preparation', purchase: 'Barang Masuk', transfer: 'Transfer Antar Lokasi', stock: 'Stok Gudang & Divisi', waste: 'Pemakaian Harian & Waste', opname: 'Penyesuaian & Opname', movements: 'Riwayat Pergerakan' };
       const reportLabels = { productProfit: 'Laba per Menu', stockMovement: 'Stok & Pergerakan' };
       const menuLabels = { input: 'Menu', list: 'Menu', recipes: 'Resep & HPP', preparation: 'Preparation' };
-      const operationLabels = { sales: 'Penjualan Manual', import: 'Import iSeller', expenses: 'Pengeluaran' };
+      const operationLabels = { sales: 'Penjualan Manual', import: 'Import iSeller', expenses: 'Pengeluaran', income: 'Pemasukan Lain' };
       if (page === 'stockPage' && masterLabels[masterTab]) return `Konteks: ${masterLabels[masterTab]}`;
       if (page === 'reportsWorkspacePage' && reportLabels[reportTab]) return `Konteks: ${reportLabels[reportTab]}`;
       if (page === 'menuWorkspacePage' && menuLabels[menuSection]) return `Konteks: ${menuLabels[menuSection]}`;
@@ -3235,15 +3285,20 @@
       tableWrap.innerHTML = '<div class="loading-row">Memuat semua transaksi...</div>';
       try {
         if (!state.menuMasterRows.length) await loadMenuMaster();
-        const [salesResult, expenseResult] = await Promise.all([
+        const [salesResult, expenseResult, otherIncomeResult] = await Promise.all([
           fetchAllReportRows('sales', 'id, sale_date, product_name, variant, category_item, quantity_sold, gross_amount, hpp_total, hpp_method, hpp_recorded_at, status', 'sale_date'),
-          fetchAllReportRows('expenses', 'id, expense_date, category, expense_name, amount, status', 'expense_date')
+          fetchAllReportRows('expenses', 'id, expense_date, category, expense_name, amount, status', 'expense_date'),
+          fetchAllReportRows('fb_other_income', 'id, income_date, category, income_name, source_name, amount, status', 'income_date')
         ]);
         if (salesResult.error) throw salesResult.error;
         if (expenseResult.error) throw expenseResult.error;
+        if (otherIncomeResult.error) throw new Error(`Tabel pemasukan lain belum tersedia. Jalankan file SQL pemasukan terlebih dahulu. ${otherIncomeResult.error.message}`);
         const sales = (salesResult.data || []).filter((row) => String(row.status || 'posted').toLowerCase() !== 'void');
         const expenses = (expenseResult.data || []).filter((row) => String(row.status || 'posted').toLowerCase() !== 'void');
+        const otherIncomes = (otherIncomeResult.data || []).filter((row) => String(row.status || 'posted').toLowerCase() !== 'void');
+        const otherIncomeTotal = otherIncomes.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
         const totalExpense = expenses.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+        const laborExpense = expenses.filter((row) => ['Gaji & Tunjangan', 'Lembur & Bonus', 'BPJS / Asuransi'].includes(String(row.category || ''))).reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
         const totals = { quantity: 0, revenue: 0, hpp: 0, hppKnown: true, rows: 0, hppKnownRows: 0 };
         const byProduct = new Map();
         sales.forEach((row) => {
@@ -3270,11 +3325,14 @@
         const products = [...byProduct.values()].sort((a, b) => b.quantity - a.quantity || b.revenue - a.revenue);
         const missingHppRows = totals.rows - totals.hppKnownRows;
         const grossProfit = totals.hppKnown ? totals.revenue - totals.hpp : null;
-        const netProfit = grossProfit === null ? null : grossProfit - totalExpense;
+        const totalRevenue = totals.revenue + otherIncomeTotal;
+        const netProfit = grossProfit === null ? null : totalRevenue - totals.hpp - totalExpense;
         const maintenanceReserve = netProfit === null ? null : Math.max(0, netProfit) * 0.01;
         const afterReserve = netProfit === null ? null : netProfit - (maintenanceReserve || 0);
         $('#lifetimeSalesQuantity').textContent = formatQuantity(totals.quantity);
         $('#lifetimeSalesRevenue').textContent = formatRupiah(totals.revenue);
+        $('#lifetimeOtherIncome').textContent = formatRupiah(otherIncomeTotal);
+        $('#lifetimeTotalRevenue').textContent = formatRupiah(totalRevenue);
         $('#lifetimeSalesHpp').textContent = totals.hppKnown ? formatRupiah(totals.hpp) : '-';
         $('#lifetimeSalesHppNote').textContent = missingHppRows ? `${missingHppRows.toLocaleString('id-ID')} baris belum memiliki HPP` : `${totals.rows.toLocaleString('id-ID')} baris tercakup`;
         $('#lifetimeSalesGrossProfit').textContent = grossProfit === null ? '-' : formatRupiah(grossProfit);
@@ -3283,9 +3341,13 @@
         $('#lifetimeMaintenanceReserve').textContent = maintenanceReserve === null ? '-' : formatRupiah(maintenanceReserve);
         $('#lifetimeProfitAfterReserve').textContent = afterReserve === null ? '-' : formatRupiah(afterReserve);
         const profitLossRows = [
-          ['Omzet penjualan', totals.revenue],
+          ['Omzet penjualan menu (iSeller / manual)', totals.revenue],
+          ['Pemasukan lain', otherIncomeTotal],
+          ['Total pendapatan', totalRevenue],
           ['(-) HPP penjualan', totals.hppKnown ? -totals.hpp : null],
-          ['Laba kotor', grossProfit],
+          ['Rincian tenaga kerja (sudah termasuk pengeluaran)', laborExpense],
+          ['Prime Cost: HPP + tenaga kerja (indikator)', totals.hppKnown ? totals.hpp + laborExpense : null],
+          ['Laba kotor penjualan setelah HPP', grossProfit],
           ['(-) Pengeluaran operasional', -totalExpense],
           ['Laba bersih', netProfit],
           ['(-) Cadangan maintenance (1% dari laba bersih positif)', maintenanceReserve === null ? null : -maintenanceReserve],
@@ -3302,7 +3364,7 @@
         tableWrap.innerHTML = rows
           ? `<table class="history-table"><thead><tr><th>Produk</th><th>Varian</th><th>Jenis</th><th>Total Terjual</th><th>Total Omzet</th><th>Total HPP</th><th>Profit Setelah HPP</th><th>Status HPP</th></tr></thead><tbody>${rows}</tbody></table>`
           : '<div class="loading-row">Belum ada transaksi penjualan.</div>';
-        message.textContent = `${totals.rows.toLocaleString('id-ID')} baris penjualan dan ${expenses.length.toLocaleString('id-ID')} pengeluaran dari semua tanggal dihitung; ${products.length.toLocaleString('id-ID')} produk/varian unik. Transaksi void tidak dihitung.`;
+        message.textContent = `${totals.rows.toLocaleString('id-ID')} baris penjualan, ${otherIncomes.length.toLocaleString('id-ID')} pemasukan lain, dan ${expenses.length.toLocaleString('id-ID')} pengeluaran dari semua tanggal dihitung; ${products.length.toLocaleString('id-ID')} produk/varian unik. Transaksi void tidak dihitung.`;
         message.className = missingHppRows ? 'form-message warning' : 'form-message success';
       } catch (error) {
         console.error(error);
@@ -3450,7 +3512,7 @@
       productProfitSource.innerHTML = '<div class="section-title"><h1>Laporan Laba Produk</h1><p>Bandingkan omzet, HPP, profit setelah HPP, dan margin untuk setiap menu-varian.</p></div>';
       const lifetimePanel = document.createElement('div');
       lifetimePanel.className = 'panel';
-      lifetimePanel.innerHTML = '<div class="panel-head"><div><h3>Akumulasi Laba Rugi Keseluruhan</h3><p class="panel-subtitle">Gabungan semua transaksi dan pengeluaran dari seluruh tanggal. Transaksi void tidak dihitung. Cadangan maintenance dihitung 1% dari laba bersih positif.</p></div><button id="refreshLifetimeSalesBtn" class="reset-btn" type="button">↻ Refresh Total</button></div><div class="finance-stats-grid"><div class="finance-card"><span>Total Produk Terjual</span><strong id="lifetimeSalesQuantity">0</strong><small>Akumulasi semua tanggal</small></div><div class="finance-card"><span>Omzet Terkumpul</span><strong id="lifetimeSalesRevenue">Rp0</strong><small>Seluruh transaksi aktif</small></div><div class="finance-card"><span>Total HPP</span><strong id="lifetimeSalesHpp">-</strong><small id="lifetimeSalesHppNote">Menunggu data</small></div><div class="finance-card"><span>Laba Kotor</span><strong id="lifetimeSalesGrossProfit">-</strong><small>Omzet dikurangi HPP</small></div><div class="finance-card"><span>Total Pengeluaran</span><strong id="lifetimeSalesExpense">Rp0</strong><small>Termasuk waste dan non-penjualan</small></div><div class="finance-card"><span>Laba Bersih</span><strong id="lifetimeSalesNetProfit">-</strong><small>Laba kotor dikurangi pengeluaran</small></div><div class="finance-card"><span>Cadangan Maintenance 1%</span><strong id="lifetimeMaintenanceReserve">-</strong><small>1% dari laba bersih positif</small></div><div class="finance-card"><span>Laba Setelah Cadangan</span><strong id="lifetimeProfitAfterReserve">-</strong><small>Laba bersih dikurangi cadangan</small></div></div><div id="lifetimeProfitLossTableWrap" class="history-table-wrap"><div class="loading-row">Akumulasi laba rugi akan tampil setelah data dimuat.</div></div><p id="lifetimeSalesAccumulationMessage" class="form-message" role="status"></p><div id="lifetimeSalesProductTableWrap" class="history-table-wrap"><div class="loading-row">Membuka laporan untuk memuat rincian produk.</div></div>';
+      lifetimePanel.innerHTML = '<div class="panel-head"><div><h3>Akumulasi Laba Rugi Keseluruhan</h3><p class="panel-subtitle">Gabungan omzet penjualan menu, pemasukan lain, HPP, dan pengeluaran dari seluruh tanggal. Transaksi void tidak dihitung. Cadangan maintenance dihitung 1% dari laba bersih positif.</p></div><button id="refreshLifetimeSalesBtn" class="reset-btn" type="button">↻ Refresh Total</button></div><div class="finance-stats-grid"><div class="finance-card"><span>Total Produk Terjual</span><strong id="lifetimeSalesQuantity">0</strong><small>Akumulasi semua tanggal</small></div><div class="finance-card"><span>Omzet Penjualan Menu</span><strong id="lifetimeSalesRevenue">Rp0</strong><small>iSeller dan penjualan manual aktif</small></div><div class="finance-card"><span>Pemasukan Lain</span><strong id="lifetimeOtherIncome">Rp0</strong><small>Katering, sewa, kemitraan, dan lainnya</small></div><div class="finance-card"><span>Total Pendapatan</span><strong id="lifetimeTotalRevenue">Rp0</strong><small>Omzet menu + pemasukan lain</small></div><div class="finance-card"><span>Total HPP</span><strong id="lifetimeSalesHpp">-</strong><small id="lifetimeSalesHppNote">Menunggu data</small></div><div class="finance-card"><span>Laba Kotor</span><strong id="lifetimeSalesGrossProfit">-</strong><small>Omzet dikurangi HPP</small></div><div class="finance-card"><span>Total Pengeluaran</span><strong id="lifetimeSalesExpense">Rp0</strong><small>Pengeluaran uang tercatat; HPP dihitung terpisah</small></div><div class="finance-card"><span>Laba Bersih</span><strong id="lifetimeSalesNetProfit">-</strong><small>Total pendapatan dikurangi HPP dan pengeluaran</small></div><div class="finance-card"><span>Cadangan Maintenance 1%</span><strong id="lifetimeMaintenanceReserve">-</strong><small>1% dari laba bersih positif</small></div><div class="finance-card"><span>Laba Setelah Cadangan</span><strong id="lifetimeProfitAfterReserve">-</strong><small>Laba bersih dikurangi cadangan</small></div></div><div id="lifetimeProfitLossTableWrap" class="history-table-wrap"><div class="loading-row">Akumulasi laba rugi akan tampil setelah data dimuat.</div></div><p id="lifetimeSalesAccumulationMessage" class="form-message" role="status"></p><div id="lifetimeSalesProductTableWrap" class="history-table-wrap"><div class="loading-row">Membuka laporan untuk memuat rincian produk.</div></div>';
       productProfitSource.appendChild(lifetimePanel);
       const productProfitFilters = document.createElement('div');
       productProfitFilters.className = 'panel';
@@ -3568,7 +3630,8 @@
       const loaders = {
         sales: loadMenuMaster,
         import: loadSalesMappingData,
-        expenses: loadExpenses
+        expenses: loadExpenses,
+        income: loadOtherIncome
       };
       if (loaders[tabKey]) void loaders[tabKey]();
     }
@@ -3581,7 +3644,8 @@
       const manualPanel = $('#manualSalesForm')?.closest('.panel');
       const importBlock = $('#uploadZone')?.closest('.dashboard-grid');
       const expensesBlock = $('#expenseForm')?.closest('.expense-layout');
-      if (!manualPanel || !importBlock || !expensesBlock) return;
+      const incomeBlock = $('#otherIncomeWorkspace');
+      if (!manualPanel || !importBlock || !expensesBlock || !incomeBlock) return;
       createInnerWorkspace(expensesBlock, [
         { label: 'Input Pengeluaran', getNodes: (root) => [root.querySelector('#expenseForm')?.closest('.panel')] },
         { label: 'Riwayat Pengeluaran', getNodes: (root) => [root.querySelector('#expenseTableWrap')?.closest('.panel')] }
@@ -3597,7 +3661,8 @@
       const specs = [
         ['sales', 'Penjualan Manual', manualPanel],
         ['import', 'Import iSeller', importBlock],
-        ['expenses', 'Pengeluaran', expensesBlock]
+        ['expenses', 'Pengeluaran', expensesBlock],
+        ['income', 'Pemasukan Lain', incomeBlock]
       ];
       specs.forEach(([key, label, source], index) => {
         const button = document.createElement('button');
@@ -8059,7 +8124,7 @@
 
     async function fetchCompleteBackupData() {
       if (!supabaseConfigured) throw new Error('Supabase belum dikonfigurasi.');
-      const [sales, hpp, stock, movements, purchases, recipes, closings, expenses, waste, transfers, opnames, corrections, nonSaleEvents, nonSaleEventLines, mappings, preparationsResult, menuResult] = await Promise.all([
+      const [sales, hpp, stock, movements, purchases, recipes, closings, expenses, otherIncomes, waste, transfers, opnames, corrections, nonSaleEvents, nonSaleEventLines, mappings, preparationsResult, menuResult] = await Promise.all([
         fetchAllBackupRows('sales', 'sale_date'),
         fetchAllBackupRows('fb_hpp_history', 'transaction_date'),
         fetchAllBackupRows('inventory', 'id'),
@@ -8068,6 +8133,7 @@
         fetchAllBackupRows('recipes', 'id'),
         fetchBackupRpcRows('list_daily_closings', 'daily_closings'),
         fetchAllBackupRows('expenses', 'expense_date'),
+        fetchAllBackupRows('fb_other_income', 'income_date'),
         fetchBackupRpcRows('list_stock_waste_history', 'stock_waste'),
         fetchAllBackupRows('stock_transfers', 'created_at'),
         fetchBackupRpcRows('list_stock_opname_history', 'stock_opnames'),
@@ -8098,6 +8164,7 @@
         preparationLines,
         closings,
         expenses,
+        otherIncomes,
         waste,
         transfers,
         opnames,
@@ -8113,7 +8180,7 @@
       const start = $('#backupStart')?.value || '';
       const end = $('#backupEnd')?.value || '';
       if (!start && !end) return data;
-      const dateFields = { sales: 'sale_date', hpp: 'transaction_date', movements: 'created_at', purchases: 'created_at', closings: 'closing_date', expenses: 'expense_date', waste: 'created_at', transfers: 'created_at', opnames: 'created_at', corrections: 'requested_at', nonSaleEvents: 'usage_date', nonSaleEventLines: 'created_at' };
+      const dateFields = { sales: 'sale_date', hpp: 'transaction_date', movements: 'created_at', purchases: 'created_at', closings: 'closing_date', expenses: 'expense_date', otherIncomes: 'income_date', waste: 'created_at', transfers: 'created_at', opnames: 'created_at', corrections: 'requested_at', nonSaleEvents: 'usage_date', nonSaleEventLines: 'created_at' };
       const filtered = { ...data };
       Object.entries(dateFields).forEach(([key, field]) => {
         filtered[key] = (data[key] || []).filter((row) => { const date = String(row[field] || '').slice(0, 10); return (!start || date >= start) && (!end || date <= end); });
@@ -8125,7 +8192,7 @@
       data = getVisibleBackupData(data);
       const counts = [
         ['Penjualan', data.sales], ['HPP', data.hpp], ['Stok', data.stock], ['Mutasi', data.movements],
-        ['Belanja / Buku Harga', data.purchases], ['Resep Menu', data.recipes], ['Mapping Menu iSeller', data.mappings], ['Menu & Harga Aktif', data.hppActive], ['Preparation', data.preparations], ['Pengeluaran', data.expenses], ['Waste', data.waste], ['Transfer Stok', data.transfers], ['Opname', data.opnames], ['Koreksi Closing', data.corrections], ['Pemakaian Non-Penjualan', data.nonSaleEvents], ['Detail Pemakaian Non-Penjualan', data.nonSaleEventLines], ['Closing', data.closings]
+        ['Belanja / Buku Harga', data.purchases], ['Resep Menu', data.recipes], ['Mapping Menu iSeller', data.mappings], ['Menu & Harga Aktif', data.hppActive], ['Preparation', data.preparations], ['Pengeluaran', data.expenses], ['Pemasukan Lain', data.otherIncomes], ['Waste', data.waste], ['Transfer Stok', data.transfers], ['Opname', data.opnames], ['Koreksi Closing', data.corrections], ['Pemakaian Non-Penjualan', data.nonSaleEvents], ['Detail Pemakaian Non-Penjualan', data.nonSaleEventLines], ['Closing', data.closings]
       ];
       $('#backupExportCounts').innerHTML = counts.map(([label, rows]) => `<div class="finance-card"><span>${escapeHtml(label)}</span><strong>${(rows || []).length.toLocaleString('id-ID')}</strong><small>baris data</small></div>`).join('');
       $('#backupExportTableWrap').innerHTML = `<table class="history-table"><thead><tr><th>Dataset</th><th>Jumlah Baris</th><th>Keterangan</th></tr></thead><tbody>${counts.map(([label, rows]) => `<tr><td>${escapeHtml(label)}</td><td class="numeric">${(rows || []).length.toLocaleString('id-ID')}</td><td>Diambil langsung dari database</td></tr>`).join('')}</tbody></table>`;
@@ -8176,6 +8243,7 @@
       appendBackupSheet(workbook, 'Mutasi', data.movements);
       appendBackupSheet(workbook, 'Belanja', data.purchases);
       appendBackupSheet(workbook, 'Pengeluaran', data.expenses);
+      appendBackupSheet(workbook, 'Pemasukan Lain', data.otherIncomes);
       appendBackupSheet(workbook, 'Waste', data.waste);
       appendBackupSheet(workbook, 'Transfer Stok', data.transfers);
       appendBackupSheet(workbook, 'Opname', data.opnames);
@@ -9203,6 +9271,90 @@
     const expenseDate = $('#expenseDate');
     const expenseMessage = $('#expenseMessage');
     const saveExpenseBtn = $('#saveExpenseBtn');
+
+    function syncExpenseCategoryGuide() {
+      const category = $('#expenseCategory')?.value || '';
+      const guide = $('#expenseCategoryGuide');
+      const nameInput = $('#expenseName');
+      if (!guide || !saveExpenseBtn) return;
+      const routes = {
+        '__route_purchase': {
+          title: 'Belanja bahan baku dan kemasan dicatat melalui Barang Masuk.',
+          detail: 'Pastikan bahan atau kemasan sudah ada di Master Bahan, lalu hubungkan kemasan ke resep menu agar biayanya masuk HPP saat terjual. Form Barang Masuk mencatat jumlah, harga beli, konversi, dan menambah stok Gudang Utama; pembelian tidak dimasukkan lagi sebagai beban agar tidak mengurangi laba dua kali.',
+          action: 'Buka Barang Masuk',
+          target: 'purchase'
+        },
+        '__route_non_sale': {
+          title: 'Pemakaian staf, komplimen, testing, dan waste dicatat melalui Pemakaian Harian & Waste.',
+          detail: 'Catat jumlah bahan yang benar-benar dipakai atau terbuang. Jangan masukkan lagi sebagai pengeluaran uang; sistem dapat memisahkan nilainya dari HPP menu terjual.',
+          action: 'Buka Pemakaian Harian & Waste',
+          target: 'waste'
+        },
+        '__info_discount': {
+          title: 'Diskon penjualan iSeller sudah mengurangi omzet bersih.',
+          detail: 'Jangan catat diskon yang sama sebagai pengeluaran lagi. Untuk biaya iklan, endorsement, atau biaya kampanye di luar diskon transaksi, pilih kategori Pemasaran.',
+          action: '',
+          target: ''
+        },
+        '__route_asset': {
+          title: 'Penambahan inventaris dicatat melalui Inventaris Aset.',
+          detail: 'Di sana Anda bisa mencatat nama, jumlah, nilai perolehan, lokasi, dan umur manfaat aset. Nilai pembelian aset tidak langsung dibebankan seluruhnya sebagai biaya operasional.',
+          action: 'Buka Inventaris Aset',
+          target: 'asset'
+        }
+      };
+      const route = routes[category];
+      if (route) {
+        guide.classList.remove('hidden');
+        guide.innerHTML = `<strong>${escapeHtml(route.title)}</strong><div style="margin-top:4px;">${escapeHtml(route.detail)}</div>${route.action ? `<button type="button" class="reset-btn" data-expense-route="${route.target}" style="margin-top:10px;">${escapeHtml(route.action)}</button>` : ''}`;
+        saveExpenseBtn.disabled = true;
+        return;
+      }
+      guide.classList.add('hidden');
+      guide.textContent = '';
+      saveExpenseBtn.disabled = false;
+      const placeholders = {
+        'Maintenance & Perbaikan': 'Contoh: Perbaikan AC atau meja',
+        'Gaji & Tunjangan': 'Contoh: Gaji dan tunjangan September 2026',
+        'Lembur & Bonus': 'Contoh: Lembur staf atau bonus target',
+        'BPJS / Asuransi': 'Contoh: Iuran BPJS bulan September 2026',
+        'Listrik Bulanan': 'Contoh: Tagihan listrik September 2026',
+        'Air / PDAM': 'Contoh: Tagihan PDAM September 2026',
+        'Internet': 'Contoh: Langganan internet September 2026',
+        'Gas Elpiji': 'Contoh: Pembelian gas Elpiji untuk operasional',
+        'Retribusi / Kebersihan / Keamanan': 'Contoh: Retribusi kebersihan September 2026',
+        'Pajak': 'Contoh: Jenis pajak dan periode pembayaran',
+        'Sewa Tempat': 'Contoh: Sewa tempat September 2026',
+        'Iklan Digital': 'Contoh: Iklan Instagram September 2026',
+        'Endorsement / Influencer': 'Contoh: Endorsement menu baru',
+        'Biaya Aktivasi Promo': 'Contoh: Biaya materi atau acara promosi',
+        'Aplikasi POS / Akuntansi': 'Contoh: Langganan POS bulan September 2026',
+        'Komisi Platform Online': 'Contoh: Komisi layanan pesan antar',
+        'Perizinan / Sertifikasi': 'Contoh: Perpanjangan izin atau sertifikasi',
+        'Penyusutan Aset': 'Contoh: Penyusutan mesin kopi bulan September 2026'
+      };
+      if (nameInput && placeholders[category]) nameInput.placeholder = placeholders[category];
+      else if (nameInput) nameInput.placeholder = 'Contoh: Nama pengeluaran';
+      if (category === 'Pajak') {
+        guide.classList.remove('hidden');
+        guide.textContent = 'Catat pajak yang menjadi beban outlet. Pajak yang hanya dipungut dari pelanggan atau dititipkan jangan dicatat sebagai beban usaha.';
+      } else if (category === 'Komisi Platform Online') {
+        guide.classList.remove('hidden');
+        guide.textContent = 'Catat komisi jika omzet impor masih berupa nilai penjualan sebelum potongan platform. Jika file iSeller sudah menunjukkan pencairan bersih setelah komisi, jangan catat potongan yang sama lagi.';
+      } else if (category === 'Penyusutan Aset') {
+        guide.classList.remove('hidden');
+        guide.textContent = 'Masukkan beban penyusutan periode ini saja. Pembelian aset dicatat melalui Inventaris Aset, bukan dibebankan sekaligus di sini.';
+      }
+    }
+
+    $('#expenseCategory')?.addEventListener('change', syncExpenseCategoryGuide);
+    document.addEventListener('click', (event) => {
+      const routeButton = event.target.closest('[data-expense-route]');
+      if (!routeButton) return;
+      if (routeButton.dataset.expenseRoute === 'purchase') activateMasterWorkspaceTab('purchase');
+      if (routeButton.dataset.expenseRoute === 'waste') activateMasterWorkspaceTab('waste');
+      if (routeButton.dataset.expenseRoute === 'asset') document.querySelector('.nav-btn[data-page="assetPage"]')?.click();
+    });
     const manualSalesForm = $('#manualSalesForm');
     const manualSaleMessage = $('#manualSaleMessage');
     const saveManualSaleBtn = $('#saveManualSaleBtn');
@@ -9436,6 +9588,12 @@
       event.preventDefault();
       clearExpenseMessage();
 
+      const category = $('#expenseCategory').value;
+      if (category.startsWith('__')) {
+        showExpenseMessage('Kategori ini dicatat melalui modul khusus di atas agar tidak terjadi pencatatan ganda. Ikuti petunjuk yang muncul di bawah kategori.', 'warning');
+        return;
+      }
+
       if (!supabaseConfigured) {
         showExpenseMessage('Supabase belum dikonfigurasi. Isi SUPABASE_URL dan SUPABASE_ANON_KEY di JavaScript terlebih dahulu.', 'error');
         return;
@@ -9471,13 +9629,14 @@
       showExpenseMessage('Pengeluaran berhasil disimpan ke Supabase.', 'success');
       void logActivity('EXPENSE_CREATE', `Pengeluaran ${expense.expense_name} (${expense.category}) sebesar ${formatRupiah(expense.amount)} dicatat.`);
       expenseForm.reset();
+      syncExpenseCategoryGuide();
       setTodayIfEmpty();
       await loadExpenses();
     });
 
     $('#resetExpenseBtn').addEventListener('click', () => {
       clearExpenseMessage();
-      window.setTimeout(setTodayIfEmpty, 0);
+      window.setTimeout(() => { setTodayIfEmpty(); syncExpenseCategoryGuide(); }, 0);
     });
     $('#refreshExpensesBtn').addEventListener('click', loadExpenses);
     ['expenseReportStart', 'expenseReportEnd', 'expenseReportCategory'].forEach((id) => document.getElementById(id)?.addEventListener('change', () => renderExpenseTable(getVisibleExpenseRows())));
@@ -10142,7 +10301,7 @@
         <td>${escapeHtml([...row.files].join(', ') || '-')}</td>
       </tr>`).join('');
       tableWrap.innerHTML = summaryRows
-        ? `<table class="history-table"><thead><tr><th>Nama Item</th><th>Varian</th><th>Jenis</th><th>Unit Terjual</th><th>Omzet Bersih</th><th>HPP</th><th>Profit</th><th>Margin</th><th>File Sumber</th></tr></thead><tbody>${summaryRows}</tbody></table>`
+        ? `<table class="history-table"><thead><tr><th>Nama Item</th><th>Varian</th><th>Jenis</th><th>Unit Terjual</th><th>Omzet Menu</th><th>HPP</th><th>Profit</th><th>Margin</th><th>File Sumber</th></tr></thead><tbody>${summaryRows}</tbody></table>`
         : '<div class="loading-row">Tidak ada penjualan pada periode yang dipilih.</div>';
       message.textContent = `${rows.length.toLocaleString('id-ID')} baris penjualan permanen berhasil dimuat.`;
       message.className = 'form-message success';
@@ -10154,7 +10313,7 @@
         $('#profitVariantTableWrap').innerHTML = '<div class="loading-row">Supabase belum dikonfigurasi.</div>';
         return;
       }
-      await Promise.all([loadExpenses(), loadSalesAnalytics({ ignoreCategory: true })]);
+      await Promise.all([loadExpenses(), loadOtherIncome(), loadSalesAnalytics({ ignoreCategory: true })]);
       const hppResult = await loadRecipeHppMap();
       const hppMap = hppResult.map;
       const reportMessage = $('#profitLossMessage');
@@ -10162,6 +10321,9 @@
       reportMessage.className = 'form-message';
       if (hppResult.error) {
         reportMessage.textContent = `HPP belum dapat dibaca dari Supabase: ${hppResult.error.message}`;
+        reportMessage.className = 'form-message error';
+      } else if (state.otherIncomeLoadError) {
+        reportMessage.textContent = `Pemasukan lain belum dapat dimuat, jadi total pendapatan belum lengkap. Jalankan SQL Pemasukan & Pengeluaran. ${state.otherIncomeLoadError}`;
         reportMessage.className = 'form-message error';
       }
       const monthMap = new Map();
@@ -10184,7 +10346,7 @@
       financeSalesRows.forEach((row) => {
         const month = String(row.sale_date || '').slice(0, 7) || 'Tanpa tanggal';
         const metrics = getSaleProfitMetrics(row, hppMap);
-        const current = monthMap.get(month) || { month, revenue: 0, hpp: 0, expenses: 0, hppKnown: true };
+        const current = monthMap.get(month) || { month, revenue: 0, otherIncome: 0, hpp: 0, expenses: 0, hppKnown: true };
         current.revenue += metrics.revenue;
         current.hpp += metrics.hpp;
         current.hppKnown = current.hppKnown && metrics.hppKnown;
@@ -10211,10 +10373,19 @@
         variantCurrent.recipeIncomplete = variantCurrent.recipeIncomplete || recipeIncomplete;
         variantMap.set(variantKey, variantCurrent);
       });
+      const financeOtherIncomeRows = filterRowsByUnified(state.otherIncomeRows.filter((row) => String(row.status || 'posted').toLowerCase() !== 'void'), { filter: { ...unified, category: 'all' }, dateKey: 'income_date', menuKeys: ['income_name', 'source_name'], categoryKeys: ['category'] });
       financeExpenseRows.forEach((row) => {
         const month = String(row.expense_date || '').slice(0, 7) || 'Tanpa tanggal';
-        const current = monthMap.get(month) || { month, revenue: 0, hpp: 0, expenses: 0, hppKnown: true };
-        current.expenses += Number(row.amount) || 0;
+        const current = monthMap.get(month) || { month, revenue: 0, otherIncome: 0, hpp: 0, expenses: 0, labor: 0, hppKnown: true };
+        const amount = Number(row.amount) || 0;
+        current.expenses += amount;
+        if (['Gaji & Tunjangan', 'Lembur & Bonus', 'BPJS / Asuransi'].includes(String(row.category || ''))) current.labor += amount;
+        monthMap.set(month, current);
+      });
+      financeOtherIncomeRows.forEach((row) => {
+        const month = String(row.income_date || '').slice(0, 7) || 'Tanpa tanggal';
+        const current = monthMap.get(month) || { month, revenue: 0, otherIncome: 0, hpp: 0, expenses: 0, hppKnown: true };
+        current.otherIncome = (current.otherIncome || 0) + (Number(row.amount) || 0);
         monthMap.set(month, current);
       });
       const unknownVariantRows = [...variantMap.values()].filter((row) => !row.hppKnown);
@@ -10224,14 +10395,17 @@
         reportMessage.className = 'form-message warning';
       }
       const rows = [...monthMap.values()].sort((a, b) => String(b.month).localeCompare(String(a.month))).map((row) => {
-        const net = row.hppKnown ? row.revenue - row.hpp - row.expenses : null;
+        const otherIncome = row.otherIncome || 0;
+        const totalRevenue = row.revenue + otherIncome;
+        const net = row.hppKnown ? totalRevenue - row.hpp - row.expenses : null;
         const maintenanceReserve = calculateMaintenanceReserve(net, net !== null);
         const netAfterReserve = net === null ? null : net - (maintenanceReserve || 0);
-        return `<tr><td>${escapeHtml(formatMonthLabel(row.month))}</td><td class="amount">${formatRupiah(row.revenue)}</td><td class="amount">${row.hppKnown ? formatRupiah(row.hpp) : '-'}</td><td class="amount">${row.hppKnown ? formatRupiah(Math.max(0, row.revenue - row.hpp)) : '-'}</td><td class="amount">${maintenanceReserve === null ? '-' : formatRupiah(maintenanceReserve)}</td><td class="amount">${formatRupiah(row.expenses)}</td><td class="amount ${net !== null && net < 0 ? 'profit-negative' : 'profit-positive'}">${net === null ? '-' : formatRupiah(net)}</td><td class="amount ${netAfterReserve !== null && netAfterReserve < 0 ? 'profit-negative' : 'profit-positive'}">${netAfterReserve === null ? '-' : formatRupiah(netAfterReserve)}</td><td>${net === null ? '-' : formatMargin(row.revenue, row.hpp + row.expenses, true)}</td></tr>`;
+        const primeCost = row.hppKnown ? row.hpp + (row.labor || 0) : null;
+        return `<tr><td>${escapeHtml(formatMonthLabel(row.month))}</td><td class="amount">${formatRupiah(row.revenue)}</td><td class="amount">${formatRupiah(otherIncome)}</td><td class="amount">${formatRupiah(totalRevenue)}</td><td class="amount">${row.hppKnown ? formatRupiah(row.hpp) : '-'}</td><td class="amount">${formatRupiah(row.labor || 0)}</td><td class="amount">${primeCost === null ? '-' : formatRupiah(primeCost)}</td><td>${primeCost === null || !row.revenue ? '-' : `${((primeCost / row.revenue) * 100).toLocaleString('id-ID', { maximumFractionDigits: 1 })}%`}</td><td class="amount">${maintenanceReserve === null ? '-' : formatRupiah(maintenanceReserve)}</td><td class="amount">${formatRupiah(row.expenses)}</td><td class="amount ${net !== null && net < 0 ? 'profit-negative' : 'profit-positive'}">${net === null ? '-' : formatRupiah(net)}</td><td class="amount ${netAfterReserve !== null && netAfterReserve < 0 ? 'profit-negative' : 'profit-positive'}">${netAfterReserve === null ? '-' : formatRupiah(netAfterReserve)}</td><td>${net === null ? '-' : formatMargin(totalRevenue, row.hpp + row.expenses, true)}</td></tr>`;
       }).join('');
       $('#profitLossTableWrap').innerHTML = rows
-        ? `<table class="history-table"><thead><tr><th>Periode</th><th>Omzet Bersih</th><th>HPP</th><th>Margin</th><th>Cadangan Maintenance (dari Laba Bersih)</th><th>Pengeluaran</th><th>Laba / (Rugi) Bersih</th><th>Laba Setelah Cadangan</th><th>Margin Bersih</th></tr></thead><tbody>${rows}</tbody></table>`
-        : '<div class="loading-row">Belum ada data penjualan atau pengeluaran.</div>';
+        ? `<table class="history-table"><thead><tr><th>Periode</th><th>Omzet Menu Bersih</th><th>Pemasukan Lain</th><th>Total Pendapatan</th><th>HPP</th><th>Tenaga Kerja (rincian)</th><th>Prime Cost (indikator)</th><th>% Omzet Menu</th><th>Cadangan Maintenance (dari Laba Bersih)</th><th>Pengeluaran</th><th>Laba / (Rugi) Bersih</th><th>Laba Setelah Cadangan</th><th>Margin Bersih</th></tr></thead><tbody>${rows}</tbody></table>`
+        : '<div class="loading-row">Belum ada data penjualan, pemasukan lain, atau pengeluaran.</div>';
 
       const variantRows = [...variantMap.values()].sort((a, b) => b.quantity - a.quantity || b.revenue - a.revenue).map((row) => {
         const profit = row.revenue - row.hpp;
@@ -10647,6 +10821,72 @@
       if (!formattedDate) throw new Error(`Tanggal transaksi tidak valid: ${String(value)}`);
       return formattedDate;
     }
+
+    function getVisibleOtherIncomeRows() {
+      const start = $('#otherIncomeStart')?.value || '';
+      const end = $('#otherIncomeEnd')?.value || '';
+      const term = String($('#otherIncomeSearch')?.value || '').trim().toLowerCase();
+      return sortNewestFirst(state.otherIncomeRows.filter((row) => {
+        const day = String(row.income_date || '').slice(0, 10);
+        const matchesDate = (!start || day >= start) && (!end || day <= end);
+        const matchesTerm = !term || `${row.category || ''} ${row.income_name || ''} ${row.source_name || ''} ${row.notes || ''}`.toLowerCase().includes(term);
+        return matchesDate && matchesTerm;
+      }), ['created_at', 'income_date']);
+    }
+
+    function renderOtherIncomeTable(rows = getVisibleOtherIncomeRows()) {
+      const wrap = $('#otherIncomeTableWrap');
+      if (!wrap) return;
+      if (!rows.length) { wrap.innerHTML = '<div class="loading-row">Belum ada pemasukan lain pada periode ini.</div>'; return; }
+      const canVoid = ['Admin', 'Super Admin'].includes(state.user?.role);
+      const body = rows.map((row) => `<tr><td>${escapeHtml(formatExpenseDate(row.income_date))}</td><td>${escapeHtml(row.category || '-')}</td><td>${escapeHtml(row.income_name || '-')}</td><td>${escapeHtml(row.source_name || '-')}</td><td class="amount">${formatRupiah(row.amount)}</td><td><span class="status-badge ${String(row.status || 'posted').toLowerCase() === 'void' ? 'status-danger' : 'status-success'}">${escapeHtml(String(row.status || 'posted').toUpperCase())}</span></td><td>${canVoid && String(row.status || 'posted').toLowerCase() !== 'void' ? `<button type="button" class="reset-btn" data-void-other-income="${escapeHtml(row.id)}">Batalkan</button>` : ''}</td></tr>`).join('');
+      wrap.innerHTML = `<table class="history-table"><thead><tr><th>Tanggal</th><th>Kategori</th><th>Keterangan</th><th>Sumber</th><th>Jumlah</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${body}</tbody></table>`;
+    }
+
+    async function loadOtherIncome() {
+      const wrap = $('#otherIncomeTableWrap');
+      if (!wrap) return;
+      if (!supabaseConfigured) { state.otherIncomeRows = []; wrap.innerHTML = '<div class="loading-row">Konfigurasi Supabase belum tersedia.</div>'; return; }
+      wrap.innerHTML = '<div class="loading-row">Memuat pemasukan lain...</div>';
+      const { data, error } = await supabaseClient.from('fb_other_income').select('id, created_at, income_date, category, income_name, source_name, amount, notes, status, void_reason, voided_at').order('income_date', { ascending: false }).order('created_at', { ascending: false });
+      if (error) { console.error(error); state.otherIncomeRows = []; state.otherIncomeLoadError = error.message; wrap.innerHTML = `<div class="loading-row" style="color:var(--red);">${escapeHtml(error.message)}<br>Pastikan file SQL Pemasukan &amp; Pengeluaran sudah dijalankan.</div>`; return; }
+      state.otherIncomeLoadError = '';
+      state.otherIncomeRows = data || [];
+      renderOtherIncomeTable();
+    }
+
+    const otherIncomeForm = $('#otherIncomeForm');
+    otherIncomeForm?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const message = $('#otherIncomeMessage');
+      const button = $('#saveOtherIncomeBtn');
+      if (!supabaseConfigured) { message.textContent = 'Supabase belum dikonfigurasi.'; message.className = 'form-message error'; return; }
+      const amount = Number($('#otherIncomeAmount').value);
+      if (!Number.isFinite(amount) || amount <= 0) { message.textContent = 'Jumlah pemasukan harus lebih besar dari 0.'; message.className = 'form-message error'; return; }
+      button.disabled = true; button.textContent = 'Menyimpan...';
+      const record = { income_date: $('#otherIncomeDate').value, category: $('#otherIncomeCategory').value, income_name: $('#otherIncomeName').value.trim(), source_name: $('#otherIncomeSource').value.trim() || null, amount, notes: $('#otherIncomeNotes').value.trim() || null, created_by: state.user?.id || null };
+      const { error } = await supabaseClient.from('fb_other_income').insert([record]);
+      button.disabled = false; button.textContent = 'Simpan Pemasukan';
+      if (error) { console.error(error); message.textContent = `Gagal menyimpan pemasukan: ${error.message}`; message.className = 'form-message error'; return; }
+      message.textContent = 'Pemasukan lain berhasil disimpan.'; message.className = 'form-message success';
+      void logActivity('OTHER_INCOME_CREATE', `${record.category}: ${record.income_name} sebesar ${formatRupiah(record.amount)} dicatat.`);
+      otherIncomeForm.reset(); if ($('#otherIncomeDate')) $('#otherIncomeDate').value = getCurrentDateKey();
+      await Promise.all([loadOtherIncome(), loadLifetimeSalesAccumulation(), loadProfitLossReport()]);
+    });
+    $('#refreshOtherIncomeBtn')?.addEventListener('click', loadOtherIncome);
+    ['otherIncomeStart', 'otherIncomeEnd'].forEach((id) => document.getElementById(id)?.addEventListener('change', () => renderOtherIncomeTable()));
+    $('#otherIncomeSearch')?.addEventListener('input', () => renderOtherIncomeTable());
+    $('#otherIncomeTableWrap')?.addEventListener('click', async (event) => {
+      const button = event.target.closest('[data-void-other-income]');
+      if (!button) return;
+      const id = Number(button.dataset.voidOtherIncome);
+      const reason = window.prompt('Alasan membatalkan catatan pemasukan ini:');
+      if (!reason) return;
+      button.disabled = true;
+      const { error } = await supabaseClient.rpc('void_fb_other_income', { p_income_id: id, p_reason: reason.trim() });
+      if (error) { console.error(error); window.alert(`Gagal membatalkan: ${error.message}`); button.disabled = false; return; }
+      await Promise.all([loadOtherIncome(), loadLifetimeSalesAccumulation(), loadProfitLossReport()]);
+    });
 
     async function loadExpenses() {
       const tableWrap = $('#expenseTableWrap');
