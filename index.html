@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- PATCH-FNB-SYNC-20261001 -->
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
@@ -3313,7 +3314,7 @@
       try {
         if (!state.menuMasterRows.length) await loadMenuMaster();
         const [salesResult, expenseResult, otherIncomeResult] = await Promise.all([
-          fetchAllReportRows('sales', 'id, sale_date, product_name, variant, category_item, quantity_sold, gross_amount, hpp_total, hpp_method, hpp_recorded_at, status', 'sale_date'),
+          fetchAllReportRows('sales', 'id, sale_date, product_name, variant, category_item, quantity_sold, gross_amount, hpp_total, hpp_method, hpp_recorded_at, hpp_snapshot, status', 'sale_date'),
           fetchAllReportRows('expenses', 'id, expense_date, category, expense_name, amount, status', 'expense_date'),
           fetchAllReportRows('fb_other_income', 'id, income_date, category, income_name, source_name, amount, status', 'income_date')
         ]);
@@ -3326,7 +3327,7 @@
         const otherIncomeTotal = otherIncomes.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
         const totalExpense = expenses.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
         const laborExpense = expenses.filter((row) => ['Gaji & Tunjangan', 'Lembur & Bonus', 'BPJS / Asuransi'].includes(String(row.category || ''))).reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
-        const totals = { quantity: 0, revenue: 0, hpp: 0, hppKnown: true, rows: 0, hppKnownRows: 0 };
+        const totals = { quantity: 0, revenue: 0, hpp: 0, hppKnown: true, rows: 0, hppKnownRows: 0, hppRecordedRows: 0 };
         const byProduct = new Map();
         sales.forEach((row) => {
           const metrics = getSaleProfitMetrics(row);
@@ -3334,13 +3335,14 @@
           const variant = metrics.variant || 'Default';
           const categoryItem = metrics.categoryItem || 'Other';
           const key = `${normalizeMenuName(productName)}::${normalizeMenuName(variant)}::${normalizeMenuName(categoryItem)}`;
-          const current = byProduct.get(key) || { productName, variant, categoryItem, quantity: 0, revenue: 0, hpp: 0, hppKnown: true, salesRows: 0, knownRows: 0 };
+          const current = byProduct.get(key) || { productName, variant, categoryItem, quantity: 0, revenue: 0, hpp: 0, hppKnown: true, salesRows: 0, knownRows: 0, hppRecordedRows: 0 };
           current.quantity += metrics.quantity;
           current.revenue += metrics.revenue;
           current.hpp += metrics.hpp;
           current.hppKnown = current.hppKnown && metrics.hppKnown;
           current.salesRows += 1;
           if (metrics.hppKnown) current.knownRows += 1;
+          if (metrics.hppRecorded) current.hppRecordedRows += 1;
           byProduct.set(key, current);
           totals.quantity += metrics.quantity;
           totals.revenue += metrics.revenue;
@@ -3348,6 +3350,7 @@
           totals.hppKnown = totals.hppKnown && metrics.hppKnown;
           totals.rows += 1;
           if (metrics.hppKnown) totals.hppKnownRows += 1;
+          if (metrics.hppRecorded) totals.hppRecordedRows += 1;
         });
         const products = [...byProduct.values()].sort((a, b) => b.quantity - a.quantity || b.revenue - a.revenue);
         const missingHppRows = totals.rows - totals.hppKnownRows;
@@ -3360,8 +3363,10 @@
         $('#lifetimeSalesRevenue').textContent = formatRupiah(totals.revenue);
         $('#lifetimeOtherIncome').textContent = formatRupiah(otherIncomeTotal);
         $('#lifetimeTotalRevenue').textContent = formatRupiah(totalRevenue);
-        $('#lifetimeSalesHpp').textContent = totals.hppKnown ? formatRupiah(totals.hpp) : '-';
-        $('#lifetimeSalesHppNote').textContent = missingHppRows ? `${missingHppRows.toLocaleString('id-ID')} baris belum memiliki HPP` : `${totals.rows.toLocaleString('id-ID')} baris tercakup`;
+        $('#lifetimeSalesHpp').textContent = formatRupiah(totals.hpp);
+        $('#lifetimeSalesHppNote').textContent = missingHppRows
+          ? `${totals.hppRecordedRows.toLocaleString('id-ID')} baris memiliki HPP tersimpan; ${missingHppRows.toLocaleString('id-ID')} masih parsial atau belum dihitung`
+          : `${totals.rows.toLocaleString('id-ID')} baris memiliki HPP lengkap`;
         $('#lifetimeSalesGrossProfit').textContent = grossProfit === null ? '-' : formatRupiah(grossProfit);
         $('#lifetimeSalesExpense').textContent = formatRupiah(totalExpense);
         $('#lifetimeSalesNetProfit').textContent = netProfit === null ? '-' : formatRupiah(netProfit);
@@ -3371,7 +3376,7 @@
           ['Omzet penjualan menu (iSeller / manual)', totals.revenue],
           ['Pemasukan lain', otherIncomeTotal],
           ['Total pendapatan', totalRevenue],
-          ['(-) HPP penjualan', totals.hppKnown ? -totals.hpp : null],
+          ['(-) HPP tercatat (dapat mencakup HPP parsial)', -totals.hpp],
           ['Rincian tenaga kerja (sudah termasuk pengeluaran)', laborExpense],
           ['Prime Cost: HPP + tenaga kerja (indikator)', totals.hppKnown ? totals.hpp + laborExpense : null],
           ['Laba kotor penjualan setelah HPP', grossProfit],
@@ -3385,11 +3390,12 @@
           const profit = row.hppKnown ? row.revenue - row.hpp : null;
           const status = row.hppKnown
             ? '<span class="status-badge status-success">HPP lengkap</span>'
-            : `<span class="status-badge status-warning">HPP belum lengkap (${row.salesRows - row.knownRows} baris)</span>`;
-          return `<tr><td>${escapeHtml(row.productName)}</td><td>${escapeHtml(row.variant)}</td><td>${escapeHtml(row.categoryItem)}</td><td>${formatQuantity(row.quantity)}</td><td class="amount">${formatRupiah(row.revenue)}</td><td class="amount">${row.hppKnown ? formatRupiah(row.hpp) : '-'}</td><td class="amount ${profit !== null && profit < 0 ? 'profit-negative' : 'profit-positive'}">${profit === null ? '-' : formatRupiah(profit)}</td><td>${status}</td></tr>`;
+            : `<span class="status-badge status-warning">HPP parsial / belum lengkap (${row.salesRows - row.knownRows} baris)</span>`;
+          const hppDisplay = row.hppRecordedRows ? formatRupiah(row.hpp) : '-';
+          return `<tr><td>${escapeHtml(row.productName)}</td><td>${escapeHtml(row.variant)}</td><td>${escapeHtml(row.categoryItem)}</td><td>${formatQuantity(row.quantity)}</td><td class="amount">${formatRupiah(row.revenue)}</td><td class="amount">${hppDisplay}</td><td class="amount ${profit !== null && profit < 0 ? 'profit-negative' : 'profit-positive'}">${profit === null ? '-' : formatRupiah(profit)}</td><td>${status}</td></tr>`;
         }).join('');
         tableWrap.innerHTML = rows
-          ? `<table class="history-table"><thead><tr><th>Produk</th><th>Varian</th><th>Jenis</th><th>Total Terjual</th><th>Total Omzet</th><th>Total HPP</th><th>Profit Setelah HPP</th><th>Status HPP</th></tr></thead><tbody>${rows}</tbody></table>`
+          ? `<table class="history-table"><thead><tr><th>Produk</th><th>Varian</th><th>Jenis</th><th>Total Terjual</th><th>Total Omzet</th><th>HPP Tercatat</th><th>Profit Setelah HPP</th><th>Status HPP</th></tr></thead><tbody>${rows}</tbody></table>`
           : '<div class="loading-row">Belum ada transaksi penjualan.</div>';
         message.textContent = `${totals.rows.toLocaleString('id-ID')} baris penjualan, ${otherIncomes.length.toLocaleString('id-ID')} pemasukan lain, dan ${expenses.length.toLocaleString('id-ID')} pengeluaran dari semua tanggal dihitung; ${products.length.toLocaleString('id-ID')} produk/varian unik. Transaksi void tidak dihitung.`;
         message.className = missingHppRows ? 'form-message warning' : 'form-message success';
@@ -3542,11 +3548,11 @@
       productProfitSource.innerHTML = '<div class="section-title"><h1>Laporan Laba Produk</h1><p>Bandingkan omzet, HPP, profit setelah HPP, dan margin untuk setiap menu-varian.</p></div>';
       const lifetimePanel = document.createElement('div');
       lifetimePanel.className = 'panel';
-      lifetimePanel.innerHTML = '<div class="panel-head"><div><h3>Akumulasi Laba Rugi Keseluruhan</h3><p class="panel-subtitle">Gabungan omzet penjualan menu, pemasukan lain, HPP, dan pengeluaran dari seluruh tanggal. Transaksi void tidak dihitung. Cadangan maintenance dihitung 1% dari laba bersih positif.</p></div><button id="refreshLifetimeSalesBtn" class="reset-btn" type="button">↻ Refresh Total</button></div><div class="finance-stats-grid"><div class="finance-card"><span>Total Produk Terjual</span><strong id="lifetimeSalesQuantity">0</strong><small>Akumulasi semua tanggal</small></div><div class="finance-card"><span>Omzet Penjualan Menu</span><strong id="lifetimeSalesRevenue">Rp0</strong><small>iSeller dan penjualan manual aktif</small></div><div class="finance-card"><span>Pemasukan Lain</span><strong id="lifetimeOtherIncome">Rp0</strong><small>Katering, sewa, kemitraan, dan lainnya</small></div><div class="finance-card"><span>Total Pendapatan</span><strong id="lifetimeTotalRevenue">Rp0</strong><small>Omzet menu + pemasukan lain</small></div><div class="finance-card"><span>Total HPP</span><strong id="lifetimeSalesHpp">-</strong><small id="lifetimeSalesHppNote">Menunggu data</small></div><div class="finance-card"><span>Laba Kotor</span><strong id="lifetimeSalesGrossProfit">-</strong><small>Omzet dikurangi HPP</small></div><div class="finance-card"><span>Total Pengeluaran</span><strong id="lifetimeSalesExpense">Rp0</strong><small>Pengeluaran uang tercatat; HPP dihitung terpisah</small></div><div class="finance-card"><span>Laba Bersih</span><strong id="lifetimeSalesNetProfit">-</strong><small>Total pendapatan dikurangi HPP dan pengeluaran</small></div><div class="finance-card"><span>Cadangan Maintenance 1%</span><strong id="lifetimeMaintenanceReserve">-</strong><small>1% dari laba bersih positif</small></div><div class="finance-card"><span>Laba Setelah Cadangan</span><strong id="lifetimeProfitAfterReserve">-</strong><small>Laba bersih dikurangi cadangan</small></div></div><div id="lifetimeProfitLossTableWrap" class="history-table-wrap"><div class="loading-row">Akumulasi laba rugi akan tampil setelah data dimuat.</div></div><p id="lifetimeSalesAccumulationMessage" class="form-message" role="status"></p><div id="lifetimeSalesProductTableWrap" class="history-table-wrap"><div class="loading-row">Membuka laporan untuk memuat rincian produk.</div></div>';
+      lifetimePanel.innerHTML = '<div class="panel-head"><div><h3>Akumulasi Laba Rugi Keseluruhan</h3><p class="panel-subtitle">Gabungan omzet penjualan menu, pemasukan lain, HPP, dan pengeluaran dari seluruh tanggal. HPP tercatat tetap dijumlahkan saat sebagian resep belum lengkap; laba menunggu HPP lengkap. Penjualan tidak memotong stok.</p></div><button id="refreshLifetimeSalesBtn" class="reset-btn" type="button">↻ Refresh Total</button></div><div class="finance-stats-grid"><div class="finance-card"><span>Total Produk Terjual</span><strong id="lifetimeSalesQuantity">0</strong><small>Akumulasi semua tanggal</small></div><div class="finance-card"><span>Omzet Penjualan Menu</span><strong id="lifetimeSalesRevenue">Rp0</strong><small>iSeller dan penjualan manual aktif</small></div><div class="finance-card"><span>Pemasukan Lain</span><strong id="lifetimeOtherIncome">Rp0</strong><small>Katering, sewa, kemitraan, dan lainnya</small></div><div class="finance-card"><span>Total Pendapatan</span><strong id="lifetimeTotalRevenue">Rp0</strong><small>Omzet menu + pemasukan lain</small></div><div class="finance-card"><span>HPP Tercatat</span><strong id="lifetimeSalesHpp">Rp0</strong><small id="lifetimeSalesHppNote">HPP yang tersedia dari resep</small></div><div class="finance-card"><span>Laba Kotor</span><strong id="lifetimeSalesGrossProfit">-</strong><small>Ditampilkan setelah seluruh HPP lengkap</small></div><div class="finance-card"><span>Total Pengeluaran</span><strong id="lifetimeSalesExpense">Rp0</strong><small>Pengeluaran uang tercatat; HPP dihitung terpisah</small></div><div class="finance-card"><span>Laba Bersih</span><strong id="lifetimeSalesNetProfit">-</strong><small>Total pendapatan dikurangi HPP dan pengeluaran</small></div><div class="finance-card"><span>Cadangan Maintenance 1%</span><strong id="lifetimeMaintenanceReserve">-</strong><small>1% dari laba bersih positif</small></div><div class="finance-card"><span>Laba Setelah Cadangan</span><strong id="lifetimeProfitAfterReserve">-</strong><small>Laba bersih dikurangi cadangan</small></div></div><div id="lifetimeProfitLossTableWrap" class="history-table-wrap"><div class="loading-row">Akumulasi laba rugi akan tampil setelah data dimuat.</div></div><p id="lifetimeSalesAccumulationMessage" class="form-message" role="status"></p><div id="lifetimeSalesProductTableWrap" class="history-table-wrap"><div class="loading-row">Membuka laporan untuk memuat rincian produk.</div></div>';
       productProfitSource.appendChild(lifetimePanel);
       const productProfitFilters = document.createElement('div');
       productProfitFilters.className = 'panel';
-      productProfitFilters.innerHTML = '<div class="panel-head"><div><h3>Penjualan Produk &amp; Laba</h3><p class="panel-subtitle">Jumlah terjual dan omzet dijumlahkan per menu-varian untuk rentang tanggal yang dipilih.</p></div></div><div class="panel-actions"><label class="field-help" for="productProfitPreset">Periode</label><select id="productProfitPreset" class="compact-select"><option value="all" selected>Semua tanggal</option><option value="today">Hari ini</option><option value="yesterday">Kemarin</option><option value="7days">7 hari terakhir</option><option value="30days">30 hari terakhir</option><option value="month">Bulan ini</option><option value="custom">Rentang tanggal</option></select><label class="field-help" for="productProfitStart">Dari</label><input id="productProfitStart" class="compact-select" type="date"><label class="field-help" for="productProfitEnd">Sampai</label><input id="productProfitEnd" class="compact-select" type="date"><button id="refreshProductProfitBtn" class="save-btn" type="button">Tampilkan</button><button id="syncAllMenuReportBtn" class="reset-btn" type="button">Sinkronkan Semua Menu &amp; HPP</button></div>';
+      productProfitFilters.innerHTML = '<div class="panel-head"><div><h3>Penjualan Produk &amp; Laba</h3><p class="panel-subtitle">Jumlah terjual dan omzet dijumlahkan per menu-varian untuk rentang tanggal yang dipilih.</p></div></div><div class="panel-actions"><label class="field-help" for="productProfitPreset">Periode</label><select id="productProfitPreset" class="compact-select"><option value="all" selected>Semua tanggal</option><option value="today">Hari ini</option><option value="yesterday">Kemarin</option><option value="7days">7 hari terakhir</option><option value="30days">30 hari terakhir</option><option value="month">Bulan ini</option><option value="custom">Rentang tanggal</option></select><label class="field-help" for="productProfitStart">Dari</label><input id="productProfitStart" class="compact-select" type="date"><label class="field-help" for="productProfitEnd">Sampai</label><input id="productProfitEnd" class="compact-select" type="date"><button id="refreshProductProfitBtn" class="save-btn" type="button">Tampilkan</button><button id="syncAllMenuReportBtn" class="reset-btn" type="button">Sinkronkan Semua Menu &amp; HPP</button></div><p class="field-help">Sinkronisasi menyamakan nama/mapping menu dan mengisi HPP transaksi yang masih kosong atau belum lengkap. HPP historis yang sudah tercatat tidak ditimpa.</p><p id="syncAllMenuStatus" class="form-message" role="status" aria-live="polite"></p>';
       productProfitSource.appendChild(productProfitFilters);
       const productProfitPanel = $('#profitVariantTableWrap')?.closest('.panel');
       if (productProfitPanel) {
@@ -3558,14 +3564,15 @@
       if ($('#financeReportEnd') && $('#productProfitEnd')) $('#productProfitEnd').value = $('#financeReportEnd').value || $('#salesReportEnd')?.value || '';
       $('#refreshProductProfitBtn')?.addEventListener('click', loadProductProfitReport);
       lifetimePanel.querySelector('#refreshLifetimeSalesBtn')?.addEventListener('click', loadLifetimeSalesAccumulation);
-      $('#syncAllMenuReportBtn')?.addEventListener('click', () => {
-        const syncButton = $('#syncMenuCatalogBtn');
-        if (syncButton) syncButton.click();
-        else {
-          const message = $('#profitLossMessage');
-          if (message) { message.textContent = 'Fitur sinkronisasi katalog tidak ditemukan. Muat ulang aplikasi dan coba lagi.'; message.className = 'form-message error'; }
-        }
-      });
+      if (document.documentElement.dataset.menuHppSyncClickBound !== 'true') {
+        document.documentElement.dataset.menuHppSyncClickBound = 'true';
+        document.addEventListener('click', (event) => {
+          const syncButton = event.target instanceof Element ? event.target.closest('#syncAllMenuReportBtn') : null;
+          if (!syncButton) return;
+          event.preventDefault();
+          void synchronizeMenuCatalogAndReports(syncButton);
+        });
+      }
       $('#productProfitPreset')?.addEventListener('change', (event) => applyProductProfitPreset(event.target.value));
       $('#productProfitStart')?.addEventListener('change', () => { if ($('#productProfitPreset')) $('#productProfitPreset').value = 'custom'; });
       $('#productProfitEnd')?.addEventListener('change', () => { if ($('#productProfitPreset')) $('#productProfitPreset').value = 'custom'; });
@@ -6203,22 +6210,35 @@
       populateRecipeMenuSelector($('#recipeTargetMenu')?.value || '');
     }
 
-    async function synchronizeMenuCatalogAndReports() {
+    async function synchronizeMenuCatalogAndReports(triggerButton = null) {
+      const clickedButton = triggerButton instanceof Element ? triggerButton : triggerButton?.currentTarget;
+      const reportMessage = $('#syncAllMenuStatus');
       if (!hasFullAdminAccess()) {
-        window.alert('Hanya Admin atau Super Admin yang dapat menyinkronkan katalog.');
+        if (reportMessage) { reportMessage.textContent = 'Hanya Admin atau Super Admin yang dapat menyinkronkan katalog dan HPP.'; reportMessage.className = 'form-message error'; }
         return;
       }
-      if (!window.confirm('Sinkronkan Master Menu ke resep, mapping, penjualan, HPP, dan laporan? Resep yatim akan dibersihkan; histori penjualan dan stok tetap aman.')) return;
-      const button = $('#syncMenuCatalogBtn');
+      if (!supabaseConfigured) {
+        if (reportMessage) { reportMessage.textContent = 'Supabase belum terhubung. Sinkronisasi HPP tidak dapat dijalankan.'; reportMessage.className = 'form-message error'; }
+        return;
+      }
+      if (reportMessage) { reportMessage.textContent = 'Tombol berfungsi. Menunggu konfirmasi untuk menjalankan sinkronisasi…'; reportMessage.className = 'form-message warning'; }
+      if (!window.confirm('Sinkronkan nama menu, mapping penjualan, dan HPP transaksi yang belum lengkap? Resep yatim/duplikat akan dirapikan. Penjualan, omzet, dan stok tidak dikurangi atau dihapus. HPP historis yang sudah lengkap tidak ditimpa.')) {
+        if (reportMessage) { reportMessage.textContent = 'Sinkronisasi dibatalkan.'; reportMessage.className = 'form-message'; }
+        return;
+      }
+      const button = clickedButton || $('#syncMenuCatalogBtn');
       const reportButton = $('#syncAllMenuReportBtn');
-      const originalText = button.textContent;
-      button.disabled = true;
-      button.textContent = 'Menyinkronkan...';
+      const originalText = button?.textContent || 'Sinkronkan Menu & Laporan';
+      const reportOriginalText = reportButton?.textContent || 'Sinkronkan Semua Menu & HPP';
+      if (button) { button.disabled = true; button.textContent = 'Menyinkronkan...'; }
       if (reportButton) { reportButton.disabled = true; reportButton.textContent = 'Menyinkronkan...'; }
+      if (reportMessage) { reportMessage.textContent = 'Sinkronisasi katalog dan HPP sedang berjalan…'; reportMessage.className = 'form-message warning'; }
       try {
+        if (reportMessage) reportMessage.textContent = 'Langkah 1/2: menyinkronkan katalog menu dan mapping penjualan…';
         const { data: catalog, error: catalogError } = await supabaseClient.rpc('synchronize_menu_catalog', { p_apply: true });
         if (catalogError) throw catalogError;
-        const { data: hpp, error: hppError } = await supabaseClient.rpc('backfill_missing_sales_hpp', {});
+        if (reportMessage) reportMessage.textContent = 'Langkah 2/2: mengisi HPP transaksi yang masih kosong atau belum lengkap…';
+        const { data: hpp, error: hppError } = await supabaseClient.rpc('backfill_missing_sales_hpp', { p_sale_id: null, p_sale_date: null });
         if (hppError) throw hppError;
         await Promise.all([
           loadMenuMaster(),
@@ -6227,30 +6247,27 @@
           loadHppReportData(),
           loadSalesReport(),
           loadProfitLossReport(),
+          loadLifetimeSalesAccumulation(),
           loadSalesAnalytics({ ignoreCategory: true })
         ]);
         const removedRecipes = Number(catalog?.orphan_recipes_removed || 0) + Number(catalog?.duplicate_recipes_removed || 0);
         const updatedSales = Number(catalog?.sales_labels_updated || 0);
+        const updatedRecipeLabels = Number(catalog?.recipe_labels_updated || 0);
+        const updatedMappingLabels = Number(catalog?.mapping_labels_updated || 0);
         const updatedHpp = Number(hpp?.updated_count || 0);
         const skippedHpp = Number(hpp?.skipped_count || 0);
-        const message = `Sinkronisasi selesai: ${removedRecipes} resep lama dibersihkan, ${updatedSales} label penjualan disamakan, ${updatedHpp} snapshot HPP diperbarui${skippedHpp ? `, ${skippedHpp} transaksi masih menunggu harga/resep` : ''}.`;
+        const message = `Sinkronisasi selesai. Nama resep diperbarui: ${updatedRecipeLabels}; mapping menu: ${updatedMappingLabels}; label penjualan: ${updatedSales}; HPP transaksi yang diisi: ${updatedHpp}; resep lama/duplikat yang dibersihkan: ${removedRecipes}${skippedHpp ? `; ${skippedHpp} transaksi masih menunggu harga/resep` : ''}. HPP historis yang sudah tercatat tetap.`;
         showMenuMasterMessage(message, skippedHpp ? 'warning' : 'success');
-        if ($('#reportsWorkspacePage')?.classList.contains('active')) {
-          $('#profitLossMessage').textContent = message;
-          $('#profitLossMessage').className = skippedHpp ? 'form-message warning' : 'form-message success';
-        }
+        if (reportMessage) { reportMessage.textContent = message; reportMessage.className = skippedHpp ? 'form-message warning' : 'form-message success'; }
         void logActivity('MENU_CATALOG_SYNC', message);
       } catch (error) {
         console.error(error);
         showMenuMasterMessage(`Sinkronisasi gagal: ${error.message}`, 'error');
-        if ($('#reportsWorkspacePage')?.classList.contains('active')) {
-          $('#profitLossMessage').textContent = `Sinkronisasi gagal: ${error.message}`;
-          $('#profitLossMessage').className = 'form-message error';
-        }
+        const userError = `${error.message || 'Kesalahan tidak diketahui.'}${error.code === 'PGRST202' || error.code === '42883' ? ' Fungsi SQL sinkronisasi belum tersedia atau versinya belum sesuai; jalankan SQL sinkronisasi terbaru di Supabase.' : ''}`;
+        if (reportMessage) { reportMessage.textContent = `Sinkronisasi gagal: ${userError}`; reportMessage.className = 'form-message error'; }
       } finally {
-        button.disabled = false;
-        button.textContent = originalText;
-        if (reportButton) { reportButton.disabled = false; reportButton.textContent = 'Sinkronkan Semua Menu & HPP'; }
+        if (button) { button.disabled = false; button.textContent = originalText; }
+        if (reportButton) { reportButton.disabled = false; reportButton.textContent = reportOriginalText; }
       }
     }
 
@@ -9963,7 +9980,7 @@
       const pageSize = 1000;
       for (let offset = 0; ; offset += pageSize) {
         let query = supabaseClient.from('sales')
-          .select('file_name, hari, sale_date, product_name, variant, category_item, quantity_sold, gross_amount, hpp_unit_cost, hpp_total, hpp_method, hpp_recorded_at, status, created_by, created_at')
+          .select('file_name, hari, sale_date, product_name, variant, category_item, quantity_sold, gross_amount, hpp_unit_cost, hpp_total, hpp_method, hpp_recorded_at, hpp_snapshot, status, created_by, created_at')
           .order('sale_date', { ascending: false })
           .order('created_at', { ascending: false })
           .range(offset, offset + pageSize - 1);
@@ -10309,11 +10326,12 @@
         const key = `${normalizeMenuName(productName)}::${normalizeMenuName(variant)}::${normalizeMenuName(categoryItem)}`;
         const quantity = Number(row.quantity_sold) || 0;
         const metrics = getSaleProfitMetrics(row);
-        const current = productMap.get(key) || { productName, variant, categoryItem, quantity: 0, revenue: 0, hpp: 0, hppKnown: true, files: new Set() };
+        const current = productMap.get(key) || { productName, variant, categoryItem, quantity: 0, revenue: 0, hpp: 0, hppKnown: true, hppRecordedRows: 0, files: new Set() };
         current.quantity += quantity;
         current.revenue += Number(row.gross_amount) || 0;
         current.hpp += metrics.hpp;
         current.hppKnown = current.hppKnown && metrics.hppKnown;
+        if (metrics.hppRecorded) current.hppRecordedRows += 1;
         if (row.file_name) current.files.add(row.file_name);
         productMap.set(key, current);
       });
@@ -10323,7 +10341,9 @@
       const allHppKnown = reportRows.every((row) => row.hppKnown);
       const totalGrossProfit = allHppKnown ? totalRevenue - totalHpp : null;
       $('#salesReportRevenue').textContent = formatRupiah(totalRevenue);
-      $('#salesReportHpp').textContent = allHppKnown ? formatRupiah(totalHpp) : '-';
+      $('#salesReportHpp').textContent = formatRupiah(totalHpp);
+      const hppNote = $('#salesReportHpp')?.parentElement?.querySelector('small');
+      if (hppNote) hppNote.textContent = allHppKnown ? 'HPP lengkap untuk semua baris' : 'Subtotal HPP tersedia; sebagian resep/biaya belum lengkap';
       $('#salesReportGrossProfit').textContent = allHppKnown ? formatRupiah(totalGrossProfit) : '-';
       $('#salesReportMargin').textContent = formatMargin(totalRevenue, totalHpp, allHppKnown);
       $('#salesReportQuantity').textContent = formatQuantity(rows.reduce((sum, row) => sum + (Number(row.quantity_sold) || 0), 0));
@@ -10334,13 +10354,13 @@
         <td>${escapeHtml(row.categoryItem || '-')}</td>
         <td>${formatQuantity(row.quantity)}</td>
         <td class="amount">${formatRupiah(row.revenue)}</td>
-        <td class="amount">${row.hppKnown ? formatRupiah(row.hpp) : '-'}</td>
+        <td class="amount">${row.hppRecordedRows ? formatRupiah(row.hpp) : '-'}</td>
         <td class="amount">${row.hppKnown ? formatRupiah(row.revenue - row.hpp) : '-'}</td>
         <td>${formatMargin(row.revenue, row.hpp, row.hppKnown)}</td>
         <td>${escapeHtml([...row.files].join(', ') || '-')}</td>
       </tr>`).join('');
       tableWrap.innerHTML = summaryRows
-        ? `<table class="history-table"><thead><tr><th>Nama Item</th><th>Varian</th><th>Jenis</th><th>Unit Terjual</th><th>Omzet Menu</th><th>HPP</th><th>Profit</th><th>Margin</th><th>File Sumber</th></tr></thead><tbody>${summaryRows}</tbody></table>`
+        ? `<table class="history-table"><thead><tr><th>Nama Item</th><th>Varian</th><th>Jenis</th><th>Unit Terjual</th><th>Omzet Menu</th><th>HPP Tercatat</th><th>Profit</th><th>Margin</th><th>File Sumber</th></tr></thead><tbody>${summaryRows}</tbody></table>`
         : '<div class="loading-row">Tidak ada penjualan pada periode yang dipilih.</div>';
       message.textContent = `${rows.length.toLocaleString('id-ID')} baris penjualan permanen berhasil dimuat.`;
       message.className = 'form-message success';
@@ -10385,10 +10405,11 @@
       financeSalesRows.forEach((row) => {
         const month = String(row.sale_date || '').slice(0, 7) || 'Tanpa tanggal';
         const metrics = getSaleProfitMetrics(row, hppMap);
-        const current = monthMap.get(month) || { month, revenue: 0, otherIncome: 0, hpp: 0, expenses: 0, hppKnown: true };
+        const current = monthMap.get(month) || { month, revenue: 0, otherIncome: 0, hpp: 0, expenses: 0, hppKnown: true, hppRecordedRows: 0 };
         current.revenue += metrics.revenue;
         current.hpp += metrics.hpp;
         current.hppKnown = current.hppKnown && metrics.hppKnown;
+        if (metrics.hppRecorded) current.hppRecordedRows += 1;
         monthMap.set(month, current);
 
         const variantKey = `${recipeLookupKey(metrics.productName, metrics.variant)}::${normalizeMenuName(metrics.categoryItem)}`;
@@ -10403,12 +10424,14 @@
           revenue: 0,
           hpp: 0,
           hppKnown: true,
+          hppRecordedRows: 0,
           recipeIncomplete: false
         };
         variantCurrent.quantity += metrics.quantity;
         variantCurrent.revenue += metrics.revenue;
         variantCurrent.hpp += metrics.hpp;
         variantCurrent.hppKnown = variantCurrent.hppKnown && metrics.hppKnown;
+        if (metrics.hppRecorded) variantCurrent.hppRecordedRows += 1;
         variantCurrent.recipeIncomplete = variantCurrent.recipeIncomplete || recipeIncomplete;
         variantMap.set(variantKey, variantCurrent);
       });
@@ -10430,7 +10453,7 @@
       const unknownVariantRows = [...variantMap.values()].filter((row) => !row.hppKnown);
       if (unknownVariantRows.length) {
         const labels = unknownVariantRows.slice(0, 4).map((row) => `${row.productName}${row.variant ? ` / ${row.variant}` : ''}`).join(', ');
-        reportMessage.textContent = `HPP belum lengkap untuk ${labels}${unknownVariantRows.length > 4 ? ', dan varian lainnya' : ''}. HPP dan laba bersih ditampilkan sebagai “-” sampai seluruh harga bahan tersedia.`;
+        reportMessage.textContent = `HPP belum lengkap untuk ${labels}${unknownVariantRows.length > 4 ? ', dan varian lainnya' : ''}. HPP yang sudah tercatat tetap dijumlahkan, termasuk biaya parsial; laba dan margin menunggu resep serta harga bahan lengkap.`;
         reportMessage.className = 'form-message warning';
       }
       const rows = [...monthMap.values()].sort((a, b) => String(b.month).localeCompare(String(a.month))).map((row) => {
@@ -10440,10 +10463,10 @@
         const maintenanceReserve = calculateMaintenanceReserve(net, net !== null);
         const netAfterReserve = net === null ? null : net - (maintenanceReserve || 0);
         const primeCost = row.hppKnown ? row.hpp + (row.labor || 0) : null;
-        return `<tr><td>${escapeHtml(formatMonthLabel(row.month))}</td><td class="amount">${formatRupiah(row.revenue)}</td><td class="amount">${formatRupiah(otherIncome)}</td><td class="amount">${formatRupiah(totalRevenue)}</td><td class="amount">${row.hppKnown ? formatRupiah(row.hpp) : '-'}</td><td class="amount">${formatRupiah(row.labor || 0)}</td><td class="amount">${primeCost === null ? '-' : formatRupiah(primeCost)}</td><td>${primeCost === null || !row.revenue ? '-' : `${((primeCost / row.revenue) * 100).toLocaleString('id-ID', { maximumFractionDigits: 1 })}%`}</td><td class="amount">${maintenanceReserve === null ? '-' : formatRupiah(maintenanceReserve)}</td><td class="amount">${formatRupiah(row.expenses)}</td><td class="amount ${net !== null && net < 0 ? 'profit-negative' : 'profit-positive'}">${net === null ? '-' : formatRupiah(net)}</td><td class="amount ${netAfterReserve !== null && netAfterReserve < 0 ? 'profit-negative' : 'profit-positive'}">${netAfterReserve === null ? '-' : formatRupiah(netAfterReserve)}</td><td>${net === null ? '-' : formatMargin(totalRevenue, row.hpp + row.expenses, true)}</td></tr>`;
+        return `<tr><td>${escapeHtml(formatMonthLabel(row.month))}</td><td class="amount">${formatRupiah(row.revenue)}</td><td class="amount">${formatRupiah(otherIncome)}</td><td class="amount">${formatRupiah(totalRevenue)}</td><td class="amount">${row.hppRecordedRows ? formatRupiah(row.hpp) : '-'}</td><td class="amount">${formatRupiah(row.labor || 0)}</td><td class="amount">${primeCost === null ? '-' : formatRupiah(primeCost)}</td><td>${primeCost === null || !row.revenue ? '-' : `${((primeCost / row.revenue) * 100).toLocaleString('id-ID', { maximumFractionDigits: 1 })}%`}</td><td class="amount">${maintenanceReserve === null ? '-' : formatRupiah(maintenanceReserve)}</td><td class="amount">${formatRupiah(row.expenses)}</td><td class="amount ${net !== null && net < 0 ? 'profit-negative' : 'profit-positive'}">${net === null ? '-' : formatRupiah(net)}</td><td class="amount ${netAfterReserve !== null && netAfterReserve < 0 ? 'profit-negative' : 'profit-positive'}">${netAfterReserve === null ? '-' : formatRupiah(netAfterReserve)}</td><td>${net === null ? '-' : formatMargin(totalRevenue, row.hpp + row.expenses, true)}</td></tr>`;
       }).join('');
       $('#profitLossTableWrap').innerHTML = rows
-        ? `<table class="history-table"><thead><tr><th>Periode</th><th>Omzet Menu Bersih</th><th>Pemasukan Lain</th><th>Total Pendapatan</th><th>HPP</th><th>Tenaga Kerja (rincian)</th><th>Prime Cost (indikator)</th><th>% Omzet Menu</th><th>Cadangan Maintenance (dari Laba Bersih)</th><th>Pengeluaran</th><th>Laba / (Rugi) Bersih</th><th>Laba Setelah Cadangan</th><th>Margin Bersih</th></tr></thead><tbody>${rows}</tbody></table>`
+        ? `<table class="history-table"><thead><tr><th>Periode</th><th>Omzet Menu Bersih</th><th>Pemasukan Lain</th><th>Total Pendapatan</th><th>HPP Tercatat</th><th>Tenaga Kerja (rincian)</th><th>Prime Cost (indikator)</th><th>% Omzet Menu</th><th>Cadangan Maintenance (dari Laba Bersih)</th><th>Pengeluaran</th><th>Laba / (Rugi) Bersih</th><th>Laba Setelah Cadangan</th><th>Margin Bersih</th></tr></thead><tbody>${rows}</tbody></table>`
         : '<div class="loading-row">Belum ada data penjualan, pemasukan lain, atau pengeluaran.</div>';
 
       const variantRows = [...variantMap.values()].sort((a, b) => b.quantity - a.quantity || b.revenue - a.revenue).map((row) => {
@@ -10454,7 +10477,7 @@
         const actionLabel = row.recipeIncomplete ? 'Perbaiki resep / HPP' : (!row.hppKnown ? 'Sinkronkan HPP' : 'Buka resep / HPP');
         const actionKind = !row.recipeIncomplete && !row.hppKnown ? 'hpp' : 'recipe';
         const action = `<button type="button" class="reset-btn" data-report-row-action="true" data-report-action-kind="${actionKind}" data-product-name="${escapeHtml(row.productName || '')}" data-variant-name="${escapeHtml(row.variant || '')}">${actionLabel}</button>`;
-        return `<tr><td>${escapeHtml(row.productName || '-')}</td><td>${escapeHtml(row.variant || '-')}</td><td>${escapeHtml(row.categoryItem || '-')}</td><td>${formatQuantity(row.quantity)}</td><td class="amount">${formatRupiah(row.revenue)}</td><td class="amount">${row.hppKnown ? formatRupiah(row.hpp) : '-'}</td><td class="amount ${profit < 0 ? 'profit-negative' : 'profit-positive'}">${row.hppKnown ? formatRupiah(profit) : '-'}</td><td>${formatMargin(row.revenue, row.hpp, row.hppKnown)}</td><td>${status}</td><td>${action}</td></tr>`;
+        return `<tr><td>${escapeHtml(row.productName || '-')}</td><td>${escapeHtml(row.variant || '-')}</td><td>${escapeHtml(row.categoryItem || '-')}</td><td>${formatQuantity(row.quantity)}</td><td class="amount">${formatRupiah(row.revenue)}</td><td class="amount">${row.hppRecordedRows ? formatRupiah(row.hpp) : '-'}</td><td class="amount ${profit < 0 ? 'profit-negative' : 'profit-positive'}">${row.hppKnown ? formatRupiah(profit) : '-'}</td><td>${formatMargin(row.revenue, row.hpp, row.hppKnown)}</td><td>${status}</td><td>${action}</td></tr>`;
       }).join('');
       $('#profitVariantTableWrap').innerHTML = variantRows
         ? `<table class="history-table"><thead><tr><th>Produk</th><th>Varian</th><th>Jenis</th><th>Jumlah Terjual</th><th>Omzet Bersih</th><th>HPP</th><th>Profit Setelah HPP</th><th>Margin</th><th>Status Resep</th><th>Aksi</th></tr></thead><tbody>${variantRows}</tbody></table>`
@@ -11057,21 +11080,24 @@
         normalizeMenuName(item.variant || 'Default') === normalizedVariant
       );
       if (masterMenu && isServiceChargeCategory(masterMenu.category)) {
-        return { productName, variant, categoryItem, quantity, revenue, hpp: 0, hppKnown: true };
+        return { productName, variant, categoryItem, quantity, revenue, hpp: 0, hppKnown: true, hppRecorded: true };
       }
       const hasSnapshot = Boolean(row.hpp_recorded_at && row.hpp_total !== null && row.hpp_total !== undefined);
       const hppMethod = String(row.hpp_method || '').toLowerCase();
       const hppKnown = hasSnapshot && Number(row.hpp_total) > 0 && !['incomplete_recipe', 'incomplete_price', 'incomplete'].includes(hppMethod);
+      const snapshot = Array.isArray(row.hpp_snapshot) ? row.hpp_snapshot : [];
+      const hppRecorded = hasSnapshot && (snapshot.length > 0 || Number(row.hpp_total) > 0);
       return {
         productName,
         variant,
         categoryItem,
         quantity,
         revenue,
-        // Never subtract a partial HPP. Previously the table showed '-'
-        // while a partial HPP was still silently deducted from net profit.
-        hpp: hppKnown ? Number(row.hpp_total) || 0 : 0,
-        hppKnown
+        // Retain recorded partial costs in the COGS subtotal. Profit remains
+        // unavailable until the full recipe and all ingredient prices exist.
+        hpp: hppRecorded ? Math.max(0, Number(row.hpp_total) || 0) : 0,
+        hppKnown,
+        hppRecorded
       };
     }
 
@@ -11091,7 +11117,7 @@
       const totalExpense = getUnifiedExpenseRows().reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
       $('#totalRevenueStat').textContent = formatRupiah(totalRevenue);
       const hppComplete = state.salesAnalytics.hppComplete !== false;
-      $('#totalHppStat').textContent = state.salesAnalytics.hasRevenue && !hppComplete ? '-' : formatRupiah(totalHpp);
+      $('#totalHppStat').textContent = formatRupiah(totalHpp);
       $('#totalExpenseStat').textContent = formatRupiah(totalExpense);
       const profit = hppComplete ? totalRevenue - totalHpp - totalExpense : null;
       const maintenanceReserve = calculateMaintenanceReserve(profit, profit !== null);
