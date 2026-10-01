@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- PATCH-FNB-SYNC-20261001 -->
+<!-- PATCH-FNB-FORENSIK-20261001 -->
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
@@ -721,6 +721,7 @@
           <div class="nav-submenu">
             <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="productProfit" data-title="Laba per Menu"><span class="nav-icon">▥</span><span>Laba per Menu</span></button>
             <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="stockMovement" data-title="Stok &amp; Pergerakan"><span class="nav-icon">◫</span><span>Stok &amp; Pergerakan</span></button>
+            <button type="button" class="nav-btn" data-page="reportsWorkspacePage" data-report-tab="forensic" data-title="Forensik Stok"><span class="nav-icon">⌕</span><span>Forensik Stok</span></button>
           </div>
         </div>
 
@@ -1498,6 +1499,34 @@
           <div class="panel history-panel" style="margin-top:20px;"><div class="panel-head"><div><h3>Rincian siklus pemakaian</h3><p class="panel-subtitle">Konsumsi staf, komplimen, testing, kalibrasi, dan waste dilaporkan terpisah.</p></div></div><div id="riceAuditCyclesWrap" class="history-table-wrap"><div class="loading-row">Pilih periode untuk memuat audit beras.</div></div></div>
           <div class="panel history-panel"><div class="panel-head"><div><h3>Menu belum terhitung / belum terhubung ke NASI-PUTIH</h3><p class="panel-subtitle">Menu makanan terjual yang resepnya belum lengkap atau belum mencantumkan preparation nasi. Periksa tiap baris; tidak semua menu makanan pasti memakai nasi.</p></div></div><div id="riceAuditUncountedWrap" class="history-table-wrap"><div class="loading-row">Pilih periode untuk memuat audit menu.</div></div></div>
           <div class="panel history-panel"><div class="panel-head"><div><h3>Menu yang terhitung memakai nasi</h3><p class="panel-subtitle">Termasuk menu tambahan bila resep variannya terhubung ke preparation NASI-PUTIH.</p></div></div><div id="riceAuditMenuWrap" class="history-table-wrap"><div class="loading-row">Pilih periode untuk memuat penjualan nasi.</div></div></div>
+        </section>
+
+        <section id="forensicStockReportPage" class="page">
+          <div class="section-title"><h1>Laporan Forensik Stok</h1><p>Bandingkan stok awal, barang masuk, pemakaian teoritis dari penjualan dan resep, catatan non-penjualan/waste, serta hasil stock opname.</p></div>
+          <div class="panel">
+            <div class="panel-head"><div><h3>Periode dan bahan</h3><p class="panel-subtitle">Pilih periode audit, bahan, dan lokasi. Hasil fisik diambil dari stock opname terakhir pada periode tersebut.</p></div></div>
+            <div class="form-grid">
+              <div class="form-field"><label for="forensicStockStart">Tanggal Mulai</label><input id="forensicStockStart" type="date" required /></div>
+              <div class="form-field"><label for="forensicStockEnd">Tanggal Akhir</label><input id="forensicStockEnd" type="date" required /></div>
+              <div class="form-field"><label for="forensicStockItem">Bahan dan lokasi</label><select id="forensicStockItem" required><option value="">Memuat bahan...</option></select></div>
+            </div>
+            <div class="form-actions"><button id="runForensicStockBtn" class="save-btn" type="button">Jalankan Analisis</button></div>
+            <p id="forensicStockMessage" class="form-message" role="status" aria-live="polite">Pilih bahan dan periode untuk mulai.</p>
+            <div class="supabase-note">Stok awal direkonstruksi dari saldo saat ini dikurangi seluruh mutasi sejak tanggal mulai. Pemakaian teoritis memakai snapshot resep transaksi; jika tidak tersedia, transaksi dihitung dengan resep aktif saat ini dan ditandai sebagai estimasi. Catatan Pemakaian Harian ditampilkan terpisah agar tidak otomatis dihitung dua kali dengan resep penjualan. Pastikan riwayat mutasi lengkap dan opname dilakukan pada akhir periode. Selisih adalah sinyal pemeriksaan, bukan bukti kehilangan atau pelanggaran.</div>
+          </div>
+          <div id="forensicStockAlert" class="panel hidden" style="margin-top:18px;border-left:5px solid var(--orange);background:#fffaf5;"></div>
+          <div class="finance-stats-grid" style="margin-top:18px;">
+            <div class="finance-card"><span>Stok Awal</span><strong id="forensicOpeningStock">-</strong><small>Saldo sebelum periode</small></div>
+            <div class="finance-card"><span>Mutasi Operasional Bersih</span><strong id="forensicInboundStock">-</strong><small>Belanja, transfer, retur, dan koreksi tercatat</small></div>
+            <div class="finance-card"><span>Pemakaian Teoritis Penjualan</span><strong id="forensicSalesUsage">-</strong><small>Jumlah menu terjual × resep bahan</small></div>
+            <div class="finance-card"><span>Non-Penjualan &amp; Waste</span><strong id="forensicOtherUsage">-</strong><small>Catatan terpisah dalam periode</small></div>
+            <div class="finance-card"><span>Stok Teoritis</span><strong id="forensicExpectedStock">-</strong><small>Saldo yang diharapkan menurut data</small></div>
+            <div class="finance-card"><span>Stok Fisik Opname</span><strong id="forensicPhysicalStock">-</strong><small>Opname terakhir di periode</small></div>
+            <div class="finance-card"><span>Selisih Belum Terjelaskan</span><strong id="forensicVarianceStock">-</strong><small>Positif berarti fisik lebih rendah</small></div>
+            <div class="finance-card"><span>Perkiraan Nilai Selisih</span><strong id="forensicVarianceValue">-</strong><small>Memakai harga acuan bahan saat ini</small></div>
+          </div>
+          <div class="panel history-panel" style="margin-top:18px;"><div class="panel-head"><div><h3>Menu yang memakai bahan ini</h3><p class="panel-subtitle">Rincian jumlah terjual dan kebutuhan bahan berdasarkan resep.</p></div></div><div id="forensicStockMenuWrap" class="history-table-wrap"><div class="loading-row">Jalankan analisis untuk menampilkan rincian.</div></div></div>
+          <div class="panel history-panel"><div class="panel-head"><div><h3>Mutasi dan catatan pemakaian</h3><p class="panel-subtitle">Rincian barang masuk, transfer, penyesuaian, pemakaian harian, non-penjualan, dan waste.</p></div></div><div id="forensicStockMovementWrap" class="history-table-wrap"><div class="loading-row">Jalankan analisis untuk menampilkan mutasi.</div></div></div>
         </section>
 
         <section id="hppReportPage" class="page">
@@ -2799,6 +2828,7 @@
     $('#refreshSalesReportBtn').addEventListener('click', () => refreshCombinedSalesFinance('sales'));
     $('#riceAuditFilterForm')?.addEventListener('submit', (event) => { event.preventDefault(); loadRiceAuditData(); });
     $('#refreshRiceAuditBtn')?.addEventListener('click', loadRiceAuditData);
+    $('#runForensicStockBtn')?.addEventListener('click', loadForensicStockReport);
     $('#refreshSalesReconciliationBtn')?.addEventListener('click', loadSalesReconciliation);
     $('#salesMappingForm')?.addEventListener('submit', saveSalesMapping);
     $('#refreshSalesMappingBtn')?.addEventListener('click', loadSalesMappingData);
@@ -3529,11 +3559,12 @@
       document.querySelectorAll('.nav-btn').forEach((item) => item.classList.remove('active'));
       const selectedNav = document.querySelector('.nav-btn[data-page="reportsWorkspacePage"][data-report-tab="' + tabKey + '"]');
       selectedNav?.classList.add('active');
-      const reportTitles = { productProfit: 'Laba per Menu', stockMovement: 'Stok & Pergerakan' };
+      const reportTitles = { productProfit: 'Laba per Menu', stockMovement: 'Stok & Pergerakan', forensic: 'Forensik Stok' };
       setNavigationTitle(reportTitles[tabKey] || selectedNav?.dataset.title || 'Laporan');
       const loaders = {
         productProfit: async () => { await Promise.all([loadProductProfitReport(), loadLifetimeSalesAccumulation()]); },
-        stockMovement: async () => { await loadStockReport(); await loadRiceAuditData(); }
+        stockMovement: async () => { await loadStockReport(); await loadRiceAuditData(); },
+        forensic: loadForensicStockReport
       };
       if (loaders[tabKey]) void loaders[tabKey]();
     }
@@ -3617,7 +3648,8 @@
       firstSource.parentNode.insertBefore(workspace, firstSource);
       const specs = [
         ['productProfit', 'Laba per Menu', ['productProfitReportPage']],
-        ['stockMovement', 'Stok & Pergerakan', ['stockReportPage', 'riceAuditPage']]
+        ['stockMovement', 'Stok & Pergerakan', ['stockReportPage', 'riceAuditPage']],
+        ['forensic', 'Forensik Stok', ['forensicStockReportPage']]
       ];
       specs.forEach(([key, label, sourceId], index) => {
         const button = document.createElement('button');
@@ -3642,7 +3674,7 @@
       const combinedTitle = workspace.querySelector('.section-title h1');
       if (combinedTitle) combinedTitle.textContent = 'Laporan';
       const combinedDescription = workspace.querySelector('.section-title p');
-      if (combinedDescription) combinedDescription.textContent = 'Lihat laba per menu serta stok dan pergerakannya. Audit beras berada di bagian Stok & Pergerakan.';
+      if (combinedDescription) combinedDescription.textContent = 'Lihat laba per menu, stok dan pergerakannya, serta analisis forensik stok berdasarkan penjualan, resep, dan hasil opname.';
       const productTitle = workspace.querySelector('[data-report-tab="productProfit"] .section-title h1');
       if (productTitle) productTitle.textContent = 'Laba per Menu';
     }
@@ -6481,6 +6513,224 @@
         if (!data || data.length < pageSize) break;
       }
       return { data: rows, error: null };
+    }
+
+    function forensicJakartaDate(value) {
+      if (!value) return '';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+    }
+
+    function setForensicMetric(id, value) {
+      const node = $(`#${id}`);
+      if (node) node.textContent = value;
+    }
+
+    async function loadForensicStockReport() {
+      const message = $('#forensicStockMessage');
+      const menuWrap = $('#forensicStockMenuWrap');
+      const movementWrap = $('#forensicStockMovementWrap');
+      const alertBox = $('#forensicStockAlert');
+      const runButton = $('#runForensicStockBtn');
+      if (!message || !menuWrap || !movementWrap) return;
+      if (!supabaseConfigured) {
+        message.textContent = 'Supabase belum dikonfigurasi. Laporan forensik belum dapat dimuat.';
+        message.className = 'form-message error';
+        return;
+      }
+      const today = forensicJakartaDate(new Date());
+      const startInput = $('#forensicStockStart');
+      const endInput = $('#forensicStockEnd');
+      if (startInput && !startInput.value) startInput.value = `${today.slice(0, 7)}-01`;
+      if (endInput && !endInput.value) endInput.value = today;
+      const start = startInput?.value || `${today.slice(0, 7)}-01`;
+      const end = endInput?.value || today;
+      if (start > end) {
+        message.textContent = 'Tanggal mulai harus sama dengan atau lebih awal dari tanggal akhir.';
+        message.className = 'form-message error';
+        return;
+      }
+      if (runButton) { runButton.disabled = true; runButton.textContent = 'Menghitung…'; }
+      message.textContent = 'Mengambil transaksi, resep, mutasi, dan hasil opname…';
+      message.className = 'form-message warning';
+      menuWrap.innerHTML = '<div class="loading-row">Menghitung pemakaian bahan dari penjualan…</div>';
+      movementWrap.innerHTML = '<div class="loading-row">Memuat mutasi bahan…</div>';
+      if (alertBox) { alertBox.classList.add('hidden'); alertBox.innerHTML = ''; }
+      try {
+        const [inventoryResult, movementResult, salesResult, opnameResult, conversionResult] = await Promise.all([
+          supabaseClient.from('inventory').select('id, item_name, stock_quantity, unit, division, reference_unit_cost').order('item_name', { ascending: true }),
+          fetchAllReportRows('stock_movements', 'inventory_item_id, division, movement_type, quantity, unit_cost, reference_type, reference_id, notes, created_at', 'created_at'),
+          fetchAllReportRows('sales', 'id, sale_date, product_name, variant, quantity_sold, status, hpp_method, hpp_snapshot', 'sale_date'),
+          supabaseClient.rpc('list_stock_opname_history'),
+          supabaseClient.rpc('list_unit_conversions')
+        ]);
+        if (inventoryResult.error) throw inventoryResult.error;
+        if (movementResult.error) throw new Error(`Riwayat mutasi stok gagal dibaca: ${movementResult.error.message}`);
+        if (salesResult.error) throw new Error(`Data penjualan gagal dibaca: ${salesResult.error.message}`);
+        if (opnameResult.error) throw new Error(`Data stock opname gagal dibaca: ${opnameResult.error.message}`);
+        if (conversionResult.error) throw new Error(`Data konversi satuan gagal dibaca: ${conversionResult.error.message}`);
+
+        const inventory = (inventoryResult.data || []).filter((row) => !isVirtualPreparationItem(row));
+        const itemSelect = $('#forensicStockItem');
+        const priorItemId = itemSelect?.value || '';
+        if (itemSelect) {
+          itemSelect.innerHTML = '<option value="">Pilih bahan baku dan lokasi…</option>' + inventory.map((row) => `<option value="${escapeHtml(String(row.id))}">${escapeHtml(row.item_name)} · ${escapeHtml(row.division || 'Gudang Utama')}</option>`).join('');
+          if (inventory.some((row) => String(row.id) === priorItemId)) itemSelect.value = priorItemId;
+          else if (inventory.length) itemSelect.value = String(inventory[0].id);
+        }
+        const item = inventory.find((row) => String(row.id) === String(itemSelect?.value || ''));
+        if (!item) throw new Error('Pilih bahan baku yang tersedia.');
+        const itemId = String(item.id);
+        const division = item.division || 'Gudang Utama';
+        const itemMovements = (movementResult.data || []).filter((row) => String(row.inventory_item_id) === itemId && String(row.division || division) === String(division));
+        const inPeriodMovements = itemMovements.filter((row) => {
+          const date = forensicJakartaDate(row.created_at);
+          return date >= start && date <= end;
+        });
+        const movementSinceStart = itemMovements.filter((row) => forensicJakartaDate(row.created_at) >= start).reduce((sum, row) => sum + (Number(row.quantity) || 0), 0);
+        const openingStock = (Number(item.stock_quantity) || 0) - movementSinceStart;
+        const movementType = (row) => String(row.movement_type || '').toLowerCase();
+        const excludedProjectionTypes = new Set(['sale', 'void', 'opname_adjustment', 'stock_opname', 'production_consume', 'daily_usage', 'waste', 'non_sale']);
+        const netInbound = inPeriodMovements.filter((row) => !excludedProjectionTypes.has(movementType(row))).reduce((sum, row) => sum + (Number(row.quantity) || 0), 0);
+        const documentedOutsideSales = inPeriodMovements.filter((row) => ['waste', 'non_sale'].includes(movementType(row)) && Number(row.quantity) < 0).reduce((sum, row) => sum + Math.abs(Number(row.quantity) || 0), 0);
+        const dailyUsageLogged = inPeriodMovements.filter((row) => movementType(row) === 'daily_usage' && Number(row.quantity) < 0).reduce((sum, row) => sum + Math.abs(Number(row.quantity) || 0), 0);
+        const sales = (salesResult.data || []).filter((row) => String(row.status || 'posted').toLowerCase() !== 'void' && String(row.sale_date || '') >= start && String(row.sale_date || '') <= end);
+        const conversions = conversionResult.data || [];
+        let salesUsage = 0;
+        let relevantSalesQuantity = 0;
+        let fallbackLineCount = 0;
+        let fallbackErrorCount = 0;
+        const menuUse = new Map();
+        const fallbackGroups = new Map();
+        const parseSnapshot = (value) => {
+          if (Array.isArray(value)) return value;
+          if (typeof value === 'string') { try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch (_) { return []; } }
+          return [];
+        };
+        sales.forEach((row) => {
+          const quantitySold = Number(row.quantity_sold) || 0;
+          if (quantitySold <= 0) return;
+          const snapshot = parseSnapshot(row.hpp_snapshot);
+          const needsFallback = !snapshot.length || String(row.hpp_method || '').toLowerCase().includes('incomplete');
+          if (!needsFallback) {
+            const entries = snapshot.filter((entry) => String(entry.inventory_item_id) === itemId && !entry.missing);
+            if (!entries.length) return;
+            const usage = entries.reduce((sum, entry) => sum + (Number(entry.quantity) || 0), 0);
+            salesUsage += usage;
+            relevantSalesQuantity += quantitySold;
+            const key = `${normalizeMenuName(row.product_name)}::${normalizeMenuName(row.variant || 'Default')}`;
+            const current = menuUse.get(key) || { product: row.product_name || 'Menu tanpa nama', variant: row.variant || 'Default', quantitySold: 0, usage: 0, source: 'Snapshot resep transaksi' };
+            current.quantitySold += quantitySold;
+            current.usage += usage;
+            menuUse.set(key, current);
+            return;
+          }
+          const key = `${normalizeMenuName(row.product_name)}::${normalizeMenuName(row.variant || 'Default')}`;
+          const group = fallbackGroups.get(key) || { product_name: row.product_name, variant: row.variant || 'Default', quantity: 0, rows: 0 };
+          group.quantity += quantitySold;
+          group.rows += 1;
+          fallbackGroups.set(key, group);
+        });
+
+        const fallbackList = [...fallbackGroups.values()];
+        for (let offset = 0; offset < fallbackList.length; offset += 8) {
+          const chunk = fallbackList.slice(offset, offset + 8);
+          const expanded = await Promise.all(chunk.map(async (group) => {
+            try {
+              const { data, error } = await supabaseClient.rpc('expand_menu_recipe_to_inventory', {
+                p_menu_name: group.product_name,
+                p_variant: normalizeMenuName(group.variant) === 'default' ? null : group.variant,
+                p_quantity: group.quantity
+              });
+              if (error) throw error;
+              return { group, data: data || [], error: null };
+            } catch (error) { return { group, data: [], error }; }
+          }));
+          expanded.forEach(({ group, data, error }) => {
+            if (error) { fallbackErrorCount += group.rows; return; }
+            const lines = data.filter((entry) => String(entry.inventory_item_id) === itemId);
+            if (!lines.length) return;
+            const usage = lines.reduce((sum, entry) => {
+              let amount = Number(entry.quantity_needed) || 0;
+              const conversion = conversions.find((row) => String(row.inventory_item_id) === itemId && row.is_active !== false && normalizeText(row.usage_unit) === normalizeText(entry.recipe_unit || ''));
+              if (conversion && Number(conversion.storage_to_usage) > 0) amount = amount / Number(conversion.storage_to_usage) / ((Number(conversion.yield_percentage) || 100) / 100);
+              return sum + amount;
+            }, 0);
+            salesUsage += usage;
+            relevantSalesQuantity += group.quantity;
+            fallbackLineCount += group.rows;
+            const key = `${normalizeMenuName(group.product_name)}::${normalizeMenuName(group.variant)}`;
+            const current = menuUse.get(key) || { product: group.product_name || 'Menu tanpa nama', variant: group.variant || 'Default', quantitySold: 0, usage: 0, source: 'Estimasi resep aktif saat ini' };
+            current.quantitySold += group.quantity;
+            current.usage += usage;
+            current.source = 'Estimasi resep aktif saat ini';
+            menuUse.set(key, current);
+          });
+        }
+
+        const opname = (opnameResult.data || []).filter((row) => normalizeText(row.item_name) === normalizeText(item.item_name) && String(row.division || 'Gudang Utama') === String(division) && String(row.status || 'posted').toLowerCase() !== 'void' && forensicJakartaDate(row.created_at) >= start && forensicJakartaDate(row.created_at) <= end).sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))[0];
+        const expectedStock = openingStock + netInbound - salesUsage - documentedOutsideSales;
+        const physicalStock = opname ? Number(opname.physical_stock) : null;
+        const unexplained = physicalStock === null ? null : expectedStock - physicalStock;
+        let unitCost = Number(item.reference_unit_cost) || 0;
+        if (!unitCost) {
+          const priced = itemMovements.filter((row) => ['purchase', 'transfer_in', 'return'].includes(movementType(row)) && Number(row.quantity) > 0 && Number(row.unit_cost) > 0);
+          const totalQty = priced.reduce((sum, row) => sum + Number(row.quantity), 0);
+          if (totalQty > 0) unitCost = priced.reduce((sum, row) => sum + Number(row.quantity) * Number(row.unit_cost), 0) / totalQty;
+        }
+        const ratio = unexplained !== null && salesUsage + documentedOutsideSales > 0 ? Math.max(0, unexplained) / (salesUsage + documentedOutsideSales) : (unexplained > 0 ? 1 : 0);
+        const servings = unexplained > 0 && salesUsage > 0 && relevantSalesQuantity > 0 ? Math.round(unexplained / (salesUsage / relevantSalesQuantity)) : null;
+        const unit = item.unit || '';
+        const displayQty = (value) => `${formatQuantity(value)} ${escapeHtml(unit)}`;
+        setForensicMetric('forensicOpeningStock', displayQty(openingStock));
+        setForensicMetric('forensicInboundStock', displayQty(netInbound));
+        setForensicMetric('forensicSalesUsage', displayQty(salesUsage));
+        setForensicMetric('forensicOtherUsage', displayQty(documentedOutsideSales));
+        setForensicMetric('forensicExpectedStock', displayQty(expectedStock));
+        setForensicMetric('forensicPhysicalStock', physicalStock === null ? 'Belum opname' : displayQty(physicalStock));
+        setForensicMetric('forensicVarianceStock', unexplained === null ? 'Belum tersedia' : displayQty(unexplained));
+        setForensicMetric('forensicVarianceValue', unexplained === null || !unitCost ? '-' : formatRupiah(Math.abs(unexplained) * unitCost));
+
+        if (alertBox) {
+          alertBox.classList.remove('hidden');
+          if (physicalStock === null) {
+            alertBox.innerHTML = `<div class="panel-head"><div><h3>Opname fisik belum tersedia</h3><p class="panel-subtitle">Stok teoritis ${escapeHtml(item.item_name)} di ${escapeHtml(division)} adalah ${displayQty(expectedStock)}. Catat stock opname pada akhir periode untuk menghitung selisih fisik.</p></div></div>`;
+          } else if (fallbackErrorCount > 0) {
+            alertBox.innerHTML = `<div class="panel-head"><div><h3>Analisis parsial — resep belum dapat dihitung</h3><p class="panel-subtitle">${fallbackErrorCount} baris penjualan belum memiliki snapshot resep dan gagal dihitung dari resep aktif. Angka stok teoritis ${displayQty(expectedStock)} belum lengkap; selisih terhadap opname ${displayQty(physicalStock)} belum dapat dinilai sampai resep tersinkron atau dilengkapi.</p></div></div>`;
+          } else if (unexplained > 0) {
+            const label = ratio >= 0.15 ? 'Selisih besar — perlu ditinjau' : 'Ada selisih — periksa catatan';
+            alertBox.innerHTML = `<div class="panel-head"><div><h3>💡 ${label}</h3><p class="panel-subtitle">Stok teoritis ${escapeHtml(item.item_name)} di ${escapeHtml(division)} adalah <strong>${displayQty(expectedStock)}</strong>; hasil opname <strong>${displayQty(physicalStock)}</strong>. Selisih ${displayQty(unexplained)}${servings !== null ? `, setara sekitar ${formatQuantity(servings)} porsi/cup berdasarkan resep rata-rata pada periode ini` : ''}${unitCost ? ` (estimasi ${formatRupiah(unexplained * unitCost)})` : ''}. Periksa catatan pemakaian harian, komplimen, waste, resep, transfer, dan hasil hitung fisik. Ini indikator audit, bukan kesimpulan penyebab.</p></div></div>`;
+          } else if (unexplained < 0) {
+            alertBox.innerHTML = `<div class="panel-head"><div><h3>Stok fisik lebih banyak dari perkiraan</h3><p class="panel-subtitle">Fisik melebihi stok teoritis sebesar ${displayQty(Math.abs(unexplained))}. Periksa kemungkinan penerimaan, transfer masuk, atau penyesuaian yang belum tercatat.</p></div></div>`;
+          } else {
+            alertBox.innerHTML = `<div class="panel-head"><div><h3>Stok cocok dengan perhitungan teoritis</h3><p class="panel-subtitle">Hasil opname sama dengan perkiraan untuk bahan ${escapeHtml(item.item_name)}.</p></div></div>`;
+          }
+        }
+        const menuRows = [...menuUse.values()].sort((a, b) => b.usage - a.usage).map((row) => `<tr><td>${escapeHtml(row.product)}</td><td>${escapeHtml(row.variant)}</td><td class="numeric">${formatQuantity(row.quantitySold)}</td><td class="numeric">${displayQty(row.usage)}</td><td>${escapeHtml(row.source)}</td></tr>`).join('');
+        menuWrap.innerHTML = menuRows ? `<table class="history-table"><thead><tr><th>Menu</th><th>Varian</th><th>Jumlah Terjual</th><th>Pemakaian Teoritis</th><th>Sumber Hitungan</th></tr></thead><tbody>${menuRows}</tbody></table>` : '<div class="loading-row">Tidak ditemukan resep transaksi yang memakai bahan ini pada periode terpilih.</div>';
+
+        const labels = { purchase: 'Belanja masuk', transfer_in: 'Transfer masuk', transfer_out: 'Transfer keluar', return: 'Retur masuk', waste: 'Waste', non_sale: 'Pemakaian non-penjualan', daily_usage: 'Pemakaian harian (ditampilkan terpisah)', opname_adjustment: 'Penyesuaian opname (di luar proyeksi)', adjustment: 'Penyesuaian stok', stock_opname: 'Penyesuaian opname (di luar proyeksi)', production_in: 'Output preparation', production_consume: 'Pemakaian produksi (ditampilkan terpisah)', sale: 'Potongan penjualan di ledger', void: 'Pembalikan transaksi' };
+        const excluded = new Set(['sale', 'void', 'opname_adjustment', 'stock_opname', 'production_consume', 'daily_usage']);
+        const movementRows = [...inPeriodMovements].sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))).map((row) => {
+          const type = movementType(row);
+          const effect = excluded.has(type) ? 'Tidak masuk proyeksi' : (['waste', 'non_sale'].includes(type) ? 'Dikurangkan terpisah' : (type === 'daily_usage' ? 'Tampil terpisah; potensi tumpang tindih' : 'Masuk mutasi bersih'));
+          return `<tr><td>${escapeHtml(forensicJakartaDate(row.created_at) || '-')}</td><td>${escapeHtml(labels[type] || type)}</td><td class="numeric">${formatQuantity(Math.abs(Number(row.quantity) || 0))} ${escapeHtml(unit)}</td><td>${escapeHtml(effect)}</td><td>${escapeHtml(row.notes || '-')}</td></tr>`;
+        }).join('');
+        movementWrap.innerHTML = movementRows ? `<table class="history-table"><thead><tr><th>Tanggal</th><th>Jenis</th><th>Jumlah</th><th>Perlakuan</th><th>Catatan</th></tr></thead><tbody>${movementRows}</tbody></table>` : '<div class="loading-row">Belum ada mutasi bahan pada periode ini.</div>';
+        const fallbackNote = fallbackLineCount || fallbackErrorCount ? ` ${fallbackLineCount} baris tanpa snapshot memakai resep aktif sebagai estimasi${fallbackErrorCount ? `; ekspansi resep ${fallbackErrorCount} baris gagal dan tidak dihitung` : ''}.` : '';
+        const dailyNote = dailyUsageLogged ? ` Pemakaian harian tercatat ${displayQty(dailyUsageLogged)} dan ditampilkan terpisah agar tidak dihitung ganda.` : '';
+        message.textContent = `Analisis ${item.item_name} · ${division} · ${start} sampai ${end} selesai. Opname: ${opname ? forensicJakartaDate(opname.created_at) : 'belum tersedia'}.${fallbackNote}${dailyNote}`;
+        message.className = fallbackErrorCount || physicalStock === null ? 'form-message warning' : 'form-message success';
+      } catch (error) {
+        console.error(error);
+        message.textContent = `Analisis forensik gagal dimuat: ${error.message}`;
+        message.className = 'form-message error';
+        menuWrap.innerHTML = '<div class="loading-row">Data belum dapat dihitung.</div>';
+        movementWrap.innerHTML = '<div class="loading-row">Data mutasi belum dapat ditampilkan.</div>';
+      } finally {
+        if (runButton) { runButton.disabled = false; runButton.textContent = 'Jalankan Analisis'; }
+      }
     }
 
     function getStockDeductionPeriod() {
